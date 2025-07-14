@@ -2,7 +2,7 @@ version: 1.0
 runtime: python3
 build:
   commands:
-    pre_build:
+    pre-build:
       - echo "=== PRE-BUILD PHASE ==="
       - echo "Setting up environment..."
       - python3 --version
@@ -17,7 +17,7 @@ build:
       - pip install --no-cache-dir --timeout=300 -r requirements.txt
       - echo "Verifying critical imports..."
       - python3 -c "import fastapi; import uvicorn; import sqlalchemy; print('Core dependencies verified')"
-    post_build:
+    post-build:
       - echo "=== POST-BUILD PHASE ==="
       - echo "Setting up application structure..."
       - mkdir -p /app/uploads
