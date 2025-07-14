@@ -372,168 +372,20 @@
   }
 }
 
-@keyframes slideInLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-50px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
 @keyframes float {
-  0%, 100% {
-    transform: translateY(0px);
+  0%, 100% { 
+    transform: translateY(0px) rotate(0deg); 
   }
-  50% {
-    transform: translateY(-10px);
+  33% { 
+    transform: translateY(-10px) rotate(120deg); 
   }
-}
-
-@keyframes glow {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  66% { 
+    transform: translateY(5px) rotate(240deg); 
   }
-  50% {
-    box-shadow: 0 0 30px rgba(59, 130, 246, 0.6);
-  }
-}
-
-.animate-fadeInUp {
-  animation: fadeInUp 0.6s ease-out forwards;
-}
-
-.animate-scaleIn {
-  animation: scaleIn 0.5s ease-out forwards;
-}
-
-.animate-slideInLeft {
-  animation: slideInLeft 0.6s ease-out forwards;
-}
-
-.animate-pulse {
-  animation: pulse 2s ease-in-out infinite;
 }
 
 .animate-float {
-  animation: float 3s ease-in-out infinite;
-}
-
-.animate-glow {
-  animation: glow 2s ease-in-out infinite;
-}
-
-/* Pricing Card Hover Effects */
-.pricing-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  transform-origin: center;
-}
-
-.pricing-card:hover {
-  transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-}
-
-.pricing-card.popular {
-  position: relative;
-  overflow: hidden;
-}
-
-.pricing-card.popular::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  transition: left 0.5s;
-}
-
-.pricing-card.popular:hover::before {
-  left: 100%;
-}
-
-/* Feature List Animations */
-.feature-item {
-  transition: all 0.3s ease;
-}
-
-.feature-item:hover {
-  transform: translateX(8px);
-  background: rgba(var(--muted), 0.5);
-  border-radius: 12px;
-  padding: 12px;
-  margin: -12px;
-}
-
-/* Button Animations */
-.btn-gradient {
-  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)) 50%, hsl(262.1 83.3% 57.8%));
-  background-size: 200% 200%;
-  animation: gradient-shift 3s ease infinite;
-}
-
-@keyframes gradient-shift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-/* Card Glass Effect */
-.glass-card {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  transition: all 0.3s ease;
-}
-
-.glass-card:hover {
-  background: rgba(255, 255, 255, 0.15);
-  transform: translateY(-4px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-}
-
-/* Dark mode glass effect */
-.dark .glass-card {
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.dark .glass-card:hover {
-  background: rgba(0, 0, 0, 0.3);
-}
-
-/* Enhanced Text Gradients */
-.text-gradient {
-  background: linear-gradient(135deg, hsl(var(--primary)), hsl(262.1 83.3% 57.8%), hsl(316.5 98.8% 68.2%));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: gradient-shift 4s ease infinite;
-  background-size: 200% 200%;
-}
-
-/* Improved Mobile Responsiveness */
-@media (max-width: 768px) {
-  .pricing-card:hover {
-    transform: translateY(-4px) scale(1.01);
-  }
-  
-  .feature-item:hover {
-    transform: translateX(4px);
-  }
+  animation: float linear infinite;
 }
 
 @keyframes shimmer {
