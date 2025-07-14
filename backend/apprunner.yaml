@@ -2,20 +2,147 @@ version: 1.0
 runtime: python3
 build:
   commands:
+    pre_build:
+      - echo "=== PRE-BUILD PHASE ==="
+      - echo "Setting up environment..."
+      - python3 --version
+      - pip --version
+      - echo "Upgrading pip..."
+      - python3 -m pip install --upgrade pip setuptools wheel
+      - echo "Installing system dependencies..."
+      - apt-get update || echo "apt-get not available, skipping system package updates"
     build:
-      - echo "Installing dependencies..."
-      - pip install --upgrade pip
-      - pip install -r requirements.txt
+      - echo "=== BUILD PHASE ==="
+      - echo "Installing Python dependencies..."
+      - pip install --no-cache-dir --timeout=300 -r requirements.txt
+      - echo "Verifying critical imports..."
+      - python3 -c "import fastapi; import uvicorn; import sqlalchemy; print('Core dependencies verified')"
+    post_build:
+      - echo "=== POST-BUILD PHASE ==="
+      - echo "Setting up application structure..."
+      - mkdir -p /app/uploads
+      - mkdir -p /app/exports
+      - mkdir -p /app/logs
+      - echo "Build completed successfully!"
 run:
-  runtime-version: 3.10
-  command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+  runtime-version: 3.11
+  command: python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
   network:
     port: 8000
     env: PORT
   env:
+    # Core Application Settings
     - name: PORT
       value: "8000"
+    - name: HOST
+      value: "0.0.0.0"
     - name: PYTHONPATH
       value: "/app"
     - name: ENVIRONMENT
-      value: "production" 
+      value: "production"
+    - name: DEBUG
+      value: "false"
+    
+    # Python Optimization
+    - name: PYTHONUNBUFFERED
+      value: "1"
+    - name: PYTHONDONTWRITEBYTECODE
+      value: "1"
+    - name: PIP_NO_CACHE_DIR
+      value: "1"
+    - name: PIP_DISABLE_PIP_VERSION_CHECK
+      value: "1"
+    
+    # Security Configuration
+    - name: SECRET_KEY
+      value: "IqFjQQ6X1BK8dsjQiWczLp1lDxB6OMHPNsUv7FogQTY"
+    - name: JWT_SECRET_KEY
+      value: "vIDj23sNf6d00NPNjrJpVpB6G9blusc4RviZ6dDQGaE"
+    - name: FORCE_HTTPS
+      value: "true"
+    
+    # Database Configuration
+    - name: DATABASE_URL
+      value: "postgresql://genovo:TGU<5<v1o8-Z~::v:9$V-UNwg~V0@synthos.cqnoi6g24lpg.us-east-1.rds.amazonaws.com:5432/synthos"
+    - name: AWS_RDS_ENDPOINT
+      value: "synthos.cqnoi6g24lpg.us-east-1.rds.amazonaws.com"
+    - name: AWS_RDS_PORT
+      value: "5432"
+    - name: AWS_RDS_DATABASE
+      value: "synthos"
+    - name: AWS_RDS_USERNAME
+      value: "genovo"
+    - name: AWS_RDS_USE_SSL
+      value: "true"
+    
+    # Redis Configuration
+    - name: REDIS_URL
+      value: "rediss://synthos-33lvyw.serverless.use1.cache.amazonaws.com:6379"
+    - name: CACHE_URL
+      value: "rediss://synthos-33lvyw.serverless.use1.cache.amazonaws.com:6379"
+    - name: CACHE_BACKEND
+      value: "redis"
+    - name: AWS_ELASTICACHE_ENDPOINT
+      value: "synthos-33lvyw.serverless.use1.cache.amazonaws.com"
+    - name: AWS_ELASTICACHE_PORT
+      value: "6379"
+    - name: AWS_ELASTICACHE_USE_TLS
+      value: "true"
+    
+    # Celery Configuration
+    - name: CELERY_BROKER_URL
+      value: "rediss://synthos-33lvyw.serverless.use1.cache.amazonaws.com:6379/1"
+    - name: CELERY_RESULT_BACKEND
+      value: "rediss://synthos-33lvyw.serverless.use1.cache.amazonaws.com:6379/2"
+    
+    # AWS Configuration
+    - name: AWS_REGION
+      value: "us-east-1"
+    - name: AWS_ACCESS_KEY_ID
+      value: "AKIA2FMTH3NWTGQXI6CA"
+    - name: AWS_SECRET_ACCESS_KEY
+      value: "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"
+    - name: AWS_S3_BUCKET
+      value: "synthos-dev"
+    
+    # AI API Keys
+    - name: ANTHROPIC_API_KEY
+      value: "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"
+    - name: OPENAI_API_KEY
+      value: "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"
+    
+    # Payment Configuration
+    - name: PRIMARY_PAYMENT_PROVIDER
+      value: "paddle"
+    - name: ENABLE_MULTIPLE_PAYMENT_PROVIDERS
+      value: "true"
+    - name: PADDLE_PUBLIC_KEY
+      value: "pdl_sdbx_apikey_01jzp3tskdwzpasb56pxfjy5wc_WjyxfT2Q32Jzp0hAQv4YQt_AKv"
+    - name: PADDLE_ENVIRONMENT
+      value: "production"
+    
+    # CORS Configuration
+    - name: CORS_ORIGINS
+      value: "https://synthos.dev,https://synthos-dev.vercel.app"
+    - name: ALLOWED_HOSTS
+      value: "*"
+    
+    # API Configuration
+    - name: API_V1_STR
+      value: "/api/v1"
+    
+    # File Storage
+    - name: UPLOAD_PATH
+      value: "/app/uploads"
+    - name: EXPORT_PATH
+      value: "/app/exports"
+    
+    # Limits
+    - name: FREE_TIER_MONTHLY_LIMIT
+      value: "10000"
+    - name: MAX_SYNTHETIC_ROWS
+      value: "5000000"
+    
+    # Pricing Configuration
+    - name: PRICING_TIERS
+      value: '{"starter": {"price": 99, "stripe_price_id": "price_starter_monthly", "paddle_product_id": "pro_01jzp36tyrsdg91hprxx47zhwb"}, "professional": {"price": 599, "stripe_price_id": "price_professional_monthly", "paddle_product_id": "pro_01jzp3ds3cj4y0x9y53ftcmmkk"}, "growth": {"price": 1299, "stripe_price_id": "price_growth_monthly", "paddle_product_id": "pro_01jzp3gcsceh34w3jvyyn68rhr"}}' 

@@ -1,102 +1,81 @@
-# Core FastAPI dependencies
-fastapi>=0.104.1
-uvicorn[standard]>=0.24.0
-pydantic>=2.5.0
-pydantic[email]>=2.5.0
+# =============================================================================
+# SYNTHOS BACKEND DEPENDENCIES - OPTIMIZED FOR AWS APP RUNNER
+# Python 3.11 Compatible - Production Ready
+# =============================================================================
 
-# Database dependencies
-sqlalchemy>=2.0.23
-psycopg2-binary>=2.9.9
-alembic>=1.13.1
-asyncpg>=0.29.0
+# Core FastAPI Framework
+fastapi>=0.104.1,<0.105.0
+uvicorn[standard]>=0.24.0,<0.25.0
+pydantic>=2.5.0,<3.0.0
+pydantic[email]>=2.5.0,<3.0.0
+
+# Database & ORM
+sqlalchemy>=2.0.23,<2.1.0
+psycopg2-binary>=2.9.9,<3.0.0
+alembic>=1.13.1,<2.0.0
+asyncpg>=0.29.0,<0.30.0
 
 # Authentication & Security
-passlib[bcrypt]>=1.7.4
-python-jose[cryptography]>=3.3.0
-python-multipart>=0.0.6
-itsdangerous>=2.1.2
-slowapi>=0.1.9
-jwt>=1.4.0
-PyJWT>=2.8.0
-opendp>=0.13.0
+passlib[bcrypt]>=1.7.4,<2.0.0
+PyJWT>=2.8.0,<3.0.0
+python-jose[cryptography]>=3.3.0,<4.0.0
+python-multipart>=0.0.6,<1.0.0
+itsdangerous>=2.1.2,<3.0.0
+slowapi>=0.1.9,<1.0.0
 
-# Email functionality
-email-validator>=2.1.0
-jinja2>=3.1.2
+# Email & Templates
+email-validator>=2.1.0,<3.0.0
+jinja2>=3.1.2,<4.0.0
 
-# Redis for caching and sessions
-redis>=5.0.1
-aioredis>=2.0.1
+# Redis & Caching
+redis>=5.0.1,<6.0.0
+aioredis>=2.0.1,<3.0.0
 
-# Celery for background tasks
-celery>=5.3.4
-flower>=2.0.1
+# Background Tasks
+celery>=5.3.4,<6.0.0
 
-# AWS services
-boto3>=1.34.0
-botocore>=1.34.0
+# AWS Services
+boto3>=1.34.0,<2.0.0
+botocore>=1.34.0,<2.0.0
 
-# AI/ML services
-anthropic>=0.7.8
-openai>=1.6.1
+# AI/ML APIs
+anthropic>=0.7.8,<1.0.0
+openai>=1.6.1,<2.0.0
 
-# Monitoring and logging
-sentry-sdk[fastapi]>=1.39.2
-prometheus-client>=0.19.0
-structlog>=23.2.0
-python-json-logger>=2.0.9
+# Monitoring & Logging
+sentry-sdk[fastapi]>=1.39.2,<2.0.0
+structlog>=23.2.0,<24.0.0
+python-json-logger>=2.0.9,<3.0.0
 
-# Stripe for payments
-stripe>=7.9.0
+# Payment Processing
+stripe>=7.9.0,<8.0.0
 
-# Data processing
-pandas>=2.1.4
-numpy>=1.25.2
-pyarrow>=14.0.2
+# Data Processing (Core only)
+pandas>=2.1.4,<3.0.0
+numpy>=1.25.2,<2.0.0
 
-# File handling
-openpyxl>=3.1.2
-xlsxwriter>=3.1.9
-aiofiles>=24.1.0
+# File Handling
+aiofiles>=24.1.0,<25.0.0
+openpyxl>=3.1.2,<4.0.0
 
-# HTTP clients
-httpx>=0.25.2
-requests>=2.31.0
+# HTTP Clients
+httpx>=0.25.2,<1.0.0
+requests>=2.31.0,<3.0.0
 
-# Development dependencies
-pytest>=7.4.3
-pytest-asyncio>=0.21.1
-pytest-cov>=4.1.0
-black>=23.11.0
-isort>=5.12.0
-flake8>=6.1.0
-mypy>=1.7.1
+# Environment & Configuration
+python-decouple>=3.8,<4.0.0
+python-dotenv>=1.0.0,<2.0.0
 
-# Environment management
-python-decouple>=3.8
-python-dotenv>=1.0.0
+# Time Handling
+pytz>=2024.1
 
-# Data validation
-marshmallow>=3.20.1
-cerberus>=1.3.5
+# System Monitoring
+psutil>=5.9.8,<6.0.0
 
-# Time zone handling
-pytz>=2025.2
+# AI/ML Core (Lightweight for production)
+torch>=2.1.0,<3.0.0
+transformers>=4.35.0,<5.0.0
+scikit-learn>=1.3.0,<2.0.0
 
-# Multi-Model AI Support - Latest versions for Python 3.13
-openai>=1.93.0
-anthropic>=0.57.0
-
-# Custom Model Support - Python 3.13 Compatible
-# Note: TensorFlow removed due to Python 3.13 incompatibility
-# Will be re-added when TensorFlow supports Python 3.13
-torch>=2.5.0                    # Latest PyTorch with Python 3.13 support
-torchvision>=0.20.0            # Computer vision with PyTorch
-torchaudio>=2.5.0              # Audio processing with PyTorch
-transformers>=4.46.0           # Latest HuggingFace Transformers
-onnx>=1.17.0                   # Latest ONNX
-onnxruntime>=1.19.0            # Latest ONNX Runtime
-scikit-learn>=1.5.0            # Latest Scikit-Learn
-
-# System monitoring
-psutil>=5.9.8 
+# Data Validation
+marshmallow>=3.20.1,<4.0.0 
