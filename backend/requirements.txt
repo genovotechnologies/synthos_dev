@@ -1,6 +1,6 @@
 # =============================================================================
 # SYNTHOS BACKEND DEPENDENCIES - OPTIMIZED FOR AWS APP RUNNER
-# Python 3.10 Compatible - Production Ready
+# Python 3.8 Compatible - Production Ready
 # =============================================================================
 
 # Core FastAPI Framework
