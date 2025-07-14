@@ -291,12 +291,44 @@ const apiService = {
 
   // User profile API methods
   async getProfile() {
-    const response = await api.get('/api/v1/user/profile');
+    const response = await api.get('/api/v1/users/me');
     return response.data;
   },
 
   async updateProfile(profileData: any) {
-    const response = await api.put('/api/v1/user/profile', profileData);
+    const response = await api.put('/api/v1/users/me', profileData);
+    return response.data;
+  },
+
+  async getUserUsage() {
+    const response = await api.get('/api/v1/users/usage');
+    return response.data;
+  },
+
+  // Billing status and subscription methods
+  async getBillingInfo() {
+    const response = await api.get('/api/v1/payment/billing-info');
+    return response.data;
+  },
+
+  async getBillingHistory() {
+    const response = await api.get('/api/v1/payment/billing-history');
+    return response.data;
+  },
+
+  // Admin user management methods
+  async getUsers() {
+    const response = await api.get('/api/v1/admin/users');
+    return response.data;
+  },
+
+  async updateUserStatus(userId: string, isActive: boolean) {
+    const response = await api.put(`/api/v1/admin/users/${userId}/status`, { is_active: isActive });
+    return response.data;
+  },
+
+  async deleteUser(userId: string) {
+    const response = await api.delete(`/api/v1/admin/users/${userId}`);
     return response.data;
   },
 

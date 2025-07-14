@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { apiClient } from '@/lib/api';
 
 interface Dataset {
   id: number;
@@ -58,39 +59,32 @@ export default function DashboardPage() {
       try {
         setLoading(true);
         
-        // Simulate API calls - replace with actual API calls
-        const [datasetsResponse, usageResponse, jobsResponse] = await Promise.all([
-          fetch('/api/v1/datasets', {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
+        // Use proper API client methods
+        const [datasetsData, usageData, jobsData] = await Promise.all([
+          apiClient.getDatasets().catch(err => {
+            console.warn('Datasets API error:', err);
+            return [];
           }),
-          fetch('/api/v1/users/usage', {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
+          apiClient.getUserUsage().catch(err => {
+            console.warn('Usage API error:', err);
+            return {
+              current_month_usage: 0,
+              total_rows_generated: 0,
+              total_datasets_created: 0,
+              monthly_limit: 10000,
+              storage_limit_mb: 100,
+              datasets_storage_mb: 0
+            };
           }),
-          fetch('/api/v1/generation/jobs', {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
+          apiClient.getGenerationJobs().catch(err => {
+            console.warn('Generation jobs API error:', err);
+            return [];
           })
         ]);
 
-        if (datasetsResponse.ok) {
-          const datasetsData = await datasetsResponse.json();
-          setDatasets(datasetsData);
-        }
-
-        if (usageResponse.ok) {
-          const usageData = await usageResponse.json();
-          setUsage(usageData);
-        }
-
-        if (jobsResponse.ok) {
-          const jobsData = await jobsResponse.json();
-          setRecentJobs(jobsData);
-        }
+        setDatasets(datasetsData);
+        setUsage(usageData);
+        setRecentJobs(jobsData);
 
       } catch (err) {
         console.error('Error fetching dashboard data:', err);

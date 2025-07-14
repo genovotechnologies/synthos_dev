@@ -74,13 +74,15 @@ export default function BillingPage() {
       setLoading(true);
       const [plansResponse, billingResponse] = await Promise.all([
         apiClient.getPricingPlans(),
-        // Mock billing info - replace with actual API call
-        Promise.resolve({
-          current_plan: { id: 'free', name: 'Free', price: 0, monthly_limit: 10000, features: [] },
-          usage_this_month: 2500,
-          next_billing_date: '2024-02-01',
-          payment_method: { type: 'paddle', last_four: '4242', expires: '12/25' },
-          billing_history: []
+        apiClient.getBillingInfo().catch(err => {
+          console.warn('Billing info API error:', err);
+          return {
+            current_plan: { id: 'free', name: 'Free', price: 0, monthly_limit: 10000, features: [] },
+            usage_this_month: 0,
+            next_billing_date: null,
+            payment_method: null,
+            billing_history: []
+          };
         })
       ]);
 

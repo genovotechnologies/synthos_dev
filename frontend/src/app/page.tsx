@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Header } from '@/components/layout/Header';
@@ -10,7 +10,88 @@ import ThreeBackgroundSafe from '@/components/ui/ThreeBackgroundSafe';
 import DataVisualization3D from '@/components/ui/DataVisualization3D';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
 import { SUBSCRIPTION_TIERS, AI_MODELS } from '@/lib/constants';
+import { apiClient } from '@/lib/api';
 import { ArrowRight, Check, Zap, Shield, BarChart3, Database, Globe, Star } from 'lucide-react';
+
+// Data visualization component that fetches real data
+function DataVisualizationWithData() {
+  const [visualizationData, setVisualizationData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchVisualizationData = async () => {
+      try {
+        // Try to fetch real datasets for visualization
+        const datasets = await apiClient.getDatasets().catch(() => []);
+        const generationJobs = await apiClient.getGenerationJobs().catch(() => []);
+        
+        // Create visualization data from real API data
+        const combinedData = [
+          ...datasets.map((dataset: any, i: number) => ({
+            value: Math.min(dataset.row_count / 10000, 1) || Math.random(),
+            label: dataset.name || `Dataset ${i + 1}`,
+            category: 'Datasets',
+            timestamp: dataset.created_at
+          })),
+          ...generationJobs.map((job: any, i: number) => ({
+            value: (job.progress_percentage || Math.random() * 100) / 100,
+            label: `Generation Job ${i + 1}`,
+            category: 'Generation',
+            timestamp: job.created_at
+          }))
+        ];
+
+        // If no real data, use enhanced sample data
+        if (combinedData.length === 0) {
+          const sampleData = Array.from({ length: 40 }, (_, i) => ({
+            value: Math.random(),
+            label: `Synthetic Record ${i + 1}`,
+            category: ['Users', 'Products', 'Orders', 'Reviews'][Math.floor(Math.random() * 4)],
+            timestamp: new Date(Date.now() - Math.random() * 86400000 * 30).toISOString()
+          }));
+          setVisualizationData(sampleData);
+        } else {
+          setVisualizationData(combinedData);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch visualization data:', error);
+        // Fallback to sample data
+        const sampleData = Array.from({ length: 40 }, (_, i) => ({
+          value: Math.random(),
+          label: `Data Point ${i + 1}`,
+          category: ['Analytics', 'ML Models', 'Datasets', 'API'][Math.floor(Math.random() * 4)],
+          timestamp: new Date(Date.now() - Math.random() * 86400000 * 7).toISOString()
+        }));
+        setVisualizationData(sampleData);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVisualizationData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="h-96 bg-gradient-to-br from-primary/20 to-blue-600/20 flex items-center justify-center rounded-2xl">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="text-sm text-muted-foreground">Loading data visualization...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <DataVisualization3D
+      data={visualizationData}
+      height="400px"
+      quality="medium"
+      interactive={true}
+      className="rounded-2xl"
+    />
+  );
+}
 
 export default function LandingPage() {
   const features = [
@@ -151,12 +232,7 @@ export default function LandingPage() {
                       </div>
                     )}
                   >
-                    <DataVisualization3D
-                      height="400px"
-                      quality="medium"
-                      interactive={true}
-                      className="rounded-2xl"
-                    />
+                    <DataVisualizationWithData />
                   </ErrorBoundary>
                 </div>
               </motion.div>
