@@ -131,14 +131,35 @@ alembic upgrade head
 
 ### 4. Production Deployment
 
-```bash
-# Deploy to AWS with CDK
-cd infrastructure
-npm install
-cdk deploy --all
+#### 🌟 AWS App Runner (Recommended - Railway Alternative)
 
-# Or use Docker for containerized deployment
+Deploy your backend with **zero infrastructure management**:
+
+```bash
+# One-command deployment (just like Railway!)
+./deploy-aws-apprunner.sh
+```
+
+**Perfect for Railway users!** AWS App Runner provides:
+- ✅ **No EC2 instances** to manage
+- ✅ **Auto-scaling** based on traffic  
+- ✅ **Built-in load balancer** and HTTPS
+- ✅ **Cost-effective** (~$5-10/month)
+- ✅ **Seamless integration** with your AWS services (RDS, ElastiCache)
+
+📖 **[Complete AWS App Runner Guide](AWS_DEPLOYMENT_QUICKSTART.md)**
+
+#### Alternative Deployment Options
+
+```bash
+# Railway (classic)
+railway login && railway up
+
+# Docker containerized deployment
 docker-compose -f docker-compose.prod.yml up -d
+
+# AWS CDK (advanced infrastructure)
+cd infrastructure && npm install && cdk deploy --all
 ```
 
 ## 📖 API Documentation
