@@ -1,230 +1,336 @@
 "use client";
 
-import React, { useRef, useMemo, useState } from 'react';
-import { Canvas, useFrame, ThreeEvent } from '@react-three/fiber';
-import { Text, Box, Sphere, OrbitControls, Html } from '@react-three/drei';
+import React, { useRef, useMemo, useState, useCallback, Suspense } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { OrbitControls, Text, Float, Environment, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
+import { useTheme } from 'next-themes';
+import ErrorBoundary from './ErrorBoundary';
 
-interface DataPoint {
-  id: string;
-  value: number;
-  label: string;
-  color: string;
-  position: [number, number, number];
-}
-
-// Individual data cube component
-function DataCube({ 
-  dataPoint, 
+// Interactive data point component
+function DataPoint({ 
+  position, 
+  value, 
+  color, 
+  scale = 1, 
   onClick,
-  isSelected 
-}: { 
-  dataPoint: DataPoint;
-  onClick: (dataPoint: DataPoint) => void;
-  isSelected: boolean;
+  isHovered,
+  onHover,
+  onUnhover
+}: {
+  position: [number, number, number];
+  value: number;
+  color: string;
+  scale?: number;
+  onClick?: () => void;
+  isHovered?: boolean;
+  onHover?: () => void;
+  onUnhover?: () => void;
 }) {
-  const ref = useRef<THREE.Mesh>(null);
+  const meshRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
 
   useFrame((state) => {
-    if (ref.current) {
-      // Gentle floating animation
-      ref.current.position.y = dataPoint.position[1] + Math.sin(state.clock.elapsedTime + dataPoint.value) * 0.1;
+    if (meshRef.current) {
+      const targetScale = (hovered || isHovered) ? scale * 1.5 : scale;
+      meshRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
       
-      // Scale based on selection/hover state
-      const targetScale = isSelected ? 1.3 : hovered ? 1.1 : 1;
-      ref.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+      // Gentle floating animation
+      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2 + position[0]) * 0.1;
     }
   });
 
-  const handleClick = (event: ThreeEvent<MouseEvent>) => {
-    event.stopPropagation();
-    onClick(dataPoint);
-  };
+  const handlePointerOver = useCallback(() => {
+    setHovered(true);
+    onHover?.();
+  }, [onHover]);
+
+  const handlePointerOut = useCallback(() => {
+    setHovered(false);
+    onUnhover?.();
+  }, [onUnhover]);
 
   return (
-    <group position={dataPoint.position}>
-      <Box
-        ref={ref}
-        args={[1, dataPoint.value * 2, 1]}
-        onClick={handleClick}
-        onPointerOver={(e) => {
-          e.stopPropagation();
-          setHovered(true);
-          document.body.style.cursor = 'pointer';
-        }}
-        onPointerOut={() => {
-          setHovered(false);
-          document.body.style.cursor = 'auto';
-        }}
-      >
-        <meshStandardMaterial 
-          color={dataPoint.color}
-          transparent
-          opacity={isSelected ? 0.9 : hovered ? 0.8 : 0.7}
-          roughness={0.2}
-          metalness={0.8}
-        />
-      </Box>
-      
-      {/* Data label */}
-      <Html position={[0, dataPoint.value + 1, 0]} center>
-        <div className={`
-          bg-black/80 text-white px-2 py-1 rounded text-xs whitespace-nowrap
-          transform transition-all duration-200 
-          ${hovered || isSelected ? 'scale-110 opacity-100' : 'scale-100 opacity-80'}
-        `}>
-          {dataPoint.label}: {dataPoint.value.toFixed(1)}
-        </div>
-      </Html>
+    <mesh
+      ref={meshRef}
+      position={position}
+      onClick={onClick}
+      onPointerOver={handlePointerOver}
+      onPointerOut={handlePointerOut}
+    >
+      <sphereGeometry args={[Math.max(0.1, value * 0.5), 16, 16]} />
+      <meshStandardMaterial
+        color={color}
+        transparent
+        opacity={hovered || isHovered ? 0.9 : 0.7}
+        roughness={0.2}
+        metalness={0.8}
+        emissive={color}
+        emissiveIntensity={hovered || isHovered ? 0.3 : 0.1}
+      />
+      {(hovered || isHovered) && (
+        <Text
+          position={[0, value * 0.5 + 0.5, 0]}
+          fontSize={0.3}
+          color={color}
+          anchorX="center"
+          anchorY="middle"
+          maxWidth={2}
+        >
+          {`Value: ${value.toFixed(2)}`}
+        </Text>
+      )}
+    </mesh>
+  );
+}
+
+// Animated grid component
+function DataGrid({ theme }: { theme: string }) {
+  const gridRef = useRef<THREE.Group>(null);
+  
+  useFrame((state) => {
+    if (gridRef.current) {
+      gridRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.2) * 0.1;
+    }
+  });
+
+  const gridColor = theme === 'dark' ? '#3b82f6' : '#1e40af';
+
+  return (
+    <group ref={gridRef}>
+      {/* Grid lines */}
+      {Array.from({ length: 11 }, (_, i) => (
+        <React.Fragment key={i}>
+          <line key={`x-${i}`}>
+            <bufferGeometry>
+              <bufferAttribute
+                attach="attributes-position"
+                count={2}
+                array={new Float32Array([
+                  -5 + i, 0, -5,
+                  -5 + i, 0, 5
+                ])}
+                itemSize={3}
+              />
+            </bufferGeometry>
+            <lineBasicMaterial color={gridColor} opacity={0.3} transparent />
+          </line>
+          <line key={`z-${i}`}>
+            <bufferGeometry>
+              <bufferAttribute
+                attach="attributes-position"
+                count={2}
+                array={new Float32Array([
+                  -5, 0, -5 + i,
+                  5, 0, -5 + i
+                ])}
+                itemSize={3}
+              />
+            </bufferGeometry>
+            <lineBasicMaterial color={gridColor} opacity={0.3} transparent />
+          </line>
+        </React.Fragment>
+      ))}
     </group>
   );
 }
 
-// Main 3D scene with data visualization
-function DataScene({ 
-  data, 
-  onDataPointClick,
-  selectedDataPoint 
-}: {
-  data: DataPoint[];
-  onDataPointClick: (dataPoint: DataPoint) => void;
-  selectedDataPoint: DataPoint | null;
-}) {
+// Main visualization scene
+function VisualizationScene({ data, theme }: { data: any[], theme: string }) {
+  const [selectedPoint, setSelectedPoint] = useState<number | null>(null);
+  const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
+
+  const dataPoints = useMemo(() => {
+    return data.map((item, index) => ({
+      position: [
+        (Math.random() - 0.5) * 8,
+        Math.random() * 4,
+        (Math.random() - 0.5) * 8
+      ] as [number, number, number],
+      value: typeof item === 'number' ? item : Math.random(),
+      color: `hsl(${(index / data.length) * 360}, 70%, 60%)`,
+      id: index
+    }));
+  }, [data]);
+
+  const lightColor = theme === 'dark' ? '#ffffff' : '#f0f0f0';
+  const ambientIntensity = theme === 'dark' ? 0.3 : 0.6;
+
   return (
-    <>
-      <ambientLight intensity={0.6} />
-      <pointLight position={[10, 10, 10]} intensity={1} />
-      <pointLight position={[-10, -10, -5]} intensity={0.5} color="#3b82f6" />
-      
-      {/* Grid floor */}
-      <gridHelper args={[20, 10, '#333333', '#666666']} position={[0, -3, 0]} />
-      
-      {/* Data visualization */}
-      {data.map((dataPoint) => (
-        <DataCube
-          key={dataPoint.id}
-          dataPoint={dataPoint}
-          onClick={onDataPointClick}
-          isSelected={selectedDataPoint?.id === dataPoint.id}
-        />
-      ))}
-      
-      {/* Title */}
-      <Text
-        position={[0, 8, 0]}
-        fontSize={1}
-        color="#ffffff"
-        anchorX="center"
-        anchorY="middle"
-      >
-        Synthetic Data Generation Analytics
-      </Text>
-      
+    <Suspense fallback={null}>
+      <PerspectiveCamera makeDefault position={[10, 8, 10]} fov={60} />
       <OrbitControls
         enablePan={true}
         enableZoom={true}
         enableRotate={true}
         minDistance={5}
-        maxDistance={50}
-        maxPolarAngle={Math.PI / 2}
+        maxDistance={30}
+        autoRotate={true}
+        autoRotateSpeed={0.5}
       />
-    </>
+      
+      {/* Lighting */}
+      <ambientLight intensity={ambientIntensity} color={lightColor} />
+      <pointLight position={[10, 10, 10]} intensity={1} color={lightColor} />
+      <pointLight position={[-10, -10, -10]} intensity={0.5} color="#3b82f6" />
+      
+      {/* Environment */}
+      <Environment preset={theme === 'dark' ? 'night' : 'dawn'} />
+      
+      {/* Grid */}
+      <DataGrid theme={theme} />
+      
+      {/* Data points */}
+      {dataPoints.map((point, index) => (
+        <DataPoint
+          key={point.id}
+          position={point.position}
+          value={point.value}
+          color={point.color}
+          scale={1}
+          onClick={() => setSelectedPoint(selectedPoint === index ? null : index)}
+          isHovered={hoveredPoint === index || selectedPoint === index}
+          onHover={() => setHoveredPoint(index)}
+          onUnhover={() => setHoveredPoint(null)}
+        />
+      ))}
+      
+      {/* Floating title */}
+      <Float speed={1} rotationIntensity={0.2} floatIntensity={0.5}>
+        <Text
+          position={[0, 6, 0]}
+          fontSize={1}
+          color={theme === 'dark' ? '#ffffff' : '#1f2937'}
+          anchorX="center"
+          anchorY="middle"
+          maxWidth={10}
+        >
+          Interactive Data Visualization
+        </Text>
+      </Float>
+    </Suspense>
+  );
+}
+
+// Loading fallback
+function LoadingFallback() {
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="text-center space-y-4">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+        <p className="text-sm text-muted-foreground">Loading 3D visualization...</p>
+      </div>
+    </div>
+  );
+}
+
+// 2D Fallback visualization
+function Fallback2D({ data, className }: { data: any[], className?: string }) {
+  const { theme } = useTheme();
+  
+  return (
+    <div className={`relative w-full h-full bg-gradient-to-br from-background via-background to-primary/5 ${className}`}>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="grid grid-cols-6 gap-4 p-8">
+          {data.slice(0, 36).map((item, index) => {
+            const value = typeof item === 'number' ? item : Math.random();
+            const height = Math.max(20, value * 100);
+            const hue = (index / 36) * 360;
+            
+            return (
+              <div
+                key={index}
+                className="relative group"
+                style={{ height: `${height}px` }}
+              >
+                <div
+                  className="w-8 h-full rounded-t-lg transition-all duration-300 hover:scale-110 cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to top, hsl(${hue}, 70%, 50%), hsl(${hue}, 70%, 70%))`,
+                    boxShadow: `0 0 20px hsla(${hue}, 70%, 60%, 0.3)`
+                  }}
+                />
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
+                  {value.toFixed(2)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-center">
+        <p className="text-sm text-muted-foreground">2D Data Visualization</p>
+        <p className="text-xs text-muted-foreground/70">Hover over bars for details</p>
+      </div>
+    </div>
   );
 }
 
 // Main component interface
 interface DataVisualization3DProps {
+  data?: any[];
   className?: string;
-  title?: string;
-  data?: DataPoint[];
-  onDataPointSelect?: (dataPoint: DataPoint | null) => void;
+  height?: string;
+  interactive?: boolean;
+  quality?: 'low' | 'medium' | 'high';
 }
 
 export default function DataVisualization3D({
+  data = Array.from({ length: 50 }, () => Math.random()),
   className = "",
-  title = "Data Visualization",
-  data,
-  onDataPointSelect
+  height = "400px",
+  interactive = true,
+  quality = 'medium'
 }: DataVisualization3DProps) {
-  const [selectedDataPoint, setSelectedDataPoint] = useState<DataPoint | null>(null);
-
-  // Sample data if none provided
-  const defaultData: DataPoint[] = useMemo(() => [
-    {
-      id: '1',
-      value: 2.5,
-      label: 'Generated Rows',
-      color: '#3b82f6',
-      position: [-6, 0, -3]
-    },
-    {
-      id: '2', 
-      value: 1.8,
-      label: 'Processing Speed',
-      color: '#10b981',
-      position: [-3, 0, -1]
-    },
-    {
-      id: '3',
-      value: 3.2,
-      label: 'Data Quality',
-      color: '#f59e0b',
-      position: [0, 0, 1]
-    },
-    {
-      id: '4',
-      value: 2.1,
-      label: 'Model Accuracy',
-      color: '#ef4444',
-      position: [3, 0, -2]
-    },
-    {
-      id: '5',
-      value: 2.8,
-      label: 'User Satisfaction',
-      color: '#8b5cf6',
-      position: [6, 0, 0]
+  const { theme } = useTheme();
+  
+  const pixelRatio = useMemo((): [number, number] => {
+    switch (quality) {
+      case 'low': return [0.5, 1];
+      case 'medium': return [1, 1.5];
+      case 'high': return [1, 2];
+      default: return [1, 1.5];
     }
-  ], []);
+  }, [quality]);
 
-  const visualizationData = data || defaultData;
-
-  const handleDataPointClick = (dataPoint: DataPoint) => {
-    const newSelection = selectedDataPoint?.id === dataPoint.id ? null : dataPoint;
-    setSelectedDataPoint(newSelection);
-    onDataPointSelect?.(newSelection);
-  };
+  const Fallback3D = useCallback(({ error }: { error?: Error }) => {
+    console.warn('3D visualization fallback activated:', error?.message);
+    return <Fallback2D data={data} className={className} />;
+  }, [data, className]);
 
   return (
-    <div className={`w-full h-96 bg-gradient-to-br from-gray-900 to-black rounded-lg overflow-hidden ${className}`}>
-      <Canvas
-        camera={{ position: [10, 5, 10], fov: 60 }}
-        gl={{ 
-          alpha: true, 
-          antialias: true,
-          powerPreference: "high-performance"
-        }}
-        dpr={[1, 2]}
-      >
-        <DataScene
-          data={visualizationData}
-          onDataPointClick={handleDataPointClick}
-          selectedDataPoint={selectedDataPoint}
-        />
-      </Canvas>
-      
-      {/* Info panel */}
-      {selectedDataPoint && (
-        <div className="absolute top-4 left-4 bg-black/80 text-white p-4 rounded-lg max-w-xs">
-          <h3 className="font-semibold text-lg mb-2">{selectedDataPoint.label}</h3>
-          <p className="text-sm text-gray-300 mb-1">Value: {selectedDataPoint.value.toFixed(2)}</p>
-          <p className="text-xs text-gray-400">Click elsewhere to deselect</p>
+    <ErrorBoundary fallback={Fallback3D}>
+      <div className={`relative overflow-hidden rounded-xl ${className}`} style={{ height }}>
+        <Canvas
+          camera={{ position: [10, 8, 10], fov: 60 }}
+          gl={{
+            alpha: true,
+            antialias: quality !== 'low',
+            powerPreference: "high-performance"
+          }}
+          dpr={pixelRatio}
+          frameloop={interactive ? "always" : "demand"}
+          performance={{ min: 0.5 }}
+        >
+          <VisualizationScene data={data} theme={theme || 'dark'} />
+        </Canvas>
+        
+        {/* Controls overlay */}
+        <div className="absolute top-4 right-4 bg-black/20 backdrop-blur-sm rounded-lg p-2">
+          <div className="text-xs text-white/80 space-y-1">
+            <div>Click: Select point</div>
+            <div>Drag: Rotate view</div>
+            <div>Scroll: Zoom</div>
+          </div>
         </div>
-      )}
-    </div>
+        
+        {/* Data info overlay */}
+        <div className="absolute bottom-4 left-4 bg-black/20 backdrop-blur-sm rounded-lg p-2">
+          <div className="text-xs text-white/80">
+            Data Points: {data.length}
+          </div>
+        </div>
+      </div>
+    </ErrorBoundary>
   );
 }
-
-// Export types for external use
-export type { DataPoint, DataVisualization3DProps }; 

@@ -1,41 +1,46 @@
-'use client'
+'use client';
 
-import { ThemeProvider } from 'next-themes'
-import { Toaster } from 'react-hot-toast'
-import { AuthProvider } from '@/contexts/AuthContext'
+import * as React from 'react';
+import { ThemeProvider as NextThemesProvider } from 'next-themes';
+import { type ThemeProviderProps } from 'next-themes/dist/types';
+import { AuthProvider } from '@/contexts/AuthContext';
+
+function ThemeProvider({ children, ...props }: ThemeProviderProps) {
+  return (
+    <NextThemesProvider
+      attribute="class"
+      defaultTheme="dark"
+      enableSystem={true}
+      disableTransitionOnChange={false}
+      storageKey="synthos-theme"
+      themes={['light', 'dark', 'system']}
+      {...props}
+    >
+      {children}
+    </NextThemesProvider>
+  );
+}
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
-    >
+    <ThemeProvider>
       <AuthProvider>
         {children}
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: 'hsl(var(--background))',
-              color: 'hsl(var(--foreground))',
-              border: '1px solid hsl(var(--border))',
-            },
-            success: {
-              style: {
-                border: '1px solid hsl(142 76% 36%)',
-              },
-            },
-            error: {
-              style: {
-                border: '1px solid hsl(var(--destructive))',
-              },
-            },
-          }}
-        />
       </AuthProvider>
     </ThemeProvider>
-  )
+  );
 } 
