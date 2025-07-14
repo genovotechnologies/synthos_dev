@@ -1,297 +1,238 @@
-"use client";
+'use client'
 
-import React, { useRef, useMemo, useCallback } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Points, PointMaterial, Float, Sphere, Box, Torus, useTexture, Environment } from '@react-three/drei';
-import * as THREE from 'three';
+import { useEffect, useRef } from 'react'
+import * as THREE from 'three'
 
-// Type definitions for 3D shapes
-type SphereArgs = [radius?: number, widthSegments?: number, heightSegments?: number, phiStart?: number, phiLength?: number, thetaStart?: number, thetaLength?: number];
-type BoxArgs = [width?: number, height?: number, depth?: number, widthSegments?: number, heightSegments?: number, depthSegments?: number];
-type TorusArgs = [radius?: number, tube?: number, radialSegments?: number, tubularSegments?: number, arc?: number];
+export default function ThreeBackground() {
+  const mountRef = useRef<HTMLDivElement>(null)
+  const sceneRef = useRef<THREE.Scene>()
+  const rendererRef = useRef<THREE.WebGLRenderer>()
+  const animationRef = useRef<number>()
 
-interface Shape {
-  type: 'sphere' | 'box' | 'torus';
-  position: [number, number, number];
-  color: string;
-  args: SphereArgs | BoxArgs | TorusArgs;
-  speed: number;
-}
+  useEffect(() => {
+    if (!mountRef.current) return
 
-// Enhanced particles component with better performance
-function Particles(props: any) {
-  const ref = useRef<THREE.Points>(null);
-  const mouseRef = useRef({ x: 0, y: 0 });
-  
-  const [positions, colors] = useMemo(() => {
-    const particleCount = 8000;
-    const positionsArray = new Float32Array(particleCount * 3);
-    const colorsArray = new Float32Array(particleCount * 3);
+    // Scene setup
+    const scene = new THREE.Scene()
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true })
+    
+    renderer.setSize(window.innerWidth, window.innerHeight)
+    renderer.setClearColor(0x000000, 0)
+    mountRef.current.appendChild(renderer.domElement)
+    
+    sceneRef.current = scene
+    rendererRef.current = renderer
+
+    // Create animated geometry groups
+    const geometryGroup = new THREE.Group()
+    const particleGroup = new THREE.Group()
+    scene.add(geometryGroup, particleGroup)
+
+    // Animated geometric shapes
+    const shapes: THREE.Mesh[] = []
+    
+    // Floating cubes with different materials
+    for (let i = 0; i < 8; i++) {
+      const geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5)
+      const material = new THREE.MeshBasicMaterial({
+        color: new THREE.Color().setHSL(i * 0.125, 0.6, 0.5),
+        transparent: true,
+        opacity: 0.3,
+        wireframe: true
+      })
+      const cube = new THREE.Mesh(geometry, material)
+      
+      cube.position.set(
+        (Math.random() - 0.5) * 20,
+        (Math.random() - 0.5) * 20,
+        (Math.random() - 0.5) * 20
+      )
+      
+      cube.userData = {
+        rotationSpeed: {
+          x: (Math.random() - 0.5) * 0.02,
+          y: (Math.random() - 0.5) * 0.02,
+          z: (Math.random() - 0.5) * 0.02
+        },
+        orbitRadius: Math.random() * 10 + 5,
+        orbitSpeed: (Math.random() - 0.5) * 0.01
+      }
+      
+      shapes.push(cube)
+      geometryGroup.add(cube)
+    }
+
+    // Floating spheres
+    for (let i = 0; i < 6; i++) {
+      const geometry = new THREE.SphereGeometry(0.3, 16, 16)
+      const material = new THREE.MeshBasicMaterial({
+        color: new THREE.Color().setHSL((i * 0.167 + 0.5) % 1, 0.8, 0.6),
+        transparent: true,
+        opacity: 0.4
+      })
+      const sphere = new THREE.Mesh(geometry, material)
+      
+      sphere.position.set(
+        (Math.random() - 0.5) * 25,
+        (Math.random() - 0.5) * 25,
+        (Math.random() - 0.5) * 25
+      )
+      
+      sphere.userData = {
+        rotationSpeed: {
+          x: (Math.random() - 0.5) * 0.03,
+          y: (Math.random() - 0.5) * 0.03,
+          z: (Math.random() - 0.5) * 0.03
+        },
+        floatAmplitude: Math.random() * 2 + 1,
+        floatSpeed: Math.random() * 0.02 + 0.01
+      }
+      
+      shapes.push(sphere)
+      geometryGroup.add(sphere)
+    }
+
+    // Particle system
+    const particleGeometry = new THREE.BufferGeometry()
+    const particleCount = 200
+    const positions = new Float32Array(particleCount * 3)
+    const colors = new Float32Array(particleCount * 3)
+    const velocities = new Float32Array(particleCount * 3)
     
     for (let i = 0; i < particleCount; i++) {
-      const i3 = i * 3;
-      // Create more sophisticated distribution
-      const radius = Math.random() * 50 + 20;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.random() * Math.PI;
+      const i3 = i * 3
       
-      positionsArray[i3] = radius * Math.sin(phi) * Math.cos(theta);
-      positionsArray[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
-      positionsArray[i3 + 2] = radius * Math.cos(phi);
+      positions[i3] = (Math.random() - 0.5) * 50
+      positions[i3 + 1] = (Math.random() - 0.5) * 50
+      positions[i3 + 2] = (Math.random() - 0.5) * 50
       
-      // Gradient colors based on position (with safety checks)
-      const normalizedY = Math.max(0, Math.min(1, (positionsArray[i3 + 1] + 50) / 100));
-      colorsArray[i3] = Math.max(0, Math.min(1, 0.5 + normalizedY * 0.5)); // Red
-      colorsArray[i3 + 1] = Math.max(0, Math.min(1, 0.3 + normalizedY * 0.4)); // Green  
-      colorsArray[i3 + 2] = Math.max(0, Math.min(1, 0.8 + normalizedY * 0.2)); // Blue
+      const hue = Math.random()
+      const color = new THREE.Color().setHSL(hue, 0.7, 0.8)
+      colors[i3] = color.r
+      colors[i3 + 1] = color.g
+      colors[i3 + 2] = color.b
+      
+      velocities[i3] = (Math.random() - 0.5) * 0.02
+      velocities[i3 + 1] = (Math.random() - 0.5) * 0.02
+      velocities[i3 + 2] = (Math.random() - 0.5) * 0.02
     }
     
-    return [positionsArray, colorsArray];
-  }, []);
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    
+    const particleMaterial = new THREE.PointsMaterial({
+      size: 0.1,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.6,
+      blending: THREE.AdditiveBlending
+    })
+    
+    const particles = new THREE.Points(particleGeometry, particleMaterial)
+    particleGroup.add(particles)
 
-  useFrame((state, delta) => {
-    if (ref.current) {
-      const time = state.clock.elapsedTime;
+    // Camera setup
+    camera.position.z = 15
+    camera.position.y = 5
+
+    // Mouse interaction
+    let mouseX = 0
+    let mouseY = 0
+    
+    const handleMouseMove = (event: MouseEvent) => {
+      mouseX = (event.clientX / window.innerWidth) * 2 - 1
+      mouseY = -(event.clientY / window.innerHeight) * 2 + 1
+    }
+    
+    window.addEventListener('mousemove', handleMouseMove)
+
+    // Animation loop
+    const animate = (time: number) => {
+      // Animate shapes
+      shapes.forEach((shape, index) => {
+        const { rotationSpeed, orbitRadius, orbitSpeed, floatAmplitude, floatSpeed } = shape.userData
+        
+        // Rotation
+        shape.rotation.x += rotationSpeed.x
+        shape.rotation.y += rotationSpeed.y
+        shape.rotation.z += rotationSpeed.z
+        
+        // Orbital movement for cubes
+        if (orbitRadius && orbitSpeed) {
+          shape.position.x = Math.cos(time * orbitSpeed + index) * orbitRadius
+          shape.position.z = Math.sin(time * orbitSpeed + index) * orbitRadius
+        }
+        
+        // Floating movement for spheres
+        if (floatAmplitude && floatSpeed) {
+          shape.position.y += Math.sin(time * floatSpeed + index) * 0.01
+        }
+        
+        // Scale pulsing
+        const scale = 1 + Math.sin(time * 0.001 + index) * 0.2
+        shape.scale.setScalar(scale)
+      })
+
+      // Animate particles
+      const positions = particles.geometry.attributes.position.array as Float32Array
+      for (let i = 0; i < particleCount; i++) {
+        const i3 = i * 3
+        
+        positions[i3] += velocities[i3]
+        positions[i3 + 1] += velocities[i3 + 1]
+        positions[i3 + 2] += velocities[i3 + 2]
+        
+        // Boundary wrapping
+        if (Math.abs(positions[i3]) > 25) velocities[i3] *= -1
+        if (Math.abs(positions[i3 + 1]) > 25) velocities[i3 + 1] *= -1
+        if (Math.abs(positions[i3 + 2]) > 25) velocities[i3 + 2] *= -1
+      }
+      particles.geometry.attributes.position.needsUpdate = true
+
+      // Camera movement based on mouse and time
+      camera.position.x += (mouseX * 2 - camera.position.x) * 0.02
+      camera.position.y += (mouseY * 2 - camera.position.y) * 0.02
       
-      // Smooth rotation with time-based animation
-      ref.current.rotation.x = Math.sin(time * 0.2) * 0.2;
-      ref.current.rotation.y += delta * 0.1;
-      ref.current.rotation.z = Math.cos(time * 0.15) * 0.1;
-      
-      // Mouse interaction effect
-      const targetRotationX = mouseRef.current.y * 0.2;
-      const targetRotationY = mouseRef.current.x * 0.2;
-      ref.current.rotation.x += (targetRotationX - ref.current.rotation.x) * 0.02;
-      ref.current.rotation.y += (targetRotationY - ref.current.rotation.y) * 0.02;
+      // Auto camera rotation
+      camera.position.x += Math.sin(time * 0.0005) * 0.1
+      camera.position.z += Math.cos(time * 0.0003) * 0.1
+      camera.lookAt(0, 0, 0)
+
+      // Rotate entire scene slowly
+      geometryGroup.rotation.y += 0.002
+      particleGroup.rotation.x += 0.001
+      particleGroup.rotation.y -= 0.0005
+
+      renderer.render(scene, camera)
+      animationRef.current = requestAnimationFrame(animate)
     }
-  });
 
-  return (
-    <Points ref={ref} positions={positions} stride={3} frustumCulled={false} {...props}>
-      <PointMaterial
-        transparent
-        vertexColors
-        size={0.8}
-        sizeAttenuation={true}
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-      />
-      {colors && colors.length > 0 && (
-      <bufferAttribute
-        attach="attributes-color"
-        args={[colors, 3]}
-      />
-      )}
-    </Points>
-  );
-}
+    animate(0)
 
-// Enhanced floating geometric shapes with better materials
-function FloatingShapes() {
-  const shapes = useMemo((): Shape[] => [
-    { 
-      type: 'sphere', 
-      position: [-4, 0, 0], 
-      color: '#3b82f6',
-      args: [1, 32, 32] as SphereArgs,
-      speed: 1.4
-    },
-    { 
-      type: 'box', 
-      position: [4, 2, -2], 
-      color: '#10b981',
-      args: [1.5, 1.5, 1.5] as BoxArgs,
-      speed: 1.2
-    },
-    { 
-      type: 'torus', 
-      position: [0, -3, -1], 
-      color: '#f59e0b',
-      args: [1, 0.3, 16, 100] as TorusArgs,
-      speed: 1.6
-    },
-    { 
-      type: 'sphere', 
-      position: [6, -2, -3], 
-      color: '#ef4444',
-      args: [0.8, 32, 32] as SphereArgs,
-      speed: 1.1
-    },
-    { 
-      type: 'box', 
-      position: [-6, 1, -1], 
-      color: '#8b5cf6',
-      args: [1, 2, 1] as BoxArgs,
-      speed: 1.3
+    // Handle resize
+    const handleResize = () => {
+      if (!camera || !renderer) return
+      camera.aspect = window.innerWidth / window.innerHeight
+      camera.updateProjectionMatrix()
+      renderer.setSize(window.innerWidth, window.innerHeight)
     }
-  ], []);
 
-  return (
-    <>
-      {shapes.filter(shape => shape && shape.type && shape.color && shape.args && shape.position).map((shape, index) => (
-        <Float 
-          key={index}
-          speed={shape.speed || 1.0} 
-          rotationIntensity={1.5} 
-          floatIntensity={2}
-        >
-          {shape.type === 'sphere' ? (
-            <Sphere args={shape.args as SphereArgs} position={shape.position}>
-              <meshPhysicalMaterial 
-                color={shape.color || '#ffffff'} 
-                transparent 
-                opacity={0.7}
-                roughness={0.1}
-                metalness={0.5}
-                clearcoat={1}
-                clearcoatRoughness={0.1}
-              />
-            </Sphere>
-          ) : shape.type === 'torus' ? (
-            <Torus args={shape.args as TorusArgs} position={shape.position}>
-              <meshPhysicalMaterial 
-                color={shape.color || '#ffffff'} 
-                transparent 
-                opacity={0.7}
-                roughness={0.1}
-                metalness={0.5}
-                clearcoat={1}
-                clearcoatRoughness={0.1}
-              />
-            </Torus>
-          ) : (
-            <Box args={shape.args as BoxArgs} position={shape.position}>
-              <meshPhysicalMaterial 
-                color={shape.color || '#ffffff'} 
-                transparent 
-                opacity={0.7}
-                roughness={0.1}
-                metalness={0.5}
-                clearcoat={1}
-                clearcoatRoughness={0.1}
-              />
-            </Box>
-          )}
-        </Float>
-      ))}
-    </>
-  );
-}
+    window.addEventListener('resize', handleResize)
 
-// Enhanced lighting setup
-function Lighting() {
-  const lightRef = useRef<THREE.PointLight>(null);
-  
-  useFrame((state) => {
-    if (lightRef.current) {
-      const time = state.clock.elapsedTime;
-      lightRef.current.position.x = Math.sin(time * 0.5) * 10;
-      lightRef.current.position.z = Math.cos(time * 0.5) * 10;
+    // Cleanup
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('resize', handleResize)
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+      }
+      if (mountRef.current && renderer.domElement) {
+        mountRef.current.removeChild(renderer.domElement)
+      }
+      renderer.dispose()
     }
-  });
+  }, [])
 
-  return (
-    <>
-      <ambientLight intensity={0.3} color="#ffffff" />
-      <pointLight 
-        ref={lightRef}
-        position={[10, 10, 10]} 
-        intensity={1.5} 
-        color="#ffffff"
-        castShadow
-      />
-      <pointLight 
-        position={[-10, -10, -10]} 
-        intensity={0.8} 
-        color="#8b5cf6" 
-      />
-      <spotLight
-        position={[0, 20, 0]}
-        angle={0.3}
-        penumbra={1}
-        intensity={0.5}
-        color="#60a5fa"
-        castShadow
-      />
-    </>
-  );
-}
-
-// Main 3D scene component
-function Scene() {
-  const { size, gl } = useThree();
-  
-  // Mouse tracking for interactive effects
-  const handleMouseMove = useCallback((event: MouseEvent) => {
-    const x = (event.clientX / size.width) * 2 - 1;
-    const y = -(event.clientY / size.height) * 2 + 1;
-    // Store mouse position for use in particle animation
-  }, [size]);
-
-  React.useEffect(() => {
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [handleMouseMove]);
-
-  return (
-    <>
-      <Environment preset="night" />
-      <fog attach="fog" args={['#000000', 30, 100]} />
-      <Lighting />
-      <Particles />
-      <FloatingShapes />
-    </>
-  );
-}
-
-// Main ThreeBackground component with enhanced features
-interface ThreeBackgroundProps {
-  className?: string;
-  interactive?: boolean;
-  quality?: 'low' | 'medium' | 'high';
-}
-
-export default function ThreeBackground({ 
-  className = "", 
-  interactive = false,
-  quality = 'high'
-}: ThreeBackgroundProps) {
-  const pixelRatio = useMemo((): [number, number] => {
-    switch (quality) {
-      case 'low': return [0.5, 1];
-      case 'medium': return [1, 1.5];
-      case 'high': return [1, 2];
-      default: return [1, 2];
-    }
-  }, [quality]);
-
-  return (
-    <div className={`fixed inset-0 -z-10 ${className}`}>
-      <Canvas
-        camera={{ 
-          position: [0, 0, 20], 
-          fov: 75,
-          near: 0.1,
-          far: 200
-        }}
-        gl={{ 
-          alpha: true, 
-          antialias: true,
-          powerPreference: "high-performance",
-          stencil: false,
-          depth: true
-        }}
-        dpr={pixelRatio}
-        frameloop={interactive ? "always" : "demand"}
-        shadows
-        performance={{ min: 0.5 }}
-      >
-        <Scene />
-      </Canvas>
-      
-      {/* Enhanced gradient overlay with better visual hierarchy */}
-      <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/20 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-radial from-transparent via-transparent to-black/30 pointer-events-none" />
-    </div>
-  );
+  return <div ref={mountRef} className="fixed inset-0 -z-10" />
 } 

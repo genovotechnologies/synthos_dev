@@ -1,336 +1,242 @@
-"use client";
+'use client'
 
-import React, { useRef, useMemo, useState, useCallback, Suspense } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Text, Float, Environment, PerspectiveCamera } from '@react-three/drei';
-import * as THREE from 'three';
-import { useTheme } from 'next-themes';
-import ErrorBoundary from './ErrorBoundary';
+import { useEffect, useRef, useState } from 'react'
+import * as THREE from 'three'
 
-// Interactive data point component
-function DataPoint({ 
-  position, 
-  value, 
-  color, 
-  scale = 1, 
-  onClick,
-  isHovered,
-  onHover,
-  onUnhover
-}: {
-  position: [number, number, number];
-  value: number;
-  color: string;
-  scale?: number;
-  onClick?: () => void;
-  isHovered?: boolean;
-  onHover?: () => void;
-  onUnhover?: () => void;
-}) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const [hovered, setHovered] = useState(false);
+interface DataPoint {
+  id: number
+  x: number
+  y: number
+  z: number
+  value: number
+  label: string
+  color: string
+}
 
-  useFrame((state) => {
-    if (meshRef.current) {
-      const targetScale = (hovered || isHovered) ? scale * 1.5 : scale;
-      meshRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+export default function DataVisualization3D() {
+  const mountRef = useRef<HTMLDivElement>(null)
+  const [selectedPoint, setSelectedPoint] = useState<DataPoint | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
+  const sceneRef = useRef<THREE.Scene>()
+  const rendererRef = useRef<THREE.WebGLRenderer>()
+  const cameraRef = useRef<THREE.PerspectiveCamera>()
+  const animationRef = useRef<number>()
+  const raycasterRef = useRef<THREE.Raycaster>()
+  const mouseRef = useRef<THREE.Vector2>()
+  const dataPointsRef = useRef<{ mesh: THREE.Mesh; data: DataPoint }[]>([])
+
+  useEffect(() => {
+    if (!mountRef.current) return
+
+    try {
+      // Scene setup
+      const scene = new THREE.Scene()
+      const camera = new THREE.PerspectiveCamera(75, 400 / 300, 0.1, 1000)
+      const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true })
       
-      // Gentle floating animation
-      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2 + position[0]) * 0.1;
+      renderer.setSize(400, 300)
+      renderer.setClearColor(0x000000, 0)
+      mountRef.current.appendChild(renderer.domElement)
+      
+      sceneRef.current = scene
+      rendererRef.current = renderer
+      cameraRef.current = camera
+      raycasterRef.current = new THREE.Raycaster()
+      mouseRef.current = new THREE.Vector2()
+
+      // Generate sample data
+      const dataPoints: DataPoint[] = []
+      for (let i = 0; i < 50; i++) {
+        dataPoints.push({
+          id: i,
+          x: (Math.random() - 0.5) * 10,
+          y: (Math.random() - 0.5) * 10,
+          z: (Math.random() - 0.5) * 10,
+          value: Math.random() * 100,
+          label: `Data Point ${i + 1}`,
+          color: `hsl(${Math.random() * 360}, 70%, 60%)`
+        })
+      }
+
+      // Create 3D data points
+      const dataPointMeshes: { mesh: THREE.Mesh; data: DataPoint }[] = []
+      
+      dataPoints.forEach((point) => {
+        const geometry = new THREE.SphereGeometry(0.2, 16, 16)
+        const material = new THREE.MeshPhongMaterial({
+          color: point.color,
+          transparent: true,
+          opacity: 0.8
+        })
+        const mesh = new THREE.Mesh(geometry, material)
+        
+        mesh.position.set(point.x, point.y, point.z)
+        mesh.userData = { dataPoint: point }
+        
+        scene.add(mesh)
+        dataPointMeshes.push({ mesh, data: point })
+      })
+      
+      dataPointsRef.current = dataPointMeshes
+
+      // Add grid
+      const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222)
+      scene.add(gridHelper)
+
+      // Add axes
+      const axesHelper = new THREE.AxesHelper(10)
+      scene.add(axesHelper)
+
+      // Lighting
+      const ambientLight = new THREE.AmbientLight(0x404040, 0.6)
+      scene.add(ambientLight)
+      
+      const pointLight = new THREE.PointLight(0xffffff, 1, 100)
+      pointLight.position.set(10, 10, 10)
+      scene.add(pointLight)
+
+      // Camera position
+      camera.position.set(15, 15, 15)
+      camera.lookAt(0, 0, 0)
+
+      // Mouse interaction
+      const handleMouseMove = (event: MouseEvent) => {
+        const rect = renderer.domElement.getBoundingClientRect()
+        const x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+        const y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+        
+        if (mouseRef.current) {
+          mouseRef.current.x = x
+          mouseRef.current.y = y
+        }
+      }
+
+      const handleMouseClick = () => {
+        if (!raycasterRef.current || !mouseRef.current || !cameraRef.current) return
+        
+        raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current)
+        const intersects = raycasterRef.current.intersectObjects(
+          dataPointMeshes.map(dp => dp.mesh)
+        )
+        
+        if (intersects.length > 0) {
+          const clickedMesh = intersects[0].object as THREE.Mesh
+          const dataPoint = clickedMesh.userData.dataPoint as DataPoint
+          setSelectedPoint(dataPoint)
+          
+          // Highlight selected point
+          dataPointMeshes.forEach(({ mesh }) => {
+            const material = mesh.material as THREE.MeshPhongMaterial
+            material.emissive.setHex(0x000000)
+          })
+          
+          const selectedMaterial = clickedMesh.material as THREE.MeshPhongMaterial
+          selectedMaterial.emissive.setHex(0x444444)
+        }
+      }
+
+      renderer.domElement.addEventListener('mousemove', handleMouseMove)
+      renderer.domElement.addEventListener('click', handleMouseClick)
+
+      // Animation loop
+      let time = 0
+      const animate = () => {
+        time += 0.01
+        
+        // Rotate camera around scene
+        camera.position.x = Math.cos(time * 0.1) * 15
+        camera.position.z = Math.sin(time * 0.1) * 15
+        camera.lookAt(0, 0, 0)
+        
+        // Animate data points
+        dataPointMeshes.forEach(({ mesh, data }, index) => {
+          mesh.position.y = data.y + Math.sin(time + index * 0.1) * 0.5
+          mesh.rotation.x += 0.01
+          mesh.rotation.y += 0.01
+        })
+        
+        // Update raycaster for hover effects
+        if (raycasterRef.current && mouseRef.current && cameraRef.current) {
+          raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current)
+          const intersects = raycasterRef.current.intersectObjects(
+            dataPointMeshes.map(dp => dp.mesh)
+          )
+          
+          // Reset all materials
+          dataPointMeshes.forEach(({ mesh }) => {
+            const material = mesh.material as THREE.MeshPhongMaterial
+            material.opacity = 0.8
+            mesh.scale.setScalar(1)
+          })
+          
+          // Highlight hovered point
+          if (intersects.length > 0) {
+            const hoveredMesh = intersects[0].object as THREE.Mesh
+            const material = hoveredMesh.material as THREE.MeshPhongMaterial
+            material.opacity = 1
+            hoveredMesh.scale.setScalar(1.2)
+            renderer.domElement.style.cursor = 'pointer'
+          } else {
+            renderer.domElement.style.cursor = 'default'
+          }
+        }
+        
+        renderer.render(scene, camera)
+        animationRef.current = requestAnimationFrame(animate)
+      }
+
+      animate()
+      setIsLoaded(true)
+
+      // Cleanup
+      return () => {
+        renderer.domElement.removeEventListener('mousemove', handleMouseMove)
+        renderer.domElement.removeEventListener('click', handleMouseClick)
+        
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current)
+        }
+        
+        if (mountRef.current && renderer.domElement) {
+          mountRef.current.removeChild(renderer.domElement)
+        }
+        
+        renderer.dispose()
+      }
+    } catch (error) {
+      console.error('3D Visualization failed, falling back to 2D:', error)
+      setIsLoaded(false)
     }
-  });
+  }, [])
 
-  const handlePointerOver = useCallback(() => {
-    setHovered(true);
-    onHover?.();
-  }, [onHover]);
-
-  const handlePointerOut = useCallback(() => {
-    setHovered(false);
-    onUnhover?.();
-  }, [onUnhover]);
+  if (!isLoaded) {
+    return (
+      <div className="w-full h-[300px] bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 rounded-lg border flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-sm text-muted-foreground">Loading interactive visualization...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <mesh
-      ref={meshRef}
-      position={position}
-      onClick={onClick}
-      onPointerOver={handlePointerOver}
-      onPointerOut={handlePointerOut}
-    >
-      <sphereGeometry args={[Math.max(0.1, value * 0.5), 16, 16]} />
-      <meshStandardMaterial
-        color={color}
-        transparent
-        opacity={hovered || isHovered ? 0.9 : 0.7}
-        roughness={0.2}
-        metalness={0.8}
-        emissive={color}
-        emissiveIntensity={hovered || isHovered ? 0.3 : 0.1}
-      />
-      {(hovered || isHovered) && (
-        <Text
-          position={[0, value * 0.5 + 0.5, 0]}
-          fontSize={0.3}
-          color={color}
-          anchorX="center"
-          anchorY="middle"
-          maxWidth={2}
-        >
-          {`Value: ${value.toFixed(2)}`}
-        </Text>
+    <div className="relative">
+      <div ref={mountRef} className="w-full rounded-lg overflow-hidden border" />
+      
+      {selectedPoint && (
+        <div className="absolute top-4 right-4 bg-background/90 backdrop-blur-sm border rounded-lg p-3 shadow-lg">
+          <h4 className="font-semibold text-sm">{selectedPoint.label}</h4>
+          <p className="text-xs text-muted-foreground">Value: {selectedPoint.value.toFixed(2)}</p>
+          <p className="text-xs text-muted-foreground">
+            Position: ({selectedPoint.x.toFixed(1)}, {selectedPoint.y.toFixed(1)}, {selectedPoint.z.toFixed(1)})
+          </p>
+        </div>
       )}
-    </mesh>
-  );
-}
-
-// Animated grid component
-function DataGrid({ theme }: { theme: string }) {
-  const gridRef = useRef<THREE.Group>(null);
-  
-  useFrame((state) => {
-    if (gridRef.current) {
-      gridRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.2) * 0.1;
-    }
-  });
-
-  const gridColor = theme === 'dark' ? '#3b82f6' : '#1e40af';
-
-  return (
-    <group ref={gridRef}>
-      {/* Grid lines */}
-      {Array.from({ length: 11 }, (_, i) => (
-        <React.Fragment key={i}>
-          <line key={`x-${i}`}>
-            <bufferGeometry>
-              <bufferAttribute
-                attach="attributes-position"
-                count={2}
-                array={new Float32Array([
-                  -5 + i, 0, -5,
-                  -5 + i, 0, 5
-                ])}
-                itemSize={3}
-              />
-            </bufferGeometry>
-            <lineBasicMaterial color={gridColor} opacity={0.3} transparent />
-          </line>
-          <line key={`z-${i}`}>
-            <bufferGeometry>
-              <bufferAttribute
-                attach="attributes-position"
-                count={2}
-                array={new Float32Array([
-                  -5, 0, -5 + i,
-                  5, 0, -5 + i
-                ])}
-                itemSize={3}
-              />
-            </bufferGeometry>
-            <lineBasicMaterial color={gridColor} opacity={0.3} transparent />
-          </line>
-        </React.Fragment>
-      ))}
-    </group>
-  );
-}
-
-// Main visualization scene
-function VisualizationScene({ data, theme }: { data: any[], theme: string }) {
-  const [selectedPoint, setSelectedPoint] = useState<number | null>(null);
-  const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
-
-  const dataPoints = useMemo(() => {
-    return data.map((item, index) => ({
-      position: [
-        (Math.random() - 0.5) * 8,
-        Math.random() * 4,
-        (Math.random() - 0.5) * 8
-      ] as [number, number, number],
-      value: typeof item === 'number' ? item : Math.random(),
-      color: `hsl(${(index / data.length) * 360}, 70%, 60%)`,
-      id: index
-    }));
-  }, [data]);
-
-  const lightColor = theme === 'dark' ? '#ffffff' : '#f0f0f0';
-  const ambientIntensity = theme === 'dark' ? 0.3 : 0.6;
-
-  return (
-    <Suspense fallback={null}>
-      <PerspectiveCamera makeDefault position={[10, 8, 10]} fov={60} />
-      <OrbitControls
-        enablePan={true}
-        enableZoom={true}
-        enableRotate={true}
-        minDistance={5}
-        maxDistance={30}
-        autoRotate={true}
-        autoRotateSpeed={0.5}
-      />
       
-      {/* Lighting */}
-      <ambientLight intensity={ambientIntensity} color={lightColor} />
-      <pointLight position={[10, 10, 10]} intensity={1} color={lightColor} />
-      <pointLight position={[-10, -10, -10]} intensity={0.5} color="#3b82f6" />
-      
-      {/* Environment */}
-      <Environment preset={theme === 'dark' ? 'night' : 'dawn'} />
-      
-      {/* Grid */}
-      <DataGrid theme={theme} />
-      
-      {/* Data points */}
-      {dataPoints.map((point, index) => (
-        <DataPoint
-          key={point.id}
-          position={point.position}
-          value={point.value}
-          color={point.color}
-          scale={1}
-          onClick={() => setSelectedPoint(selectedPoint === index ? null : index)}
-          isHovered={hoveredPoint === index || selectedPoint === index}
-          onHover={() => setHoveredPoint(index)}
-          onUnhover={() => setHoveredPoint(null)}
-        />
-      ))}
-      
-      {/* Floating title */}
-      <Float speed={1} rotationIntensity={0.2} floatIntensity={0.5}>
-        <Text
-          position={[0, 6, 0]}
-          fontSize={1}
-          color={theme === 'dark' ? '#ffffff' : '#1f2937'}
-          anchorX="center"
-          anchorY="middle"
-          maxWidth={10}
-        >
-          Interactive Data Visualization
-        </Text>
-      </Float>
-    </Suspense>
-  );
-}
-
-// Loading fallback
-function LoadingFallback() {
-  return (
-    <div className="flex items-center justify-center h-full">
-      <div className="text-center space-y-4">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-        <p className="text-sm text-muted-foreground">Loading 3D visualization...</p>
+      <div className="absolute bottom-4 left-4 text-xs text-muted-foreground">
+        <p>🖱️ Click points to select • Auto-rotating camera</p>
       </div>
     </div>
-  );
-}
-
-// 2D Fallback visualization
-function Fallback2D({ data, className }: { data: any[], className?: string }) {
-  const { theme } = useTheme();
-  
-  return (
-    <div className={`relative w-full h-full bg-gradient-to-br from-background via-background to-primary/5 ${className}`}>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="grid grid-cols-6 gap-4 p-8">
-          {data.slice(0, 36).map((item, index) => {
-            const value = typeof item === 'number' ? item : Math.random();
-            const height = Math.max(20, value * 100);
-            const hue = (index / 36) * 360;
-            
-            return (
-              <div
-                key={index}
-                className="relative group"
-                style={{ height: `${height}px` }}
-              >
-                <div
-                  className="w-8 h-full rounded-t-lg transition-all duration-300 hover:scale-110 cursor-pointer"
-                  style={{
-                    background: `linear-gradient(to top, hsl(${hue}, 70%, 50%), hsl(${hue}, 70%, 70%))`,
-                    boxShadow: `0 0 20px hsla(${hue}, 70%, 60%, 0.3)`
-                  }}
-                />
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
-                  {value.toFixed(2)}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-center">
-        <p className="text-sm text-muted-foreground">2D Data Visualization</p>
-        <p className="text-xs text-muted-foreground/70">Hover over bars for details</p>
-      </div>
-    </div>
-  );
-}
-
-// Main component interface
-interface DataVisualization3DProps {
-  data?: any[];
-  className?: string;
-  height?: string;
-  interactive?: boolean;
-  quality?: 'low' | 'medium' | 'high';
-}
-
-export default function DataVisualization3D({
-  data = Array.from({ length: 50 }, () => Math.random()),
-  className = "",
-  height = "400px",
-  interactive = true,
-  quality = 'medium'
-}: DataVisualization3DProps) {
-  const { theme } = useTheme();
-  
-  const pixelRatio = useMemo((): [number, number] => {
-    switch (quality) {
-      case 'low': return [0.5, 1];
-      case 'medium': return [1, 1.5];
-      case 'high': return [1, 2];
-      default: return [1, 1.5];
-    }
-  }, [quality]);
-
-  const Fallback3D = useCallback(({ error }: { error?: Error }) => {
-    console.warn('3D visualization fallback activated:', error?.message);
-    return <Fallback2D data={data} className={className} />;
-  }, [data, className]);
-
-  return (
-    <ErrorBoundary fallback={Fallback3D}>
-      <div className={`relative overflow-hidden rounded-xl ${className}`} style={{ height }}>
-        <Canvas
-          camera={{ position: [10, 8, 10], fov: 60 }}
-          gl={{
-            alpha: true,
-            antialias: quality !== 'low',
-            powerPreference: "high-performance"
-          }}
-          dpr={pixelRatio}
-          frameloop={interactive ? "always" : "demand"}
-          performance={{ min: 0.5 }}
-        >
-          <VisualizationScene data={data} theme={theme || 'dark'} />
-        </Canvas>
-        
-        {/* Controls overlay */}
-        <div className="absolute top-4 right-4 bg-black/20 backdrop-blur-sm rounded-lg p-2">
-          <div className="text-xs text-white/80 space-y-1">
-            <div>Click: Select point</div>
-            <div>Drag: Rotate view</div>
-            <div>Scroll: Zoom</div>
-          </div>
-        </div>
-        
-        {/* Data info overlay */}
-        <div className="absolute bottom-4 left-4 bg-black/20 backdrop-blur-sm rounded-lg p-2">
-          <div className="text-xs text-white/80">
-            Data Points: {data.length}
-          </div>
-        </div>
-      </div>
-    </ErrorBoundary>
-  );
+  )
 }
