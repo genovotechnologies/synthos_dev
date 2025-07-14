@@ -7,7 +7,7 @@ build:
       - pip install --upgrade pip
       - pip install -r requirements.txt
 run:
-  runtime-version: 3.11
+  runtime-version: 3.10
   command: uvicorn app.main:app --host 0.0.0.0 --port 8000
   network:
     port: 8000
