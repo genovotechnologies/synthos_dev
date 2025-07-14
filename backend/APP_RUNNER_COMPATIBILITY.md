@@ -3,18 +3,19 @@
 ## Supported Python Runtimes (as of January 2025)
 
 ✅ **Supported:**
-- Python 3.8
-- Python 3.9  
-- Python 3.10 ⭐ (Currently Used)
-- Python 3.11
+- Python 3.7.x (3.7.16, 3.7.15, 3.7.10)
+- Python 3.8.x ⭐ (Currently Used) - (3.8.20, 3.8.16, 3.8.15)
+- Python 3.11.x (3.11.12, 3.11.11, etc.)
 
 ❌ **NOT Supported:**
+- Python 3.9
+- Python 3.10
 - Python 3.12
 - Python 3.13
 
 ## Current Configuration
 
-**Runtime Version:** `3.10`
+**Runtime Version:** `3.8`
 **Runtime Base:** Amazon Linux 2
 
 ## Key App Runner Requirements
