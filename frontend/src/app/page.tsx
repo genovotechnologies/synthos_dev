@@ -301,52 +301,135 @@ export default function LandingPage() {
               {SUBSCRIPTION_TIERS.slice(0, 3).map((tier, index) => (
                 <motion.div
                   key={tier.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  initial={{ opacity: 0, y: 50, scale: 0.8 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  whileHover={{ 
+                    y: -10, 
+                    scale: 1.02,
+                    transition: { type: "spring", stiffness: 300, damping: 20 }
+                  }}
+                  transition={{ 
+                    duration: 0.6, 
+                    delay: index * 0.2,
+                    type: "spring",
+                    stiffness: 100,
+                    damping: 15
+                  }}
                   viewport={{ once: true }}
-                  className={tier.popular ? 'relative' : ''}
+                  className={tier.popular ? 'relative z-10' : 'relative'}
                 >
                   {tier.popular && (
-                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                      <div className="bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-medium">
+                    <motion.div 
+                      className="absolute -top-4 left-1/2 transform -translate-x-1/2"
+                      initial={{ opacity: 0, scale: 0 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.8 + index * 0.2, type: "spring" }}
+                    >
+                      <div className="bg-gradient-to-r from-primary to-purple-600 text-white px-4 py-1 rounded-full text-sm font-medium shadow-lg backdrop-blur-sm">
                         Most Popular
                       </div>
-                    </div>
+                    </motion.div>
                   )}
-                  <Card className={`h-full relative ${tier.popular ? 'border-primary shadow-lg glow-primary' : ''}`}>
-                    <CardHeader className="text-center pb-6">
-                      <CardTitle className="text-2xl">{tier.name}</CardTitle>
-                      <div className="mt-4">
-                        <span className="text-4xl font-bold">
+                  <Card className={`h-full relative overflow-hidden group transition-all duration-500 ${
+                    tier.popular 
+                      ? 'border-primary/50 shadow-2xl bg-gradient-to-br from-background/80 via-background/60 to-primary/5 backdrop-blur-md border-2' 
+                      : 'bg-gradient-to-br from-background/40 via-background/20 to-background/10 backdrop-blur-md border border-border/30 hover:border-primary/30'
+                  }`}>
+                    <CardHeader className="text-center pb-6 relative">
+                      {/* Glassmorphism accent */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-t-lg" />
+                      
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 + index * 0.1 }}
+                        className="relative z-10"
+                      >
+                        <CardTitle className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">
+                          {tier.name}
+                        </CardTitle>
+                      </motion.div>
+                      
+                      <motion.div 
+                        className="mt-4 relative z-10"
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        whileInView={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.4 + index * 0.1, type: "spring" }}
+                      >
+                        <span className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
                           {tier.price === null ? 'Contact Sales' : tier.price === 0 ? 'Free' : `$${tier.price}`}
                         </span>
                         {tier.price !== null && tier.price > 0 && (
-                          <span className="text-muted-foreground">/month</span>
+                          <span className="text-muted-foreground ml-1">/month</span>
                         )}
-                      </div>
-                      <CardDescription className="mt-2">
-                        {tier.monthly_limit.toLocaleString()} synthetic records per month
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <ul className="space-y-3">
-                        {tier.features.slice(0, 5).map((feature, featureIndex) => (
-                          <li key={featureIndex} className="flex items-start">
-                            <Check className="h-4 w-4 text-green-500 mr-3 mt-0.5 flex-shrink-0" />
-                            <span className="text-sm">{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      <Button 
-                        className={`w-full touch-target ${tier.popular ? 'glow-primary' : ''}`}
-                        variant={tier.popular ? 'default' : 'outline'}
-                        asChild
+                      </motion.div>
+                      
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        whileInView={{ opacity: 1 }}
+                        transition={{ delay: 0.5 + index * 0.1 }}
+                        className="relative z-10"
                       >
-                        <Link href={tier.price === 0 ? '/auth/signup' : '/pricing'}>
-                          {tier.price === 0 ? 'Get Started Free' : 'Choose Plan'}
-                        </Link>
-                      </Button>
+                        <CardDescription className="mt-2 text-muted-foreground/80">
+                          {tier.monthly_limit === -1 ? 'Unlimited' : tier.monthly_limit.toLocaleString()} synthetic records per month
+                        </CardDescription>
+                      </motion.div>
+                    </CardHeader>
+                    <CardContent className="space-y-6 relative">
+                      {/* Glassmorphism content background */}
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/2 to-white/5 rounded-b-lg" />
+                      
+                      <motion.ul 
+                        className="space-y-3 relative z-10"
+                        initial={{ opacity: 0 }}
+                        whileInView={{ opacity: 1 }}
+                        transition={{ delay: 0.6 + index * 0.1 }}
+                      >
+                        {tier.features.slice(0, 5).map((feature, featureIndex) => (
+                          <motion.li 
+                            key={featureIndex} 
+                            className="flex items-start group"
+                            initial={{ opacity: 0, x: -20 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            transition={{ 
+                              delay: 0.7 + index * 0.1 + featureIndex * 0.05,
+                              type: "spring",
+                              stiffness: 100
+                            }}
+                            whileHover={{ x: 5 }}
+                          >
+                            <Check className="h-4 w-4 text-green-500 mr-3 mt-0.5 flex-shrink-0 transition-transform group-hover:scale-110" />
+                            <span className="text-sm text-foreground/90 group-hover:text-foreground transition-colors">
+                              {feature}
+                            </span>
+                          </motion.li>
+                        ))}
+                      </motion.ul>
+                      
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.8 + index * 0.1, type: "spring" }}
+                        className="relative z-10"
+                      >
+                        <Button 
+                          className={`w-full touch-target relative overflow-hidden group transition-all duration-300 ${
+                            tier.popular 
+                              ? 'bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 shadow-lg hover:shadow-xl' 
+                              : 'bg-gradient-to-r from-background/80 to-background/60 backdrop-blur-sm border-border/50 hover:border-primary/50 hover:bg-gradient-to-r hover:from-primary/10 hover:to-purple-600/10'
+                          }`}
+                          variant={tier.popular ? 'default' : 'outline'}
+                          asChild
+                        >
+                          <Link href={tier.price === 0 ? '/auth/signup' : '/pricing'} className="relative z-10">
+                            <span className="relative z-10">
+                              {tier.price === 0 ? 'Get Started Free' : 'Choose Plan'}
+                            </span>
+                            {/* Hover effect overlay */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/5 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                          </Link>
+                        </Button>
+                      </motion.div>
                     </CardContent>
                   </Card>
                 </motion.div>

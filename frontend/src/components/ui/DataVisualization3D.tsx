@@ -139,16 +139,49 @@ function VisualizationScene({ data, theme }: { data: any[], theme: string }) {
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
 
   const dataPoints = useMemo(() => {
-    return data.map((item, index) => ({
-      position: [
-        (Math.random() - 0.5) * 8,
-        Math.random() * 4,
-        (Math.random() - 0.5) * 8
-      ] as [number, number, number],
-      value: typeof item === 'number' ? item : Math.random(),
-      color: `hsl(${(index / data.length) * 360}, 70%, 60%)`,
-      id: index
-    }));
+    return data.map((item, index) => {
+      const value = typeof item === 'number' ? item : (item?.value || Math.random());
+      const category = (item?.category || 'default') as string;
+      
+      // Create clusters based on category
+      const categoryOffsets: Record<string, [number, number, number]> = {
+        'Users': [-2, 0, -2],
+        'Products': [2, 0, -2], 
+        'Orders': [-2, 0, 2],
+        'Reviews': [2, 0, 2],
+        'Analytics': [-1, 0, 0],
+        'Sales': [1, 0, 0],
+        'Marketing': [0, 0, -1],
+        'Support': [0, 0, 1],
+        'default': [0, 0, 0]
+      };
+      const categoryOffset = categoryOffsets[category] || categoryOffsets['default'];
+      
+      const categoryColors: Record<string, string> = {
+        'Users': '#3b82f6',
+        'Products': '#ef4444', 
+        'Orders': '#10b981',
+        'Reviews': '#f59e0b',
+        'Analytics': '#8b5cf6',
+        'Sales': '#06b6d4',
+        'Marketing': '#f97316',
+        'Support': '#84cc16',
+        'default': `hsl(${(index / data.length) * 360}, 70%, 60%)`
+      };
+      
+      return {
+        position: [
+          categoryOffset[0] + (Math.random() - 0.5) * 3,
+          value * 3 + Math.random() * 1,
+          categoryOffset[2] + (Math.random() - 0.5) * 3
+        ] as [number, number, number],
+        value,
+        color: categoryColors[category] || categoryColors['default'],
+        category,
+        label: item?.label || `Point ${index + 1}`,
+        id: index
+      };
+    });
   }, [data]);
 
   const lightColor = theme === 'dark' ? '#ffffff' : '#f0f0f0';
@@ -193,17 +226,55 @@ function VisualizationScene({ data, theme }: { data: any[], theme: string }) {
         />
       ))}
       
+      {/* Category labels */}
+      <Text
+        position={[-2, 4, -2]}
+        fontSize={0.3}
+        color="#3b82f6"
+        anchorX="center"
+        anchorY="middle"
+      >
+        Users
+      </Text>
+      <Text
+        position={[2, 4, -2]}
+        fontSize={0.3}
+        color="#ef4444"
+        anchorX="center"
+        anchorY="middle"
+      >
+        Products
+      </Text>
+      <Text
+        position={[-2, 4, 2]}
+        fontSize={0.3}
+        color="#10b981"
+        anchorX="center"
+        anchorY="middle"
+      >
+        Orders
+      </Text>
+      <Text
+        position={[2, 4, 2]}
+        fontSize={0.3}
+        color="#f59e0b"
+        anchorX="center"
+        anchorY="middle"
+      >
+        Reviews
+      </Text>
+
       {/* Floating title */}
       <Float speed={1} rotationIntensity={0.2} floatIntensity={0.5}>
         <Text
           position={[0, 6, 0]}
-          fontSize={1}
+          fontSize={0.8}
           color={theme === 'dark' ? '#ffffff' : '#1f2937'}
           anchorX="center"
           anchorY="middle"
           maxWidth={10}
         >
-          Interactive Data Visualization
+          Synthetic Data Clusters
         </Text>
       </Float>
     </Suspense>
@@ -274,7 +345,11 @@ interface DataVisualization3DProps {
 }
 
 export default function DataVisualization3D({
-  data = Array.from({ length: 50 }, () => Math.random()),
+  data = Array.from({ length: 50 }, (_, i) => ({ 
+    value: Math.random(), 
+    label: `Data Point ${i + 1}`,
+    category: ['A', 'B', 'C', 'D'][Math.floor(Math.random() * 4)]
+  })),
   className = "",
   height = "400px",
   interactive = true,
@@ -291,10 +366,32 @@ export default function DataVisualization3D({
     }
   }, [quality]);
 
+  // Generate more interesting sample data if none provided
+  const enrichedData = useMemo(() => {
+    if (Array.isArray(data) && data.length > 0) {
+      return data.map((item, i) => {
+        if (typeof item === 'number') {
+          return { 
+            value: item, 
+            label: `Point ${i + 1}`,
+            category: ['Analytics', 'Sales', 'Marketing', 'Support'][Math.floor(Math.random() * 4)]
+          };
+        }
+        return item;
+      });
+    }
+    return Array.from({ length: 50 }, (_, i) => ({ 
+      value: Math.random(), 
+      label: `Synthetic Record ${i + 1}`,
+      category: ['Users', 'Products', 'Orders', 'Reviews'][Math.floor(Math.random() * 4)],
+      timestamp: new Date(Date.now() - Math.random() * 86400000 * 30).toISOString()
+    }));
+  }, [data]);
+
   const Fallback3D = useCallback(({ error }: { error?: Error }) => {
     console.warn('3D visualization fallback activated:', error?.message);
-    return <Fallback2D data={data} className={className} />;
-  }, [data, className]);
+    return <Fallback2D data={enrichedData} className={className} />;
+  }, [enrichedData, className]);
 
   return (
     <ErrorBoundary fallback={Fallback3D}>
@@ -310,7 +407,7 @@ export default function DataVisualization3D({
           frameloop={interactive ? "always" : "demand"}
           performance={{ min: 0.5 }}
         >
-          <VisualizationScene data={data} theme={theme || 'dark'} />
+          <VisualizationScene data={enrichedData} theme={theme || 'dark'} />
         </Canvas>
         
         {/* Controls overlay */}
