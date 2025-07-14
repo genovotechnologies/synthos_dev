@@ -225,8 +225,8 @@ const ContactPage = () => {
                     <div>
                       <h4 className="font-semibold mb-1">Office</h4>
                       <p className="text-muted-foreground">
-                        123 Innovation Drive<br />
-                        San Francisco, CA 94107
+                        Magodo Lagos<br />
+                        Nigeria
                       </p>
                     </div>
                   </div>
@@ -240,8 +240,8 @@ const ContactPage = () => {
                     <div>
                       <h4 className="font-semibold mb-1">Email</h4>
                       <p className="text-muted-foreground">
-                        support@synthos.ai<br />
-                        sales@synthos.ai
+                        support@synthos.dev<br />
+                        sales@synthos.dev
                       </p>
                     </div>
                   </div>

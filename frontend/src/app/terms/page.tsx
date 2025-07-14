@@ -245,9 +245,9 @@ Class action waivers apply to the extent permitted by law.`
                         If you have any questions about these Terms of Service, please contact us:
                       </p>
                       <div className="space-y-2 text-sm">
-                        <p><strong>Email:</strong> legal@synthos.ai</p>
-                        <p><strong>Address:</strong> 123 AI Street, San Francisco, CA 94105</p>
-                        <p><strong>Phone:</strong> +1 (555) 123-4567</p>
+                        <p><strong>Email:</strong> legal@synthos.dev</p>
+                        <p><strong>Address:</strong> Magodo Lagos, Nigeria</p>
+                        <p><strong>Phone:</strong> +2348029709341</p>
                       </div>
                     </CardContent>
                   </Card>

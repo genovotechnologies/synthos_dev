@@ -7,10 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 const AboutPage = () => {
   const teamMembers = [
-    { name: "Alex Chen", role: "CEO & Co-Founder", bio: "Former AI researcher at Google" },
-    { name: "Sarah Williams", role: "CTO & Co-Founder", bio: "Ex-Microsoft engineer" },
-    { name: "David Rodriguez", role: "Head of AI Research", bio: "PhD in Machine Learning" },
-    { name: "Emily Zhang", role: "VP of Engineering", bio: "Former Tesla engineer" }
+    { name: "Afolabi Oluwatosin", role: "CEO & Founder", bio: "AI/ML Researcher" },
+    { name: "Adegbite Ifeoluwa", role: "CTO & Co-Founder", bio: "Cybersecurity Researcher" },
+    { name: "Falade Promise", role: "Security Technical Lead", bio: "Security Specialist" },
+    { name: "Chiboy", role: "VP of Engineering", bio: "Full Stack Engineer" }
   ];
 
   return (
@@ -34,6 +34,7 @@ const AboutPage = () => {
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
               We're building the future of synthetic data generation, empowering organizations 
               to innovate faster while maintaining the highest standards of privacy and compliance.
+              Proudly Owned By Genovo Technologies 
             </p>
           </motion.div>
 

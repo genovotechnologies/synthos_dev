@@ -38,22 +38,22 @@ export default function LandingPage() {
 
   const testimonials = [
     {
-      name: "Sarah Chen",
-      role: "Data Scientist at TechCorp",
+      name: "CHIBOY",
+      role: "Data Scientist",
       content: "Synthos has revolutionized our data pipeline. The quality is exceptional.",
-      avatar: "SC"
+      avatar: "CB"
     },
     {
-      name: "Michael Rodriguez",
-      role: "ML Engineer at DataFlow",
+      name: "Gasper Samuel",
+      role: "ML Engineer",
       content: "The privacy features give us confidence to work with sensitive datasets.",
-      avatar: "MR"
+      avatar: "GS"
     },
     {
-      name: "Emma Thompson",
-      role: "CTO at StartupXYZ",
+      name: "Seun",
+      role: "ML/AI Engineer",
       content: "Easy integration and fantastic API. Our development time dropped by 60%.",
-      avatar: "ET"
+      avatar: "SA"
     }
   ];
 
