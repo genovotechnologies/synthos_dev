@@ -1,0 +1,224 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: synthos
+  labels:
+    name: synthos
+    app.kubernetes.io/name: synthos
+    app.kubernetes.io/instance: production
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: platform
+    app.kubernetes.io/part-of: synthos-platform
+    app.kubernetes.io/managed-by: kubernetes
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: synthos-config
+  namespace: synthos
+data:
+  # Application Configuration
+  environment: "production"
+  debug: "false"
+  api-version: "v1"
+  
+  # SMTP Configuration
+  smtp-host: "smtp.gmail.com"
+  smtp-port: "587"
+  from-email: "noreply@synthos.ai"
+  
+  # AWS Configuration
+  aws-region: "us-east-1"
+  deployment-region: "us-east-1"
+  data-residency: "US"
+  
+  # Redis Configuration
+  redis-cache-ttl: "3600"
+  
+  # Rate Limiting
+  rate-limit-requests: "100"
+  rate-limit-window: "60"
+  
+  # File Upload
+  max-file-size: "104857600"  # 100MB
+  allowed-file-types: "csv,json,parquet,xlsx"
+  
+  # Generation Settings
+  max-synthetic-rows: "1000000"
+  default-synthetic-rows: "1000"
+  generation-timeout: "300"
+  
+  # Privacy Settings
+  privacy-budget-epsilon: "1.0"
+  privacy-budget-delta: "1e-5"
+  
+  # Feature Flags
+  enable-watermarks: "true"
+  enable-audit-logs: "true"
+  enable-data-retention: "true"
+  enable-gdpr-compliance: "true"
+  prometheus-enabled: "true"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: synthos-secrets
+  namespace: synthos
+type: Opaque
+data:
+  # Database (base64 encoded)
+  database-url: cG9zdGdyZXNxbDovL3N5bnRob3M6cGFzc3dvcmRAcG9zdGdyZXM6NTQzMi9zeW50aG9z
+  
+  # Redis (base64 encoded)
+  redis-url: cmVkaXM6Ly9yZWRpczozNjM3OS8w
+  
+  # API Keys (base64 encoded - replace with actual values)
+  anthropic-api-key: eW91ci1hbnRocm9waWMtYXBpLWtleQ==
+  
+  # Stripe (base64 encoded - replace with actual values)
+  stripe-secret-key: c2tfdGVzdF95b3VyX3N0cmlwZV9zZWNyZXQ=
+  stripe-webhook-secret: d2hzZWNfeW91cl93ZWJob29rX3NlY3JldA==
+  
+  # JWT (base64 encoded - replace with actual values)
+  jwt-secret-key: eW91ci1qd3Qtc2VjcmV0LWtleQ==
+  secret-key: eW91ci1zdXBlci1zZWNyZXQta2V5
+  
+  # SMTP (base64 encoded - replace with actual values)
+  smtp-user: eW91ci1lbWFpbEBnbWFpbC5jb20=
+  smtp-password: eW91ci1lbWFpbC1wYXNzd29yZA==
+  
+  # AWS (base64 encoded - replace with actual values)
+  aws-access-key-id: eW91ci1hd3MtYWNjZXNzLWtleQ==
+  aws-secret-access-key: eW91ci1hd3Mtc2VjcmV0LWtleQ==
+  
+  # Monitoring (base64 encoded - optional)
+  sentry-dsn: aHR0cHM6Ly95b3VyLXNlbnRyeS1kc25Ac2VudHJ5LmlvL3Byb2plY3QtaWQ=
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: synthos-uploads-pvc
+  namespace: synthos
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: synthos-storage
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: synthos-exports-pvc
+  namespace: synthos
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 500Gi
+  storageClassName: synthos-storage
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: synthos-logs-pvc
+  namespace: synthos
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: synthos-storage
+
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: synthos-storage
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: gp3
+  fsType: ext4
+  encrypted: "true"
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: synthos
+  name: synthos-role
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: synthos-role-binding
+  namespace: synthos
+subjects:
+- kind: ServiceAccount
+  name: synthos-backend
+  namespace: synthos
+- kind: ServiceAccount
+  name: synthos-frontend
+  namespace: synthos
+- kind: ServiceAccount
+  name: synthos-celery
+  namespace: synthos
+roleRef:
+  kind: Role
+  name: synthos-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: synthos-network-policy
+  namespace: synthos
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: synthos
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+  egress:
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: synthos
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80 

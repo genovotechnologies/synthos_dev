@@ -1,0 +1,229 @@
+# Genovo Technologies Commercial License
+
+**Software:** Synthos - Enterprise Synthetic Data Platform  
+**Version:** 1.0  
+**Effective Date:** January 1, 2025  
+**Copyright:** © 2025 Genovo Technologies Inc. All rights reserved.
+
+## 1. DEFINITIONS
+
+**"Software"** means the Synthos platform, including all source code, object code, documentation, and related materials provided by Genovo Technologies.
+
+**"Licensee"** means the individual or entity that has entered into this license agreement with Genovo Technologies.
+
+**"Commercial Use"** means use of the Software for commercial purposes, including but not limited to generating revenue, supporting business operations, or providing services to third parties.
+
+**"Deployment"** means installation and operation of the Software in any environment, including development, testing, staging, and production environments.
+
+## 2. GRANT OF LICENSE
+
+Subject to the terms and conditions of this License, Genovo Technologies grants Licensee a non-exclusive, non-transferable license to:
+
+### 2.1 Use Rights
+- **Deploy and operate** the Software within Licensee's organization
+- **Modify and customize** the Software for internal use
+- **Create derivative works** for internal business purposes
+- **Distribute** modified versions within Licensee's organization
+
+### 2.2 Restrictions
+- **No redistribution** of the Software or derivative works outside Licensee's organization
+- **No reverse engineering** for the purpose of creating competing products
+- **No sublicensing** or transfer of rights to third parties
+- **No removal** of copyright notices or proprietary markings
+
+## 3. SUBSCRIPTION TIERS AND PRICING
+
+### 3.1 Free Tier
+- **Usage Limit:** 10,000 synthetic rows per month
+- **Features:** Basic generation, watermarked data
+- **Support:** Community support only
+- **Term:** Perpetual, subject to usage limits
+
+### 3.2 Starter Tier - $99/month
+- **Usage Limit:** 50,000 synthetic rows per month
+- **Features:** Advanced generation, no watermarks
+- **Support:** Email support (48-hour response)
+- **Term:** Monthly or annual subscription
+
+### 3.3 Professional Tier - $599/month
+- **Usage Limit:** 1,000,000 synthetic rows per month
+- **Features:** Full API access, advanced privacy controls
+- **Support:** Priority support (24-hour response)
+- **Term:** Monthly or annual subscription
+
+### 3.4 Growth Tier - $1,299/month
+- **Usage Limit:** 5,000,000 synthetic rows per month
+- **Features:** Custom models, premium features
+- **Support:** Priority support (12-hour response)
+- **Term:** Monthly or annual subscription
+
+### 3.5 Enterprise Tier - Contact Sales
+- **Usage Limit:** Unlimited
+- **Features:** On-premise deployment, dedicated support
+- **Support:** 24/7 dedicated support with SLA
+- **Term:** Annual contract with negotiated terms
+
+## 4. PAYMENT TERMS
+
+### 4.1 Billing
+- Subscription fees are billed monthly or annually in advance
+- Usage-based charges are billed monthly in arrears
+- All payments are due within 30 days of invoice date
+- Late payments may result in service suspension
+
+### 4.2 Taxes
+- All fees are exclusive of taxes
+- Licensee is responsible for all applicable taxes
+- Genovo Technologies will provide appropriate tax documentation
+
+### 4.3 Refunds
+- Annual subscriptions: Pro-rated refund available within 30 days
+- Monthly subscriptions: No refunds for partial months
+- Usage charges: No refunds for consumed resources
+
+## 5. INTELLECTUAL PROPERTY
+
+### 5.1 Ownership
+- Genovo Technologies retains all rights, title, and interest in the Software
+- Licensee owns data generated using the Software
+- No rights are granted except as expressly stated in this License
+
+### 5.2 Feedback
+- Licensee may provide feedback and suggestions about the Software
+- Genovo Technologies may use such feedback without compensation
+- Feedback does not create any intellectual property rights for Licensee
+
+## 6. DATA PRIVACY AND SECURITY
+
+### 6.1 Data Processing
+- Genovo Technologies processes data in accordance with its Privacy Policy
+- Data is encrypted in transit and at rest
+- Differential privacy protections are applied to all synthetic data generation
+
+### 6.2 Data Residency
+- Data processing location can be specified by Licensee
+- Available regions: US, EU, Asia-Pacific
+- Cross-border data transfer safeguards are implemented
+
+### 6.3 Compliance
+- Software is designed to support GDPR and CCPA compliance
+- Audit logs and data lineage tracking are provided
+- Data deletion capabilities are available upon request
+
+## 7. SUPPORT AND MAINTENANCE
+
+### 7.1 Support Levels
+- **Community Support:** Documentation and community forums
+- **Email Support:** Business hours support via email
+- **Priority Support:** 24/7 support with guaranteed response times
+- **Dedicated Support:** Dedicated support team for Enterprise customers
+
+### 7.2 Maintenance
+- Security updates and bug fixes are provided automatically
+- Feature updates are included in subscription tiers
+- Major version upgrades may require additional licensing
+
+### 7.3 Service Level Agreement (SLA)
+- **Uptime:** 99.9% availability for Professional tier and above
+- **Response Time:** Varies by support tier
+- **Resolution Time:** Best effort based on issue severity
+
+## 8. TERM AND TERMINATION
+
+### 8.1 Term
+- License begins on the Effective Date
+- Continues until terminated in accordance with this License
+- Subscription renewals extend the term automatically
+
+### 8.2 Termination for Cause
+- Either party may terminate for material breach with 30 days written notice
+- Genovo Technologies may terminate immediately for non-payment
+- License terminates automatically if Licensee exceeds usage limits
+
+### 8.3 Effect of Termination
+- Licensee must cease all use of the Software
+- Data export capabilities are provided for 30 days post-termination
+- Fees paid in advance are non-refundable except as provided herein
+
+## 9. WARRANTIES AND DISCLAIMERS
+
+### 9.1 Limited Warranty
+- Software will perform substantially in accordance with documentation
+- Warranty period is 90 days from delivery
+- Genovo Technologies will use reasonable efforts to correct defects
+
+### 9.2 Disclaimer
+- SOFTWARE IS PROVIDED "AS IS" BEYOND EXPRESS WARRANTIES
+- NO IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR PURPOSE
+- GENOVO TECHNOLOGIES DOES NOT WARRANT UNINTERRUPTED OPERATION
+
+## 10. LIMITATION OF LIABILITY
+
+### 10.1 Liability Cap
+- Total liability is limited to fees paid in the 12 months preceding the claim
+- Minimum liability cap is $1,000 for Free tier users
+- No limit on liability for data breaches caused by gross negligence
+
+### 10.2 Exclusions
+- No liability for consequential, indirect, or incidental damages
+- No liability for lost profits or business interruption
+- No liability for third-party claims or actions
+
+## 11. INDEMNIFICATION
+
+### 11.1 Genovo Technologies Indemnification
+- Genovo Technologies will defend against IP infringement claims
+- Obligation limited to unmodified Software used as intended
+- Licensee must provide prompt notice and cooperation
+
+### 11.2 Licensee Indemnification
+- Licensee will indemnify for misuse of the Software
+- Includes claims arising from modification or integration
+- Excludes claims covered by Genovo Technologies indemnification
+
+## 12. GENERAL PROVISIONS
+
+### 12.1 Governing Law
+- This License is governed by the laws of Delaware, USA
+- Disputes will be resolved in Delaware state or federal courts
+- UN Convention on Contracts for the International Sale of Goods does not apply
+
+### 12.2 Entire Agreement
+- This License constitutes the entire agreement between parties
+- Supersedes all prior agreements and understandings
+- May only be modified in writing signed by both parties
+
+### 12.3 Severability
+- If any provision is invalid, the remainder remains enforceable
+- Invalid provisions will be replaced with valid provisions of similar effect
+
+### 12.4 Assignment
+- Licensee may not assign this License without prior written consent
+- Genovo Technologies may assign this License to affiliates or successors
+- Assignment includes merger, acquisition, or sale of assets
+
+### 12.5 Force Majeure
+- Neither party is liable for delays due to circumstances beyond reasonable control
+- Includes natural disasters, acts of government, or infrastructure failures
+- Obligations resume when circumstances are resolved
+
+## 13. CONTACT INFORMATION
+
+**Genovo Technologies Inc.**  
+
+
+**Legal Department:**  
+
+
+**Licensing Inquiries:**  
+
+
+**Sales:**  
+Email: sales@genovotech.com  
+
+
+---
+
+**By using the Software, Licensee acknowledges that they have read, understood, and agree to be bound by the terms and conditions of this License.**
+
+**© 2025 Genovo Technologies Inc. All rights reserved.**

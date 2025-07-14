@@ -1,0 +1,231 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: synthos-backend
+  namespace: synthos
+  labels:
+    app: synthos-backend
+    version: v1
+    component: api
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: synthos-backend
+  template:
+    metadata:
+      labels:
+        app: synthos-backend
+        version: v1
+        component: api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: synthos-backend
+      containers:
+      - name: backend
+        image: synthos/backend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: DEBUG
+          value: "false"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: synthos-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: synthos-secrets
+              key: redis-url
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: synthos-secrets
+              key: anthropic-api-key
+        - name: STRIPE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: synthos-secrets
+              key: stripe-secret-key
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: synthos-secrets
+              key: jwt-secret-key
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: synthos-secrets
+              key: secret-key
+        - name: SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              name: synthos-secrets
+              key: sentry-dsn
+              optional: true
+        - name: SMTP_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: synthos-config
+              key: smtp-host
+        - name: SMTP_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: synthos-config
+              key: smtp-port
+        - name: FROM_EMAIL
+          valueFrom:
+            configMapKeyRef:
+              name: synthos-config
+              key: from-email
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: synthos-secrets
+              key: aws-access-key-id
+              optional: true
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: synthos-secrets
+              key: aws-secret-access-key
+              optional: true
+        - name: AWS_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: synthos-config
+              key: aws-region
+        - name: DEPLOYMENT_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: synthos-config
+              key: deployment-region
+        - name: DATA_RESIDENCY
+          valueFrom:
+            configMapKeyRef:
+              name: synthos-config
+              key: data-residency
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: uploads
+          mountPath: /app/uploads
+        - name: exports
+          mountPath: /app/exports
+        - name: logs
+          mountPath: /app/logs
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: uploads
+        persistentVolumeClaim:
+          claimName: synthos-uploads-pvc
+      - name: exports
+        persistentVolumeClaim:
+          claimName: synthos-exports-pvc
+      - name: logs
+        persistentVolumeClaim:
+          claimName: synthos-logs-pvc
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - synthos-backend
+              topologyKey: kubernetes.io/hostname
+      tolerations:
+      - key: "synthos.ai/backend"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: synthos-backend-service
+  namespace: synthos
+  labels:
+    app: synthos-backend
+    service: backend-api
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: synthos-backend
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: synthos-backend
+  namespace: synthos
+  labels:
+    app: synthos-backend
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: synthos-backend-pdb
+  namespace: synthos
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: synthos-backend 

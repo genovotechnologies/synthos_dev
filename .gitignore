@@ -1,0 +1,25 @@
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+.env
+
+# Node.js
+node_modules/
+.next/
+out/
+build/
+.env.local
+
+# Terraform
+.terraform/
+*.tfstate*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

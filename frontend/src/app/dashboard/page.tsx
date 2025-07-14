@@ -1,0 +1,410 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import Link from 'next/link';
+import { Header } from '@/components/layout/Header';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
+
+interface Dataset {
+  id: number;
+  name: string;
+  status: string;
+  row_count: number;
+  column_count: number;
+  created_at: string;
+  file_size: number;
+}
+
+interface UserUsage {
+  current_month_usage: number;
+  total_rows_generated: number;
+  total_datasets_created: number;
+  monthly_limit: number;
+  storage_limit_mb: number;
+  datasets_storage_mb: number;
+}
+
+interface GenerationJob {
+  id: number;
+  dataset_id: number;
+  rows_requested: number;
+  rows_generated: number;
+  status: string;
+  progress_percentage: number;
+  created_at: string;
+}
+
+export default function DashboardPage() {
+  const { user, isAuthenticated } = useAuth();
+  const router = useRouter();
+  const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [usage, setUsage] = useState<UserUsage | null>(null);
+  const [recentJobs, setRecentJobs] = useState<GenerationJob[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/auth/signin');
+      return;
+    }
+
+    // Fetch dashboard data
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        
+        // Simulate API calls - replace with actual API calls
+        const [datasetsResponse, usageResponse, jobsResponse] = await Promise.all([
+          fetch('/api/v1/datasets', {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          }),
+          fetch('/api/v1/users/usage', {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          }),
+          fetch('/api/v1/generation/jobs', {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          })
+        ]);
+
+        if (datasetsResponse.ok) {
+          const datasetsData = await datasetsResponse.json();
+          setDatasets(datasetsData);
+        }
+
+        if (usageResponse.ok) {
+          const usageData = await usageResponse.json();
+          setUsage(usageData);
+        }
+
+        if (jobsResponse.ok) {
+          const jobsData = await jobsResponse.json();
+          setRecentJobs(jobsData);
+        }
+
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+        setError('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [isAuthenticated, router]);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('name', file.name);
+
+    try {
+      const response = await fetch('/api/v1/datasets/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        // Refresh datasets
+        window.location.reload();
+      } else {
+        setError('Failed to upload file');
+      }
+    } catch (err) {
+      setError('Upload failed');
+    }
+  };
+
+  const startGeneration = async (datasetId: number) => {
+    try {
+      const response = await fetch('/api/v1/generation/generate', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          dataset_id: datasetId,
+          rows: 1000,
+          privacy_level: 'medium'
+        })
+      });
+
+      if (response.ok) {
+        // Refresh jobs
+        window.location.reload();
+      } else {
+        setError('Failed to start generation');
+      }
+    } catch (err) {
+      setError('Generation failed');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-lg text-muted-foreground">Loading dashboard...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col min-h-screen">
+      <Header />
+      <main className="flex-1 bg-gradient-to-br from-background via-background to-primary/5">
+        <div className="container mx-auto px-4 py-8">
+          {error && (
+            <div className="mb-6 p-4 bg-red-100 border border-red-300 rounded-lg text-red-700">
+              {error}
+            </div>
+          )}
+
+          {/* Welcome Section */}
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold mb-2">
+              Welcome back, {user?.full_name || user?.email}! 👋
+            </h1>
+          <p className="text-lg text-muted-foreground">
+              Generate high-quality synthetic data with privacy-first AI models
+            </p>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">This Month</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{usage?.current_month_usage || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  of {usage?.monthly_limit || 10000} rows
+                </p>
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                  <div 
+                    className="bg-primary h-2 rounded-full" 
+                    style={{ 
+                      width: `${Math.min((usage?.current_month_usage || 0) / (usage?.monthly_limit || 10000) * 100, 100)}%` 
+                    }}
+                  ></div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">Total Datasets</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{datasets.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  {usage?.datasets_storage_mb || 0}MB used
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">Rows Generated</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{usage?.total_rows_generated || 0}</div>
+                <p className="text-xs text-muted-foreground">All time</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">Active Jobs</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {recentJobs.filter(job => job.status === 'running').length}
+                </div>
+                <p className="text-xs text-muted-foreground">Currently running</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Datasets Section */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Your Datasets</CardTitle>
+                  <div>
+                    <input
+                      type="file"
+                      accept=".csv,.json,.parquet,.xlsx"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      id="file-upload"
+                    />
+                    <Button asChild>
+                      <label htmlFor="file-upload" className="cursor-pointer">
+                        Upload Dataset
+                      </label>
+                    </Button>
+                  </div>
+                </div>
+                <CardDescription>
+                  Manage your uploaded datasets and generate synthetic data
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {datasets.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <div className="text-4xl mb-4">📊</div>
+                    <p>No datasets uploaded yet</p>
+                    <p className="text-sm">Upload your first dataset to get started</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {datasets.slice(0, 3).map((dataset) => (
+                      <div key={dataset.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div>
+                          <h3 className="font-medium">{dataset.name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {dataset.row_count} rows, {dataset.column_count} columns
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(dataset.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            dataset.status === 'ready' ? 'bg-green-100 text-green-700' :
+                            dataset.status === 'processing' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            {dataset.status}
+                          </span>
+                          {dataset.status === 'ready' && (
+                            <Button 
+                              size="sm" 
+                              onClick={() => startGeneration(dataset.id)}
+                            >
+                              Generate
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Recent Jobs */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Generation Jobs</CardTitle>
+                <CardDescription>
+                  Track your synthetic data generation progress
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {recentJobs.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <div className="text-4xl mb-4">⚡</div>
+                    <p>No generation jobs yet</p>
+                    <p className="text-sm">Upload a dataset to start generating</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {recentJobs.slice(0, 3).map((job) => (
+                      <div key={job.id} className="p-4 border rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-medium">Job #{job.id}</h3>
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            job.status === 'completed' ? 'bg-green-100 text-green-700' :
+                            job.status === 'running' ? 'bg-blue-100 text-blue-700' :
+                            job.status === 'failed' ? 'bg-red-100 text-red-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {job.status}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          {job.rows_generated || 0} of {job.rows_requested} rows
+                        </p>
+                        {job.status === 'running' && (
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                              style={{ width: `${job.progress_percentage}%` }}
+                            ></div>
+                          </div>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {new Date(job.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="mt-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+                <CardDescription>
+                  Common tasks to get you started
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Button variant="outline" className="h-20 flex flex-col items-center gap-2" asChild>
+                    <Link href="/datasets">
+                      <span className="text-2xl">📊</span>
+                      <span>View Analytics</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex flex-col items-center gap-2" asChild>
+                    <Link href="/api">
+                      <span className="text-2xl">⚙️</span>
+                      <span>API Settings</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex flex-col items-center gap-2" asChild>
+                    <Link href="/documentation">
+                      <span className="text-2xl">📚</span>
+                      <span>Documentation</span>
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
