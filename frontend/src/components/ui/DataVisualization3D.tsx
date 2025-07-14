@@ -106,11 +106,10 @@ function DataGrid({ theme }: { theme: string }) {
               <bufferAttribute
                 attach="attributes-position"
                 count={2}
-                array={new Float32Array([
+                args={[new Float32Array([
                   -5 + i, 0, -5,
                   -5 + i, 0, 5
-                ])}
-                itemSize={3}
+                ]), 3]}
               />
             </bufferGeometry>
             <lineBasicMaterial color={gridColor} opacity={0.3} transparent />
@@ -120,11 +119,10 @@ function DataGrid({ theme }: { theme: string }) {
               <bufferAttribute
                 attach="attributes-position"
                 count={2}
-                array={new Float32Array([
+                args={[new Float32Array([
                   -5, 0, -5 + i,
                   5, 0, -5 + i
-                ])}
-                itemSize={3}
+                ]), 3]}
               />
             </bufferGeometry>
             <lineBasicMaterial color={gridColor} opacity={0.3} transparent />

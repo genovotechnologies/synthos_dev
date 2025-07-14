@@ -258,7 +258,7 @@ export default function LandingPage() {
                               <Star
                                 key={i}
                                 className={`h-3 w-3 ${
-                                  i < Math.floor(model.quality_score * 5) 
+                                  i < Math.floor(model.accuracy * 5) 
                                     ? 'text-yellow-500 fill-current' 
                                     : 'text-gray-300'
                                 }`}
@@ -319,9 +319,9 @@ export default function LandingPage() {
                       <CardTitle className="text-2xl">{tier.name}</CardTitle>
                       <div className="mt-4">
                         <span className="text-4xl font-bold">
-                          {tier.price === 0 ? 'Free' : `$${tier.price}`}
+                          {tier.price === null ? 'Contact Sales' : tier.price === 0 ? 'Free' : `$${tier.price}`}
                         </span>
-                        {tier.price > 0 && (
+                        {tier.price !== null && tier.price > 0 && (
                           <span className="text-muted-foreground">/month</span>
                         )}
                       </div>
