@@ -385,14 +385,23 @@ class CustomModelService:
             
             # Load model based on type
             if custom_model.model_type == CustomModelType.TENSORFLOW:
-                import tensorflow as tf
-                model = tf.keras.models.load_model(model_path)
+                try:
+                    import tensorflow as tf
+                    model = tf.keras.models.load_model(model_path)
+                except ImportError:
+                    raise Exception("TensorFlow not installed - cannot load TensorFlow models")
             elif custom_model.model_type == CustomModelType.PYTORCH:
-                import torch
-                model = torch.load(model_path, map_location='cpu')
+                try:
+                    import torch
+                    model = torch.load(model_path, map_location='cpu')
+                except ImportError:
+                    raise Exception("PyTorch not installed - cannot load PyTorch models")
             elif custom_model.model_type == CustomModelType.SCIKIT_LEARN:
-                import joblib
-                model = joblib.load(model_path)
+                try:
+                    import joblib
+                    model = joblib.load(model_path)
+                except ImportError:
+                    raise Exception("Joblib not installed - cannot load Scikit-Learn models")
             else:
                 raise Exception(f"Loading not implemented for {custom_model.model_type}")
             
