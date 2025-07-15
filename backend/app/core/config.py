@@ -6,6 +6,10 @@ Handles all environment variables and application settings
 import os
 from typing import List, Optional, Union
 from pydantic import Field
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 class Settings:
@@ -209,9 +213,14 @@ class Settings:
         Get the appropriate cache URL based on configuration preference
         Supports Railway, Redis, Valkey, and AWS ElastiCache
         """
+        # If explicit CACHE_URL is provided, use it directly
+        cache_url = os.getenv("CACHE_URL")
+        if cache_url:
+            return cache_url
+            
         # Railway automatically provides REDIS_URL - use it if available
         railway_redis_url = os.getenv("REDIS_URL")
-        if railway_redis_url and railway_redis_url.startswith("redis://"):
+        if railway_redis_url and (railway_redis_url.startswith("redis://") or railway_redis_url.startswith("rediss://")):
             return railway_redis_url
             
         # If explicit Valkey URL is provided, use it

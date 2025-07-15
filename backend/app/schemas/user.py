@@ -150,5 +150,5 @@ class UserPreferencesUpdate(BaseModel):
     email_notifications: Optional[bool] = None
     marketing_emails: Optional[bool] = None
     data_retention_days: Optional[int] = Field(None, ge=30, le=365)
-    default_privacy_level: Optional[str] = Field(None, regex="^(low|medium|high|maximum)$")
-    preferred_file_format: Optional[str] = Field(None, regex="^(csv|json|parquet|xlsx)$") 
+    default_privacy_level: Optional[str] = Field(None, pattern="^(low|medium|high|maximum)$")
+    preferred_file_format: Optional[str] = Field(None, pattern="^(csv|json|parquet|xlsx)$") 

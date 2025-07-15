@@ -237,8 +237,7 @@ app.add_middleware(
     secret_key=settings.SECRET_KEY,
     max_age=86400,  # 24 hours
     same_site="strict" if settings.ENVIRONMENT in ["production", "staging"] else "lax",
-    https_only=settings.ENVIRONMENT in ["production", "staging"] or getattr(settings, 'FORCE_HTTPS', False),
-    secure=settings.ENVIRONMENT in ["production", "staging"] or getattr(settings, 'FORCE_HTTPS', False)
+    https_only=settings.ENVIRONMENT in ["production", "staging"] or getattr(settings, 'FORCE_HTTPS', False)
 )
 
 # Trusted host middleware with comprehensive host validation

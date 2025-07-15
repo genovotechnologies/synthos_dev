@@ -45,7 +45,7 @@ openai>=1.6.1,<2.0.0
 # Monitoring & Logging
 sentry-sdk[fastapi]>=1.39.2,<2.0.0
 structlog>=23.2.0,<24.0.0
-python-json-logger>=2.0.9,<3.0.0
+python-json-logger>=3.0.0,<5.0.0
 
 # Payment Processing
 stripe>=7.9.0,<8.0.0
