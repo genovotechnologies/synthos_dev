@@ -4,13 +4,11 @@ build:
   commands:
     pre-build:
       - echo "=== PRE-BUILD PHASE ==="
-      - echo "Setting up environment..."
+      - echo "AWS App Runner - Python 3.8 Environment"
       - python3 --version
       - pip --version
-      - echo "Upgrading pip..."
+      - echo "Upgrading pip and build tools..."
       - python3 -m pip install --upgrade pip setuptools wheel
-      - echo "Installing system dependencies..."
-      - apt-get update || echo "apt-get not available, skipping system package updates"
     build:
       - echo "=== BUILD PHASE ==="
       - echo "Installing Python dependencies..."
