@@ -2,7 +2,7 @@ version: 1.0
 runtime: python3
 build:
   commands:
-    pre_build:  # Changed from pre-build to pre_build
+    pre-build:
       - echo "=== PRE-BUILD PHASE ==="
       - echo "AWS App Runner - Python 3.8 Environment"
       - python3 --version
@@ -15,7 +15,7 @@ build:
       - pip install --no-cache-dir --timeout=300 -r requirements.txt
       - echo "Verifying critical imports..."
       - python3 -c "import fastapi; import uvicorn; import sqlalchemy; print('Core dependencies verified')"
-    post_build:  # Changed from post-build to post_build
+    post-build:
       - echo "=== POST-BUILD PHASE ==="
       - echo "Setting up application structure..."
       - mkdir -p /app/uploads
