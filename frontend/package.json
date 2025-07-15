@@ -20,11 +20,11 @@
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.0.6",
     "@radix-ui/react-slot": "^1.0.2",
-    "@react-three/drei": "^10.5.0",
-    "@react-three/fiber": "^9.2.0",
+    "@react-three/drei": "^9.88.17",
+    "@react-three/fiber": "^8.17.10",
     "@types/crypto-js": "^4.2.2",
     "@types/dompurify": "^3.0.5",
-    "@types/three": "^0.178.1",
+    "@types/three": "^0.160.0",
     "autoprefixer": "^10.4.16",
     "axios": "^1.6.0",
     "class-variance-authority": "^0.7.0",
@@ -42,7 +42,7 @@
     "tailwind-merge": "^2.0.0",
     "tailwindcss": "^3.3.0",
     "tailwindcss-animate": "^1.0.7",
-    "three": "^0.178.0"
+    "three": "^0.160.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",
