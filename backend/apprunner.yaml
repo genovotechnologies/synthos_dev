@@ -2,7 +2,7 @@ version: 1.0
 runtime: python3
 build:
   commands:
-    pre-build:
+    pre_build:  # Changed from pre-build to pre_build
       - echo "=== PRE-BUILD PHASE ==="
       - echo "AWS App Runner - Python 3.8 Environment"
       - python3 --version
@@ -15,7 +15,7 @@ build:
       - pip install --no-cache-dir --timeout=300 -r requirements.txt
       - echo "Verifying critical imports..."
       - python3 -c "import fastapi; import uvicorn; import sqlalchemy; print('Core dependencies verified')"
-    post-build:
+    post_build:  # Changed from post-build to post_build
       - echo "=== POST-BUILD PHASE ==="
       - echo "Setting up application structure..."
       - mkdir -p /app/uploads
@@ -143,4 +143,4 @@ run:
     
     # Pricing Configuration
     - name: PRICING_TIERS
-      value: '{"starter": {"price": 99, "stripe_price_id": "price_starter_monthly", "paddle_product_id": "pro_01jzp36tyrsdg91hprxx47zhwb"}, "professional": {"price": 599, "stripe_price_id": "price_professional_monthly", "paddle_product_id": "pro_01jzp3ds3cj4y0x9y53ftcmmkk"}, "growth": {"price": 1299, "stripe_price_id": "price_growth_monthly", "paddle_product_id": "pro_01jzp3gcsceh34w3jvyyn68rhr"}}' 
+      value: '{"starter": {"price": 99, "stripe_price_id": "price_starter_monthly", "paddle_product_id": "pro_01jzp36tyrsdg91hprxx47zhwb"}, "professional": {"price": 599, "stripe_price_id": "price_professional_monthly", "paddle_product_id": "pro_01jzp3ds3cj4y0x9y53ftcmmkk"}, "growth": {"price": 1299, "stripe_price_id": "price_growth_monthly", "paddle_product_id": "pro_01jzp3gcsceh34w3jvyyn68rhr"}}'
