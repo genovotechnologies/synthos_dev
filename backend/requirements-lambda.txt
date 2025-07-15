@@ -1,0 +1,78 @@
+# =============================================================================
+# SYNTHOS BACKEND DEPENDENCIES - OPTIMIZED FOR AWS LAMBDA
+# Serverless deployment with minimal cold start time
+# =============================================================================
+
+# Lambda ASGI Adapter (ESSENTIAL)
+mangum==0.17.0
+
+# Core FastAPI Framework (ESSENTIAL)
+fastapi==0.104.1
+pydantic==2.5.2
+pydantic[email]==2.5.2
+
+# Database & ORM (ESSENTIAL - with connection pooling)
+sqlalchemy==2.0.25
+psycopg2-binary==2.9.9
+asyncpg==0.29.0
+
+# Authentication & Security (ESSENTIAL)
+passlib[bcrypt]==1.7.4
+PyJWT==2.8.0
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.6
+itsdangerous==2.1.2
+
+# Redis & Caching (ESSENTIAL)
+redis==5.0.1
+
+# AWS Services (ESSENTIAL)
+boto3==1.34.34
+botocore==1.34.34
+
+# AI/ML APIs (ESSENTIAL)
+anthropic==0.8.1
+openai==1.12.0
+
+# Payment Processing (ESSENTIAL)
+stripe==7.12.0
+
+# Data Processing (LIGHTWEIGHT)
+pandas==2.1.4
+numpy==1.25.2
+
+# File Handling (ESSENTIAL)
+openpyxl==3.1.2
+
+# HTTP Clients (ESSENTIAL)
+httpx==0.26.0
+requests==2.31.0
+
+# Environment & Configuration (ESSENTIAL)
+python-decouple==3.8
+python-dotenv==1.0.1
+
+# Time Handling (ESSENTIAL)
+pytz==2024.1
+
+# Data Validation (ESSENTIAL)
+marshmallow==3.20.2
+
+# Email & Templates (ESSENTIAL)
+email-validator==2.1.0.post1
+jinja2==3.1.3
+
+# =============================================================================
+# LAMBDA-SPECIFIC OPTIMIZATIONS
+# =============================================================================
+
+# Exclude these packages for Lambda (use Lambda layers or separate functions):
+# - uvicorn (not needed in Lambda)
+# - celery (use SQS + separate Lambda functions)
+# - aioredis (use synchronous redis client)
+# - alembic (run migrations separately)
+# - sentry-sdk (use CloudWatch instead)
+# - structlog (use standard logging)
+# - python-json-logger (use CloudWatch JSON format)
+# - aiofiles (use boto3 for S3 operations)
+# - psutil (not needed in serverless) 

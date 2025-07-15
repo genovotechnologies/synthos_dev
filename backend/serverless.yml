@@ -1,0 +1,103 @@
+# =============================================================================
+# Serverless Framework Configuration for Synthos Backend
+# Alternative deployment method for AWS Lambda
+# =============================================================================
+
+service: synthos-backend
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.8
+  region: us-east-1
+  stage: prod
+  timeout: 300  # 5 minutes
+  memorySize: 1024  # 1GB
+  
+  # Environment variables
+  environment:
+    ENVIRONMENT: production
+    SECRET_KEY: IqFjQQ6X1BK8dsjQiWczLp1lDxB6OMHPNsUv7FogQTY
+    JWT_SECRET_KEY: vIDj23sNf6d00NPNjrJpVpB6G9blusc4RviZ6dDQGaE
+    DATABASE_URL: postgresql://genovo:TGU<5<v1o8-Z~::v:9$V-UNwg~V0@synthos.cqnoi6g24lpg.us-east-1.rds.amazonaws.com:5432/synthos
+    REDIS_URL: rediss://synthos-33lvyw.serverless.use1.cache.amazonaws.com:6379
+    ANTHROPIC_API_KEY: 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
+    OPENAI_API_KEY: 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
+    PADDLE_PUBLIC_KEY: pdl_sdbx_apikey_01jzp3tskdwzpasb56pxfjy5wc_WjyxfT2Q32Jzp0hAQv4YQt_AKv
+    AWS_REGION: us-east-1
+    CORS_ORIGINS: https://synthos.dev,https://synthos-dev.vercel.app
+  
+  # IAM permissions
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - logs:CreateLogGroup
+        - logs:CreateLogStream
+        - logs:PutLogEvents
+      Resource: "arn:aws:logs:*:*:*"
+    - Effect: Allow
+      Action:
+        - s3:GetObject
+        - s3:PutObject
+        - s3:DeleteObject
+      Resource: "arn:aws:s3:::synthos-dev/*"
+
+functions:
+  api:
+    handler: lambda_handler.handler
+    events:
+      - httpApi:
+          path: /{proxy+}
+          method: ANY
+      - httpApi:
+          path: /
+          method: ANY
+    url:
+      cors:
+        allowedOrigins:
+          - https://synthos.dev
+          - https://synthos-dev.vercel.app
+          - http://localhost:3000
+        allowedHeaders:
+          - Content-Type
+          - Authorization
+          - X-Amz-Date
+          - X-Api-Key
+          - X-Amz-Security-Token
+        allowedMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        allowCredentials: false
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: true
+    slim: true
+    strip: false
+    noDeps: false
+    fileName: requirements-lambda.txt
+    # Exclude development dependencies
+    invalidateCaches: true
+
+package:
+  patterns:
+    - '!.git/**'
+    - '!.env'
+    - '!tests/**'
+    - '!*.md'
+    - '!apprunner.yaml'
+    - '!requirements.txt'
+    - '!lambda_deployment/**'
+    - '!*.zip'
+    - '!deploy-*.sh'
+    - '!venv/**'
+    - '!__pycache__/**'
+    - '!.pytest_cache/**'
+    - '!*.pyc'
+    - '!*.pyo' 
