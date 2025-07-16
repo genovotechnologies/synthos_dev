@@ -5,7 +5,7 @@ services:
       code_repository:
         repository_url: https://github.com/genovotechnologies/synthos_dev
         source_directory: backend
-        runtime: python3
+        runtime: python311
         build_command: pip install --upgrade pip && pip install -r requirements.txt
         start_command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
         runtime_environment_variables:
