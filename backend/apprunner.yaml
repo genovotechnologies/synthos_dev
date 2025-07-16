@@ -5,8 +5,18 @@ services:
       code_repository:
         repository_url: https://github.com/genovotechnologies/synthos_dev
         source_directory: backend
-        runtime: python3.1
-        build_command: pip install --upgrade pip && pip install -r requirements.txt
+        runtime: python3
+        pre_build_command: |
+          echo "[PRE_BUILD] Working directory: $(pwd)"
+          echo "[PRE_BUILD] Listing files:"
+          ls -l
+          echo "[PRE_BUILD] Python version:"
+          python --version
+        build_command: |
+          echo "[BUILD] Upgrading pip..."
+          pip install --upgrade pip
+          echo "[BUILD] Installing requirements..."
+          pip install -r requirements.txt
         start_command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
         runtime_environment_variables:
           ENVIRONMENT: "production"
