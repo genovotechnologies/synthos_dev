@@ -13,7 +13,6 @@ build:
     - name: PIP_CACHE_DIR
       value: /tmp/pip-cache
 run:
-  runtime-version: 3.10
   command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
   network:
     port: 8000
