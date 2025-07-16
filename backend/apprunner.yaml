@@ -2,19 +2,16 @@ version: 1.0
 runtime: python3
 build:
   commands:
-    pre-build:
-      - echo "[PRE_BUILD] Working directory: $(pwd)"
-      - echo "[PRE_BUILD] Listing files:"
-      - ls -la
-      - echo "[PRE_BUILD] Python version:"
-      - python --version
-      - echo "[PRE_BUILD] Checking for requirements.txt:"
-      - ls -la requirements.txt || echo "[PRE_BUILD] requirements.txt not found"
     build:
+      - echo "[BUILD] Starting build phase"
+      - echo "[BUILD] Working directory: $(pwd)"
+      - echo "[BUILD] Listing files:"
+      - ls
       - echo "[BUILD] Upgrading pip..."
       - pip install --upgrade pip
       - echo "[BUILD] Installing requirements..."
       - pip install -r requirements.txt
+      - echo "[BUILD] Build phase completed"
   env:
     - name: ENVIRONMENT
       value: "production"
