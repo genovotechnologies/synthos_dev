@@ -1,87 +1,196 @@
 version: 1.0
-services:
-  synthos-backend:
-    source:
-      code_repository:
-        repository_url: https://github.com/genovotechnologies/synthos_dev
-        source_directory: backend
-        runtime: python3
-        pre_build_command: |
-          echo "[PRE_BUILD] Working directory: $(pwd)"
-          echo "[PRE_BUILD] Listing files:"
-          ls -l
-          echo "[PRE_BUILD] Python version:"
-          python --version
-          if [ ! -f requirements.txt ]; then
-            echo "[PRE_BUILD] ERROR: requirements.txt not found!" && exit 1
-          fi
-          echo "[PRE_BUILD] requirements.txt found."
-        build_command: |
-          echo "[BUILD] Upgrading pip..."
-          pip install --upgrade pip
-          echo "[BUILD] Installing requirements..."
-          pip install -r requirements.txt
-        start_command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
-        runtime_environment_variables:
-          ENVIRONMENT: "production"
-          DEBUG: "true"
-          # Database
-          DATABASE_URL: "<set-in-console-or-secrets-manager>"
-          # Redis
-          REDIS_URL: "<set-in-console-or-secrets-manager>"
-          CACHE_BACKEND: "redis"
-          CACHE_URL: "<set-in-console-or-secrets-manager>"
-          AWS_ELASTICACHE_ENDPOINT: "<set-in-console-or-secrets-manager>"
-          AWS_ELASTICACHE_PORT: "6379"
-          AWS_ELASTICACHE_USE_TLS: "true"
-          # AWS RDS
-          AWS_RDS_ENDPOINT: "<set-in-console-or-secrets-manager>"
-          AWS_RDS_PORT: "5432"
-          AWS_RDS_DATABASE: "synthos"
-          AWS_RDS_USERNAME: "<set-in-console-or-secrets-manager>"
-          AWS_RDS_USE_SSL: "true"
-          # Security
-          SECRET_KEY: "<set-in-console-or-secrets-manager>"
-          JWT_SECRET_KEY: "<set-in-console-or-secrets-manager>"
-          # Paddle Payment
-          PADDLE_VENDOR_ID: "<set-in-console-or-secrets-manager>"
-          PADDLE_VENDOR_AUTH_CODE: "<set-in-console-or-secrets-manager>"
-          PADDLE_PUBLIC_KEY: "<set-in-console-or-secrets-manager>"
-          PADDLE_WEBHOOK_SECRET: "<set-in-console-or-secrets-manager>"
-          PADDLE_ENVIRONMENT: "production"
-          # Payment Provider
-          PRIMARY_PAYMENT_PROVIDER: "paddle"
-          ENABLE_MULTIPLE_PAYMENT_PROVIDERS: "true"
-          # AI API Keys
-          ANTHROPIC_API_KEY: "<set-in-console-or-secrets-manager>"
-          OPENAI_API_KEY: "<set-in-console-or-secrets-manager>"
-          # Stripe
-          STRIPE_SECRET_KEY: "<set-in-console-or-secrets-manager>"
-          # File Storage
-          UPLOAD_PATH: "/app/uploads"
-          # CORS
-          CORS_ORIGINS: "https://synthos.dev,https://synthos-dev.vercel.app,http://localhost:3000"
-          ALLOWED_HOSTS: "*"
-          # App Runner
-          PORT: "8000"
-          HOST: "0.0.0.0"
-          EXPORT_PATH: "/app/exports"
-          # API
-          API_V1_STR: "/api/v1"
-          # AWS S3
-          AWS_ACCESS_KEY_ID: "<set-in-console-or-secrets-manager>"
-          AWS_SECRET_ACCESS_KEY: "<set-in-console-or-secrets-manager>"
-          AWS_S3_BUCKET: "synthos-dev"
-          # Limits
-          FREE_TIER_MONTHLY_LIMIT: "10000"
-          MAX_SYNTHETIC_ROWS: "5000000"
-          # Pricing Tiers
-          PRICING_TIERS: '{"starter": {"price": 99, "stripe_price_id": "price_starter_monthly", "paddle_product_id": "pro_01jzp36tyrsdg91hprxx47zhwb"}, "professional": {"price": 599, "stripe_price_id": "price_professional_monthly", "paddle_product_id": "pro_01jzp3ds3cj4y0x9y53ftcmmkk"}, "growth": {"price": 1299, "stripe_price_id": "price_growth_monthly", "paddle_product_id": "pro_01jzp3gcsceh34w3jvyyn68rhr"}}'
-          # RDS Proxy
-          RDS_PROXY_ENDPOINT: "<set-in-console-or-secrets-manager>"
-          USE_RDS_PROXY: "true"
-          USE_IAM_AUTH: "false"
-    instance_configuration:
-      cpu: 2048
-      memory: 4096
-    auto_deployments_enabled: true
+runtime: python3
+build:
+  commands:
+    pre-build:
+      - echo "[PRE_BUILD] Working directory: $(pwd)"
+      - echo "[PRE_BUILD] Listing files:"
+      - ls -l
+      - echo "[PRE_BUILD] Python version:"
+      - python --version
+      - if [ ! -f requirements.txt ]; then echo "[PRE_BUILD] ERROR: requirements.txt not found!" && exit 1; fi
+      - echo "[PRE_BUILD] requirements.txt found."
+    build:
+      - echo "[BUILD] Upgrading pip..."
+      - pip install --upgrade pip
+      - echo "[BUILD] Installing requirements..."
+      - pip install -r requirements.txt
+  env:
+    - name: ENVIRONMENT
+      value: "production"
+    - name: DEBUG
+      value: "true"
+    - name: DATABASE_URL
+      value: "<set-in-console-or-secrets-manager>"
+    - name: REDIS_URL
+      value: "<set-in-console-or-secrets-manager>"
+    - name: CACHE_BACKEND
+      value: "redis"
+    - name: CACHE_URL
+      value: "<set-in-console-or-secrets-manager>"
+    - name: AWS_ELASTICACHE_ENDPOINT
+      value: "<set-in-console-or-secrets-manager>"
+    - name: AWS_ELASTICACHE_PORT
+      value: "6379"
+    - name: AWS_ELASTICACHE_USE_TLS
+      value: "true"
+    - name: AWS_RDS_ENDPOINT
+      value: "<set-in-console-or-secrets-manager>"
+    - name: AWS_RDS_PORT
+      value: "5432"
+    - name: AWS_RDS_DATABASE
+      value: "synthos"
+    - name: AWS_RDS_USERNAME
+      value: "<set-in-console-or-secrets-manager>"
+    - name: AWS_RDS_USE_SSL
+      value: "true"
+    - name: SECRET_KEY
+      value: "<set-in-console-or-secrets-manager>"
+    - name: JWT_SECRET_KEY
+      value: "<set-in-console-or-secrets-manager>"
+    - name: PADDLE_VENDOR_ID
+      value: "<set-in-console-or-secrets-manager>"
+    - name: PADDLE_VENDOR_AUTH_CODE
+      value: "<set-in-console-or-secrets-manager>"
+    - name: PADDLE_PUBLIC_KEY
+      value: "<set-in-console-or-secrets-manager>"
+    - name: PADDLE_WEBHOOK_SECRET
+      value: "<set-in-console-or-secrets-manager>"
+    - name: PADDLE_ENVIRONMENT
+      value: "production"
+    - name: PRIMARY_PAYMENT_PROVIDER
+      value: "paddle"
+    - name: ENABLE_MULTIPLE_PAYMENT_PROVIDERS
+      value: "true"
+    - name: ANTHROPIC_API_KEY
+      value: "<set-in-console-or-secrets-manager>"
+    - name: OPENAI_API_KEY
+      value: "<set-in-console-or-secrets-manager>"
+    - name: STRIPE_SECRET_KEY
+      value: "<set-in-console-or-secrets-manager>"
+    - name: UPLOAD_PATH
+      value: "/app/uploads"
+    - name: CORS_ORIGINS
+      value: "https://synthos.dev,https://synthos-dev.vercel.app,http://localhost:3000"
+    - name: ALLOWED_HOSTS
+      value: "*"
+    - name: PORT
+      value: "8000"
+    - name: HOST
+      value: "0.0.0.0"
+    - name: EXPORT_PATH
+      value: "/app/exports"
+    - name: API_V1_STR
+      value: "/api/v1"
+    - name: AWS_ACCESS_KEY_ID
+      value: "<set-in-console-or-secrets-manager>"
+    - name: AWS_SECRET_ACCESS_KEY
+      value: "<set-in-console-or-secrets-manager>"
+    - name: AWS_S3_BUCKET
+      value: "synthos-dev"
+    - name: FREE_TIER_MONTHLY_LIMIT
+      value: "10000"
+    - name: MAX_SYNTHETIC_ROWS
+      value: "5000000"
+    - name: PRICING_TIERS
+      value: '{"starter": {"price": 99, "stripe_price_id": "price_starter_monthly", "paddle_product_id": "pro_01jzp36tyrsdg91hprxx47zhwb"}, "professional": {"price": 599, "stripe_price_id": "price_professional_monthly", "paddle_product_id": "pro_01jzp3ds3cj4y0x9y53ftcmmkk"}, "growth": {"price": 1299, "stripe_price_id": "price_growth_monthly", "paddle_product_id": "pro_01jzp3gcsceh34w3jvyyn68rhr"}}'
+    - name: RDS_PROXY_ENDPOINT
+      value: "<set-in-console-or-secrets-manager>"
+    - name: USE_RDS_PROXY
+      value: "true"
+    - name: USE_IAM_AUTH
+      value: "false"
+run:
+  command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+  network:
+    port: 8000
+    env: PORT
+  env:
+    - name: ENVIRONMENT
+      value: "production"
+    - name: DEBUG
+      value: "true"
+    - name: DATABASE_URL
+      value: "<set-in-console-or-secrets-manager>"
+    - name: REDIS_URL
+      value: "<set-in-console-or-secrets-manager>"
+    - name: CACHE_BACKEND
+      value: "redis"
+    - name: CACHE_URL
+      value: "<set-in-console-or-secrets-manager>"
+    - name: AWS_ELASTICACHE_ENDPOINT
+      value: "<set-in-console-or-secrets-manager>"
+    - name: AWS_ELASTICACHE_PORT
+      value: "6379"
+    - name: AWS_ELASTICACHE_USE_TLS
+      value: "true"
+    - name: AWS_RDS_ENDPOINT
+      value: "<set-in-console-or-secrets-manager>"
+    - name: AWS_RDS_PORT
+      value: "5432"
+    - name: AWS_RDS_DATABASE
+      value: "synthos"
+    - name: AWS_RDS_USERNAME
+      value: "<set-in-console-or-secrets-manager>"
+    - name: AWS_RDS_USE_SSL
+      value: "true"
+    - name: SECRET_KEY
+      value: "<set-in-console-or-secrets-manager>"
+    - name: JWT_SECRET_KEY
+      value: "<set-in-console-or-secrets-manager>"
+    - name: PADDLE_VENDOR_ID
+      value: "<set-in-console-or-secrets-manager>"
+    - name: PADDLE_VENDOR_AUTH_CODE
+      value: "<set-in-console-or-secrets-manager>"
+    - name: PADDLE_PUBLIC_KEY
+      value: "<set-in-console-or-secrets-manager>"
+    - name: PADDLE_WEBHOOK_SECRET
+      value: "<set-in-console-or-secrets-manager>"
+    - name: PADDLE_ENVIRONMENT
+      value: "production"
+    - name: PRIMARY_PAYMENT_PROVIDER
+      value: "paddle"
+    - name: ENABLE_MULTIPLE_PAYMENT_PROVIDERS
+      value: "true"
+    - name: ANTHROPIC_API_KEY
+      value: "<set-in-console-or-secrets-manager>"
+    - name: OPENAI_API_KEY
+      value: "<set-in-console-or-secrets-manager>"
+    - name: STRIPE_SECRET_KEY
+      value: "<set-in-console-or-secrets-manager>"
+    - name: UPLOAD_PATH
+      value: "/app/uploads"
+    - name: CORS_ORIGINS
+      value: "https://synthos.dev,https://synthos-dev.vercel.app,http://localhost:3000"
+    - name: ALLOWED_HOSTS
+      value: "*"
+    - name: PORT
+      value: "8000"
+    - name: HOST
+      value: "0.0.0.0"
+    - name: EXPORT_PATH
+      value: "/app/exports"
+    - name: API_V1_STR
+      value: "/api/v1"
+    - name: AWS_ACCESS_KEY_ID
+      value: "<set-in-console-or-secrets-manager>"
+    - name: AWS_SECRET_ACCESS_KEY
+      value: "<set-in-console-or-secrets-manager>"
+    - name: AWS_S3_BUCKET
+      value: "synthos-dev"
+    - name: FREE_TIER_MONTHLY_LIMIT
+      value: "10000"
+    - name: MAX_SYNTHETIC_ROWS
+      value: "5000000"
+    - name: PRICING_TIERS
+      value: '{"starter": {"price": 99, "stripe_price_id": "price_starter_monthly", "paddle_product_id": "pro_01jzp36tyrsdg91hprxx47zhwb"}, "professional": {"price": 599, "stripe_price_id": "price_professional_monthly", "paddle_product_id": "pro_01jzp3ds3cj4y0x9y53ftcmmkk"}, "growth": {"price": 1299, "stripe_price_id": "price_growth_monthly", "paddle_product_id": "pro_01jzp3gcsceh34w3jvyyn68rhr"}}'
+    - name: RDS_PROXY_ENDPOINT
+      value: "<set-in-console-or-secrets-manager>"
+    - name: USE_RDS_PROXY
+      value: "true"
+    - name: USE_IAM_AUTH
+      value: "false"
+  # Example for secrets (uncomment and edit as needed)
+  # secrets:
+  #   - name: MY_SECRET
+  #     value-from: "arn:aws:secretsmanager:..."
