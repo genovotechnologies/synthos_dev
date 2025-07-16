@@ -12,11 +12,42 @@ import tempfile
 import zipfile
 from typing import Dict, List, Any, Optional, Tuple
 import boto3
-import pandas as pd
-import numpy as np
 from datetime import datetime
 import logging
 from pathlib import Path
+
+# Conditional pandas import for Lambda compatibility
+try:
+    import pandas as pd
+    HAS_PANDAS = True
+except ImportError:
+    HAS_PANDAS = False
+    # Create a simple fallback for basic DataFrame-like operations
+    class MockDataFrame:
+        def __init__(self, data=None):
+            self.data = data or []
+        def to_dict(self, orient='records'):
+            return self.data if isinstance(self.data, list) else []
+        def to_csv(self, *args, **kwargs):
+            return ""
+    pd = type('MockPandas', (), {'DataFrame': MockDataFrame})()
+
+# Conditional numpy import for Lambda compatibility
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
+    # Create a simple fallback for basic numpy-like operations
+    class MockNumpy:
+        def array(self, data):
+            return data
+        def mean(self, data):
+            return sum(data) / len(data) if data else 0
+        def std(self, data):
+            mean_val = self.mean(data)
+            return (sum((x - mean_val) ** 2 for x in data) / len(data)) ** 0.5 if data else 0
+    np = MockNumpy()
 
 from app.core.config import settings
 from app.core.logging import get_logger

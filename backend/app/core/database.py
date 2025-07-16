@@ -15,9 +15,24 @@ from app.core.config import settings
 
 logger = structlog.get_logger(__name__)
 
-# SQLAlchemy engine with connection pooling - use the property method for URL
+# Update the database URL to use psycopg3 sync dialect
+def get_sync_database_url(url: str) -> str:
+    """Convert database URL to use psycopg3 sync dialect"""
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+psycopg://")
+    return url
+
+def get_async_database_url(url: str) -> str:
+    """Convert database URL to use asyncpg dialect"""
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+asyncpg://")
+    elif url.startswith("postgresql+psycopg://"):
+        return url.replace("postgresql+psycopg://", "postgresql+asyncpg://")
+    return url
+
+# SQLAlchemy engine with connection pooling - use psycopg3
 engine = create_engine(
-    settings.DATABASE_CONNECTION_URL,
+    get_sync_database_url(settings.DATABASE_CONNECTION_URL),
     poolclass=QueuePool,
     pool_size=settings.DATABASE_POOL_SIZE,
     max_overflow=settings.DATABASE_MAX_OVERFLOW,
@@ -27,7 +42,7 @@ engine = create_engine(
 
 # Async engine for health checks
 async_engine = create_async_engine(
-    settings.DATABASE_CONNECTION_URL.replace("postgresql://", "postgresql+asyncpg://"),
+    get_async_database_url(settings.DATABASE_CONNECTION_URL),
     pool_size=settings.DATABASE_POOL_SIZE,
     max_overflow=settings.DATABASE_MAX_OVERFLOW,
     pool_pre_ping=True,

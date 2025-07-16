@@ -1,159 +1,73 @@
 version: 1.0
-runtime: python3
-build:
-  commands:
-    pre-build:
-      - echo "=== PRE-BUILD PHASE ==="
-      - echo "AWS App Runner - Python 3.8 Environment"
-      - python3 --version
-      - pip --version
-      - echo "Setting up build environment..."
-      - export PIP_DEFAULT_TIMEOUT=300
-      - export PIP_NO_CACHE_DIR=1
-      - echo "Upgrading pip and build tools..."
-      - python3 -m pip install --upgrade pip==23.3.2 setuptools==69.0.3 wheel==0.42.0
-      - echo "Pre-build completed successfully"
-    build:
-      - echo "=== BUILD PHASE ==="
-      - echo "Installing lightweight dependencies first..."
-      - pip install --no-cache-dir --timeout=600 fastapi uvicorn pydantic sqlalchemy psycopg2-binary
-      - echo "Installing remaining Python dependencies..."
-      - pip install --no-cache-dir --timeout=600 --no-deps -r requirements.txt || echo "Some packages may have failed, continuing..."
-      - pip install --no-cache-dir --timeout=600 -r requirements.txt --force-reinstall --no-deps
-      - echo "Verifying critical imports..."
-      - python3 -c "import fastapi; import uvicorn; import sqlalchemy; print('Core dependencies verified')" || echo "Core verification failed, but continuing..."
-      - echo "Testing application import..."
-      - python3 -c "from app.main import app; print('Application imported successfully')" || echo "App import failed, but continuing..."
-    post-build:
-      - echo "=== POST-BUILD PHASE ==="
-      - echo "Setting up application structure..."
-      - mkdir -p /app/uploads
-      - mkdir -p /app/exports  
-      - mkdir -p /app/logs
-      - echo "Setting permissions..."
-      - chmod -R 755 /app/uploads /app/exports /app/logs || echo "Permission setting failed, continuing..."
-      - echo "Build completed!"
-run:
-  runtime-version: 3.8
-  command: python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --timeout-keep-alive 300
-  network:
-    port: 8000
-    env: PORT
-  env:
-    # Core Application Settings
-    - name: PORT
-      value: "8000"
-    - name: HOST
-      value: "0.0.0.0"
-    - name: PYTHONPATH
-      value: "/app"
-    - name: ENVIRONMENT
-      value: "production"
-    - name: DEBUG
-      value: "false"
-    
-    # Python Optimization
-    - name: PYTHONUNBUFFERED
-      value: "1"
-    - name: PYTHONDONTWRITEBYTECODE
-      value: "1"
-    - name: PIP_NO_CACHE_DIR
-      value: "1"
-    - name: PIP_DISABLE_PIP_VERSION_CHECK
-      value: "1"
-    - name: PIP_DEFAULT_TIMEOUT
-      value: "600"
-    
-    # Security Configuration
-    - name: SECRET_KEY
-      value: "IqFjQQ6X1BK8dsjQiWczLp1lDxB6OMHPNsUv7FogQTY"
-    - name: JWT_SECRET_KEY
-      value: "vIDj23sNf6d00NPNjrJpVpB6G9blusc4RviZ6dDQGaE"
-    - name: FORCE_HTTPS
-      value: "true"
-    
-    # Database Configuration
-    - name: DATABASE_URL
-      value: "postgresql://genovo:TGU<5<v1o8-Z~::v:9$V-UNwg~V0@synthos.cqnoi6g24lpg.us-east-1.rds.amazonaws.com:5432/synthos"
-    - name: AWS_RDS_ENDPOINT
-      value: "synthos.cqnoi6g24lpg.us-east-1.rds.amazonaws.com"
-    - name: AWS_RDS_PORT
-      value: "5432"
-    - name: AWS_RDS_DATABASE
-      value: "synthos"
-    - name: AWS_RDS_USERNAME
-      value: "genovo"
-    - name: AWS_RDS_USE_SSL
-      value: "true"
-    
-    # Redis Configuration
-    - name: REDIS_URL
-      value: "rediss://synthos-33lvyw.serverless.use1.cache.amazonaws.com:6379"
-    - name: CACHE_URL
-      value: "rediss://synthos-33lvyw.serverless.use1.cache.amazonaws.com:6379"
-    - name: CACHE_BACKEND
-      value: "redis"
-    - name: AWS_ELASTICACHE_ENDPOINT
-      value: "synthos-33lvyw.serverless.use1.cache.amazonaws.com"
-    - name: AWS_ELASTICACHE_PORT
-      value: "6379"
-    - name: AWS_ELASTICACHE_USE_TLS
-      value: "true"
-    
-    # Celery Configuration
-    - name: CELERY_BROKER_URL
-      value: "rediss://synthos-33lvyw.serverless.use1.cache.amazonaws.com:6379/1"
-    - name: CELERY_RESULT_BACKEND
-      value: "rediss://synthos-33lvyw.serverless.use1.cache.amazonaws.com:6379/2"
-    
-    # AWS Configuration
-    - name: AWS_REGION
-      value: "us-east-1"
-    - name: AWS_ACCESS_KEY_ID
-      value: "AKIA2FMTH3NWTGQXI6CA"
-    - name: AWS_SECRET_ACCESS_KEY
-      value: "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"
-    - name: AWS_S3_BUCKET
-      value: "synthos-dev"
-    
-    # AI API Keys
-    - name: ANTHROPIC_API_KEY
-      value: "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"
-    - name: OPENAI_API_KEY
-      value: "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"
-    
-    # Payment Configuration
-    - name: PRIMARY_PAYMENT_PROVIDER
-      value: "paddle"
-    - name: ENABLE_MULTIPLE_PAYMENT_PROVIDERS
-      value: "true"
-    - name: PADDLE_PUBLIC_KEY
-      value: "pdl_sdbx_apikey_01jzp3tskdwzpasb56pxfjy5wc_WjyxfT2Q32Jzp0hAQv4YQt_AKv"
-    - name: PADDLE_ENVIRONMENT
-      value: "production"
-    
-    # CORS Configuration
-    - name: CORS_ORIGINS
-      value: "https://synthos.dev,https://synthos-dev.vercel.app"
-    - name: ALLOWED_HOSTS
-      value: "*"
-    
-    # API Configuration
-    - name: API_V1_STR
-      value: "/api/v1"
-    
-    # File Storage
-    - name: UPLOAD_PATH
-      value: "/app/uploads"
-    - name: EXPORT_PATH
-      value: "/app/exports"
-    
-    # Limits
-    - name: FREE_TIER_MONTHLY_LIMIT
-      value: "10000"
-    - name: MAX_SYNTHETIC_ROWS
-      value: "5000000"
-    
-    # Pricing Configuration
-    - name: PRICING_TIERS
-      value: '{"starter": {"price": 99, "stripe_price_id": "price_starter_monthly", "paddle_product_id": "pro_01jzp36tyrsdg91hprxx47zhwb"}, "professional": {"price": 599, "stripe_price_id": "price_professional_monthly", "paddle_product_id": "pro_01jzp3ds3cj4y0x9y53ftcmmkk"}, "growth": {"price": 1299, "stripe_price_id": "price_growth_monthly", "paddle_product_id": "pro_01jzp3gcsceh34w3jvyyn68rhr"}}'
+services:
+  synthos-backend:
+    source:
+      code_repository:
+        repository_url: https://github.com/genovotechnologies/synthos_dev
+        source_directory: backend
+        runtime: python3
+        build_command: pip install --upgrade pip && pip install -r requirements.txt
+        start_command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+        runtime_environment_variables:
+          ENVIRONMENT: "production"
+          DEBUG: "true"
+          # Database
+          DATABASE_URL: "<set-in-console-or-secrets-manager>"
+          # Redis
+          REDIS_URL: "<set-in-console-or-secrets-manager>"
+          CACHE_BACKEND: "redis"
+          CACHE_URL: "<set-in-console-or-secrets-manager>"
+          AWS_ELASTICACHE_ENDPOINT: "<set-in-console-or-secrets-manager>"
+          AWS_ELASTICACHE_PORT: "6379"
+          AWS_ELASTICACHE_USE_TLS: "true"
+          # AWS RDS
+          AWS_RDS_ENDPOINT: "<set-in-console-or-secrets-manager>"
+          AWS_RDS_PORT: "5432"
+          AWS_RDS_DATABASE: "synthos"
+          AWS_RDS_USERNAME: "<set-in-console-or-secrets-manager>"
+          AWS_RDS_USE_SSL: "true"
+          # Security
+          SECRET_KEY: "<set-in-console-or-secrets-manager>"
+          JWT_SECRET_KEY: "<set-in-console-or-secrets-manager>"
+          # Paddle Payment
+          PADDLE_VENDOR_ID: "<set-in-console-or-secrets-manager>"
+          PADDLE_VENDOR_AUTH_CODE: "<set-in-console-or-secrets-manager>"
+          PADDLE_PUBLIC_KEY: "<set-in-console-or-secrets-manager>"
+          PADDLE_WEBHOOK_SECRET: "<set-in-console-or-secrets-manager>"
+          PADDLE_ENVIRONMENT: "production"
+          # Payment Provider
+          PRIMARY_PAYMENT_PROVIDER: "paddle"
+          ENABLE_MULTIPLE_PAYMENT_PROVIDERS: "true"
+          # AI API Keys
+          ANTHROPIC_API_KEY: "<set-in-console-or-secrets-manager>"
+          OPENAI_API_KEY: "<set-in-console-or-secrets-manager>"
+          # Stripe
+          STRIPE_SECRET_KEY: "<set-in-console-or-secrets-manager>"
+          # File Storage
+          UPLOAD_PATH: "/app/uploads"
+          # CORS
+          CORS_ORIGINS: "https://synthos.dev,https://synthos-dev.vercel.app,http://localhost:3000"
+          ALLOWED_HOSTS: "*"
+          # App Runner
+          PORT: "8000"
+          HOST: "0.0.0.0"
+          EXPORT_PATH: "/app/exports"
+          # API
+          API_V1_STR: "/api/v1"
+          # AWS S3
+          AWS_ACCESS_KEY_ID: "<set-in-console-or-secrets-manager>"
+          AWS_SECRET_ACCESS_KEY: "<set-in-console-or-secrets-manager>"
+          AWS_S3_BUCKET: "synthos-dev"
+          # Limits
+          FREE_TIER_MONTHLY_LIMIT: "10000"
+          MAX_SYNTHETIC_ROWS: "5000000"
+          # Pricing Tiers
+          PRICING_TIERS: '{"starter": {"price": 99, "stripe_price_id": "price_starter_monthly", "paddle_product_id": "pro_01jzp36tyrsdg91hprxx47zhwb"}, "professional": {"price": 599, "stripe_price_id": "price_professional_monthly", "paddle_product_id": "pro_01jzp3ds3cj4y0x9y53ftcmmkk"}, "growth": {"price": 1299, "stripe_price_id": "price_growth_monthly", "paddle_product_id": "pro_01jzp3gcsceh34w3jvyyn68rhr"}}'
+          # RDS Proxy
+          RDS_PROXY_ENDPOINT: "<set-in-console-or-secrets-manager>"
+          USE_RDS_PROXY: "true"
+          USE_IAM_AUTH: "false"
+    instance_configuration:
+      cpu: 1024
+      memory: 2048
+    auto_deployments_enabled: true
