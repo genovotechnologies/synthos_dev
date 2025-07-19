@@ -7,7 +7,7 @@
   "containerDefinitions": [
     {
       "name": "synthos-backend",
-      "image": "<your-ecr-repo-url>:latest",
+      "image": "698777852781.dkr.ecr.us-east-1.amazonaws.com/synthos-backend:latest",
       "portMappings": [
         {
           "containerPort": 8000,
@@ -42,27 +42,27 @@
         { "name": "USE_IAM_AUTH", "value": "false" }
       ],
       "secrets": [
-        { "name": "DATABASE_URL", "valueFrom": "<arn:of:your:secret:in:secretsmanager>" },
-        { "name": "REDIS_URL", "valueFrom": "<arn:of:your:secret:in:secretsmanager>" },
-        { "name": "CACHE_URL", "valueFrom": "<arn:of:your:secret:in:secretsmanager>" },
-        { "name": "AWS_ELASTICACHE_ENDPOINT", "valueFrom": "<arn:of:your:secret:in:secretsmanager>" },
-        { "name": "AWS_RDS_ENDPOINT", "valueFrom": "<arn:of:your:secret:in:secretsmanager>" },
-        { "name": "AWS_RDS_USERNAME", "valueFrom": "<arn:of:your:secret:in:secretsmanager>" },
-        { "name": "SECRET_KEY", "valueFrom": "<arn:of:your:secret:in:secretsmanager>" },
-        { "name": "JWT_SECRET_KEY", "valueFrom": "<arn:of:your:secret:in:secretsmanager>" },
-        { "name": "PADDLE_VENDOR_ID", "valueFrom": "<arn:of:your:secret:in:secretsmanager>" },
-        { "name": "PADDLE_VENDOR_AUTH_CODE", "valueFrom": "<arn:of:your:secret:in:secretsmanager>" },
-        { "name": "PADDLE_PUBLIC_KEY", "valueFrom": "<arn:of:your:secret:in:secretsmanager>" },
-        { "name": "PADDLE_WEBHOOK_SECRET", "valueFrom": "<arn:of:your:secret:in:secretsmanager>" },
-        { "name": "ANTHROPIC_API_KEY", "valueFrom": "<arn:of:your:secret:in:secretsmanager>" },
-        { "name": "OPENAI_API_KEY", "valueFrom": "<arn:of:your:secret:in:secretsmanager>" },
-        { "name": "STRIPE_SECRET_KEY", "valueFrom": "<arn:of:your:secret:in:secretsmanager>" },
-        { "name": "AWS_ACCESS_KEY_ID", "valueFrom": "<arn:of:your:secret:in:secretsmanager>" },
-        { "name": "AWS_SECRET_ACCESS_KEY", "valueFrom": "<arn:of:your:secret:in:secretsmanager>" }
+        { "name": "DATABASE_URL", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/database-url" },
+        { "name": "REDIS_URL", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/redis-url" },
+        { "name": "CACHE_URL", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/cache-url" },
+        { "name": "AWS_ELASTICACHE_ENDPOINT", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/elasticache-endpoint" },
+        { "name": "AWS_RDS_ENDPOINT", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/rds-endpoint" },
+        { "name": "AWS_RDS_USERNAME", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/rds-username" },
+        { "name": "SECRET_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/secret-key" },
+        { "name": "JWT_SECRET_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/jwt-secret-key" },
+        { "name": "PADDLE_VENDOR_ID", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/paddle-vendor-id" },
+        { "name": "PADDLE_VENDOR_AUTH_CODE", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/paddle-vendor-auth-code" },
+        { "name": "PADDLE_PUBLIC_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/paddle-public-key" },
+        { "name": "PADDLE_WEBHOOK_SECRET", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/paddle-webhook-secret" },
+        { "name": "ANTHROPIC_API_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/anthropic-api-key" },
+        { "name": "OPENAI_API_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/openai-api-key" },
+        { "name": "STRIPE_SECRET_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/stripe-secret-key" },
+        { "name": "AWS_ACCESS_KEY_ID", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/aws-access-key-id" },
+        { "name": "AWS_SECRET_ACCESS_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/aws-secret-access-key" }
       ],
       "essential": true
     }
   ],
-  "executionRoleArn": "<your-ecs-task-execution-role-arn>",
-  "taskRoleArn": "<your-ecs-task-role-arn>"
+  "executionRoleArn": "arn:aws:iam::698777852781:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::698777852781:role/ecsTaskRole"
 } 
