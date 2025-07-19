@@ -4,7 +4,7 @@
 # =============================================================================
 # STAGE 1: Build stage with dependencies
 # =============================================================================
-FROM python:3.11-slim as builder
+FROM python:3.11-bullseye as builder
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -12,7 +12,7 @@ ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install system dependencies
+# Install system dependencies with retry mechanism
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
@@ -32,7 +32,7 @@ RUN pip install -r requirements.txt
 # =============================================================================
 # STAGE 2: Production stage
 # =============================================================================
-FROM python:3.11-slim as production
+FROM python:3.11-bullseye as production
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
