@@ -23,7 +23,7 @@ const DEMO_USER = {
 
 const AuthContext = createContext<any>(null);
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => useContext(AuthContext) || {};
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any>(null);
