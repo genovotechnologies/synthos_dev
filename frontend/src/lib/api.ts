@@ -349,6 +349,12 @@ const apiService = {
     const response = await api.get('/api/v1/models');
     return response.data;
   },
+
+  // Features API method
+  async getFeatures() {
+    const response = await api.get('/api/v1/marketing/features');
+    return response.data;
+  },
 };
 
 // API constants with security defaults
