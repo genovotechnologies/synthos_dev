@@ -84,7 +84,8 @@ export default function AdminPage() {
           const promptCacheData = await apiClient.getPromptCache();
           setPromptCache(promptCacheData);
           if (analyticsData.performance_log) {
-            const jobIds = analyticsData.performance_log.slice(-5).map((_, i) => String(i + 1));
+            // Fix jobIds typing
+            const jobIds = analyticsData.performance_log.slice(-5).map((_: any, i: number) => String(i + 1));
             const feedbacks: any = {};
             for (const jobId of jobIds) {
               feedbacks[jobId] = await apiClient.getFeedback(jobId);
@@ -178,7 +179,8 @@ export default function AdminPage() {
   // Simple trend chart (SVG)
   const TrendChart = ({ data, label }: { data: number[], label: string }) => {
     const max = Math.max(...data, 1);
-    const points = data.map((v, i) => `${(i / (data.length - 1)) * 100},${100 - (v / max) * 100}`).join(' ');
+    // Fix points typing in TrendChart
+    const points = data.map((v: number, i: number) => `${(i / (data.length - 1)) * 100},${100 - (v / max) * 100}`).join(' ');
     return (
       <svg viewBox="0 0 100 100" width="100%" height="60" aria-label={label} role="img">
         <polyline fill="none" stroke="#6366f1" strokeWidth="2" points={points} />
@@ -596,11 +598,11 @@ export default function AdminPage() {
                   <div className="mb-8">
                     <h4 className="font-semibold mb-2">Recent Feedback</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                      {Object.entries(feedbackStats).map(([jobId, stats]: any) => (
+                      {Object.entries(feedbackStats).map(([jobId, stats]: [string, any]) => (
                         <div key={jobId} className="p-3 border rounded-lg bg-muted cursor-pointer" onClick={() => setDrilldown(stats)}>
                           <div className="text-xs mb-1">Job #{jobId}</div>
                           <div className="text-sm">Avg. Score: <span className="font-bold">{stats.average_score ? stats.average_score.toFixed(2) : '-'}</span></div>
-                          <div className="text-xs text-muted-foreground">All Scores: {stats.all_scores?.map((s: any) => s[0]).join(', ')}</div>
+                          <div className="text-xs text-muted-foreground">All Scores: {stats.all_scores?.map((s: [number, any]) => s[0]).join(', ')}</div>
                         </div>
                       ))}
                     </div>
