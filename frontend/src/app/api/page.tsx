@@ -203,7 +203,19 @@ curl -X POST "https://api.synthos.dev/v1/generate" \\
             // Not implemented: file upload demo
             response = { message: 'File upload demo not implemented in browser' };
           } else {
-            response = await apiClient[endpoint.id](body);
+            // Type-safe dynamic method access
+            type ApiClientType = typeof apiClient;
+            type ApiClientKey = keyof ApiClientType;
+            if ((endpoint.id as ApiClientKey) in apiClient) {
+              const fn = apiClient[endpoint.id as ApiClientKey];
+              if (typeof fn === 'function') {
+                response = await (fn as (body: any) => Promise<any>)(body);
+              } else {
+                response = { error: `API client method '${endpoint.id}' is not a function.` };
+              }
+            } else {
+              response = { error: `API client does not have a method for endpoint id '${endpoint.id}'.` };
+            }
           }
         }
       }
