@@ -1,3 +1,6 @@
+// @ts-ignore
+// If you see errors about 'process', ensure @types/node is installed and 'node' is in tsconfig types.
+// npm i --save-dev @types/node
 import axios from 'axios';
 
 // Security configuration
@@ -34,7 +37,7 @@ const api = axios.create({
 
 // Enhanced request interceptor with security
 api.interceptors.request.use(
-  (config) => {
+  (config: any) => {
     // Add correlation ID for tracking
     config.headers['X-Correlation-ID'] = generateCorrelationId();
     
@@ -60,7 +63,7 @@ api.interceptors.request.use(
     
     return config;
   },
-  (error) => {
+  (error: any) => {
     console.error('❌ Request interceptor error:', error);
     return Promise.reject(error);
   }
@@ -68,7 +71,7 @@ api.interceptors.request.use(
 
 // Enhanced response interceptor with security logging
 api.interceptors.response.use(
-  (response) => {
+  (response: any) => {
     // Log security headers for monitoring
     const securityHeaders = {
       'strict-transport-security': response.headers['strict-transport-security'],
@@ -81,7 +84,7 @@ api.interceptors.response.use(
     
     return response;
   },
-  async (error) => {
+  async (error: any) => {
     const correlationId = error.config?.headers?.['X-Correlation-ID'];
     
     // Handle HTTPS upgrade required
@@ -264,6 +267,20 @@ const apiService = {
   },
   async getFeedback(generation_id: string) {
     const response = await api.get(`/api/v1/analytics/feedback/${generation_id}`);
+    return response.data;
+  },
+
+  // Admin user management API methods
+  async getUsers() {
+    const response = await api.get('/api/v1/admin/users');
+    return response.data;
+  },
+  async updateUserStatus(userId: number, status: string) {
+    const response = await api.patch(`/api/v1/admin/users/${userId}/status`, { status });
+    return response.data;
+  },
+  async deleteUser(userId: number) {
+    const response = await api.delete(`/api/v1/admin/users/${userId}`);
     return response.data;
   },
 
