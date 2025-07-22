@@ -6,6 +6,7 @@ import { OrbitControls, Text, Float, Environment, PerspectiveCamera } from '@rea
 import * as THREE from 'three';
 import { useTheme } from 'next-themes';
 import ErrorBoundary from './ErrorBoundary';
+import { BarChart3 } from "lucide-react";
 
 // Interactive data point component
 function DataPoint({ 
