@@ -1,14 +1,5 @@
 import axios from 'axios';
 
-const DEMO_USER = {
-  id: 0,
-  email: "demo@synthos.dev",
-  full_name: "Demo User",
-  subscription_tier: "free",
-  created_at: new Date().toISOString(),
-  // Add any other fields your app expects
-};
-
 // Security configuration
 const FORCE_HTTPS = process.env.NEXT_PUBLIC_FORCE_HTTPS === 'true';
 
@@ -158,22 +149,11 @@ export const validateSecureConnection = (): boolean => {
   return true;
 };
 
-// Comprehensive API service methods
+// Update API endpoints to match backend FastAPI endpoints
 const apiService = {
   // Admin API methods
   async getAdminStats() {
     const response = await api.get('/api/v1/admin/stats');
-    return response.data;
-  },
-
-  // Privacy settings API methods
-  async getPrivacySettings() {
-    const response = await api.get('/api/v1/privacy/settings');
-    return response.data;
-  },
-
-  async updatePrivacySettings(settings: any) {
-    const response = await api.put('/api/v1/privacy/settings', settings);
     return response.data;
   },
 
@@ -183,135 +163,48 @@ const apiService = {
     return response.data;
   },
 
-  async getGenerationJobs() {
-    const response = await api.get('/api/v1/generation/jobs');
+  async getDataset(datasetId: number) {
+    const response = await api.get(`/api/v1/datasets/${datasetId}`);
     return response.data;
   },
 
   async uploadDataset(file: File, metadata: any) {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('metadata', JSON.stringify(metadata));
-    
+    if (metadata.name) formData.append('name', metadata.name);
+    if (metadata.description) formData.append('description', metadata.description);
+    if (metadata.privacy_level) formData.append('privacy_level', metadata.privacy_level);
     const response = await api.post('/api/v1/datasets/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
   },
 
-  async deleteDataset(datasetId: string | number) {
-    const response = await api.delete(`/api/v1/datasets/${datasetId}`);
-    return response.data;
-  },
-
-  async downloadDataset(datasetId: string | number) {
-    const response = await api.get(`/api/v1/datasets/${datasetId}/download`, {
-      responseType: 'blob',
-    });
-    return response.data;
-  },
-
+  // Generation API methods
   async startGeneration(config: any) {
-    const response = await api.post('/api/v1/generation/start', config);
+    // config: { dataset_id, rows, privacy_level, epsilon, delta, strategy, model_type }
+    const response = await api.post('/api/v1/generation/generate', config);
     return response.data;
   },
 
-  // Billing API methods
-  async getPricingPlans() {
-    const response = await api.get('/api/v1/billing/plans');
+  async getGenerationJob(jobId: number) {
+    const response = await api.get(`/api/v1/generation/jobs/${jobId}`);
     return response.data;
   },
 
-  async createCheckoutSession(planId: string, provider: string) {
-    const response = await api.post('/api/v1/billing/checkout', {
-      plan_id: planId,
-      provider: provider,
-    });
+  async getGenerationJobs() {
+    const response = await api.get('/api/v1/generation/jobs');
     return response.data;
   },
 
-  async createPortalSession() {
-    const response = await api.post('/api/v1/billing/portal');
+  async downloadGeneratedData(jobId: number) {
+    const response = await api.get(`/api/v1/generation/download/${jobId}`);
     return response.data;
   },
 
-  // Custom models API methods
-  async getCustomModels() {
-    const response = await api.get('/api/v1/custom-models');
-    return response.data;
-  },
-
-  async uploadCustomModel(file: File, metadata: any) {
-    const formData = new FormData();
-    formData.append('model', file);
-    formData.append('metadata', JSON.stringify(metadata));
-    
-    const response = await api.post('/api/v1/custom-models/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data;
-  },
-
-  async deleteCustomModel(modelId: string | number) {
-    const response = await api.delete(`/api/v1/custom-models/${modelId}`);
-    return response.data;
-  },
-
-  // Authentication API methods
-  async signIn(email: string, password: string) {
-    if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
-      return { access_token: 'demo-token', user: DEMO_USER };
-    }
-    const response = await api.post('/api/v1/auth/signin', {
-      email,
-      password,
-    });
-    return response.data;
-  },
-
-  async signUp(userData: any) {
-    const response = await api.post('/api/v1/auth/signup', userData);
-    return response.data;
-  },
-
-  async signOut() {
-    const response = await api.post('/api/v1/auth/signout');
-    return response.data;
-  },
-
-  async refreshToken() {
-    const response = await api.post('/api/v1/auth/refresh');
-    return response.data;
-  },
-
-  async resetPassword(email: string) {
-    const response = await api.post('/api/v1/auth/reset-password', { email });
-    return response.data;
-  },
-
-  async confirmResetPassword(token: string, newPassword: string) {
-    const response = await api.post('/api/v1/auth/confirm-reset', {
-      token,
-      new_password: newPassword,
-    });
-    return response.data;
-  },
-
-  // User profile API methods
+  // User API methods
   async getProfile() {
-    if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
-      return DEMO_USER;
-    }
     const response = await api.get('/api/v1/users/me');
-    return response.data;
-  },
-
-  async updateProfile(profileData: any) {
-    const response = await api.put('/api/v1/users/me', profileData);
     return response.data;
   },
 
@@ -320,56 +213,61 @@ const apiService = {
     return response.data;
   },
 
-  // Billing status and subscription methods
-  async getBillingInfo() {
-    const response = await api.get('/api/v1/payment/billing-info');
+  // Billing/Payment API methods
+  async getPricingPlans() {
+    const response = await api.get('/api/v1/payment/plans');
     return response.data;
   },
 
-  async getBillingHistory() {
-    const response = await api.get('/api/v1/payment/billing-history');
+  async createCheckoutSession(planId: string, provider: string) {
+    const response = await api.post('/api/v1/payment/create-checkout-session', {
+      plan_id: planId,
+      provider: provider,
+    });
     return response.data;
   },
 
-  // Admin user management methods
-  async getUsers() {
-    const response = await api.get('/api/v1/admin/users');
+  async getCurrentSubscription() {
+    const response = await api.get('/api/v1/payment/subscription');
     return response.data;
   },
 
-  async updateUserStatus(userId: string, isActive: boolean) {
-    const response = await api.put(`/api/v1/admin/users/${userId}/status`, { is_active: isActive });
+  // Auth API methods
+  async signIn(email: string, password: string) {
+    const response = await api.post('/api/v1/auth/signin', { email, password });
     return response.data;
   },
 
-  async deleteUser(userId: string) {
-    const response = await api.delete(`/api/v1/admin/users/${userId}`);
+  async signUp(userData: any) {
+    const response = await api.post('/api/v1/auth/signup', userData);
     return response.data;
   },
 
-  // System health and monitoring
-  async getSystemHealth() {
-    const response = await api.get('/api/v1/system/health');
-    return response.data;
-  },
-
-  // AI Models API methods
-  async getModels() {
-    const response = await api.get('/api/v1/models');
-    return response.data;
-  },
-
-  // Features API method
+  // Marketing/Features API methods
   async getFeatures() {
     const response = await api.get('/api/v1/marketing/features');
     return response.data;
   },
 
-  // Testimonials API method
-  async getTestimonials() {
-    const response = await api.get('/api/v1/marketing/testimonials');
+  // Analytics API methods
+  async getAnalyticsPerformance() {
+    const response = await api.get('/api/v1/analytics/performance');
     return response.data;
   },
+  async getPromptCache() {
+    const response = await api.get('/api/v1/analytics/prompt-cache');
+    return response.data;
+  },
+  async submitFeedback(generation_id: string, quality_score: number) {
+    const response = await api.post('/api/v1/analytics/feedback', { generation_id, quality_score });
+    return response.data;
+  },
+  async getFeedback(generation_id: string) {
+    const response = await api.get(`/api/v1/analytics/feedback/${generation_id}`);
+    return response.data;
+  },
+
+  // Add any other endpoints as needed, matching backend routes
 };
 
 // API constants with security defaults

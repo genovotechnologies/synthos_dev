@@ -242,19 +242,20 @@ class MultiModelAgent:
         multi_config: MultiModelConfig
     ) -> Dict[str, Any]:
         """
-        Determine the optimal model strategy based on dataset, user tier, and requirements
+        Determine the optimal model strategy based on dataset, user tier, requirements, and cost/quality tradeoff
         """
-        # Analyze dataset characteristics
         domain = await self._detect_industry_domain(dataset)
         complexity = await self._assess_dataset_complexity(dataset)
-        
-        # Check user capabilities
         user_capabilities = self._get_user_model_access(user)
-        
-        # Get available custom models
         custom_models = await self._get_user_custom_models(user, dataset)
-        
-        # Select optimal strategy
+        # Dynamic batch size for cost optimization
+        if config.rows > 100000:
+            config.batch_size = 5000
+        elif config.rows > 20000:
+            config.batch_size = 2000
+        else:
+            config.batch_size = 1000
+        # Dynamic model selection
         strategy = {
             "domain": domain,
             "complexity": complexity,
@@ -264,8 +265,7 @@ class MultiModelAgent:
             "strategy": "single_model",
             "custom_models": custom_models
         }
-        
-        # Enterprise: Full ensemble with Opus + custom models
+        # Enterprise: Use Opus for complex, GPT-4-turbo for simple, ensemble for critical
         if user.subscription_tier == SubscriptionTier.ENTERPRISE:
             if custom_models and domain in [IndustryDomain.HEALTHCARE, IndustryDomain.FINANCE]:
                 strategy.update({
@@ -274,15 +274,21 @@ class MultiModelAgent:
                     "strategy": "enterprise_ensemble",
                     "voting": "consensus"
                 })
-            else:
+            elif complexity == "high":
                 strategy.update({
                     "models": ["claude-3-opus"],
                     "use_ensemble": False,
                     "strategy": "enterprise_premium",
                     "primary": "claude-3-opus"
                 })
-        
-        # Growth: GPT-4 Turbo + custom models (up to 10)
+            else:
+                strategy.update({
+                    "models": ["gpt-4-turbo"],
+                    "use_ensemble": False,
+                    "strategy": "enterprise_cost_opt",
+                    "primary": "gpt-4-turbo"
+                })
+        # Growth: Use GPT-4-turbo for most, Claude for complex
         elif user.subscription_tier == SubscriptionTier.GROWTH:
             if custom_models:
                 strategy.update({
@@ -291,6 +297,13 @@ class MultiModelAgent:
                     "strategy": "growth_custom",
                     "primary": "gpt-4-turbo"
                 })
+            elif complexity == "high":
+                strategy.update({
+                    "models": ["claude-3-sonnet"],
+                    "use_ensemble": False,
+                    "strategy": "growth_complex",
+                    "primary": "claude-3-sonnet"
+                })
             else:
                 strategy.update({
                     "models": ["gpt-4-turbo"],
@@ -298,10 +311,9 @@ class MultiModelAgent:
                     "strategy": "growth_fast",
                     "primary": "gpt-4-turbo"
                 })
-        
-        # Professional: Claude Sonnet + GPT-3.5 (multi-model starts here)
+        # Professional: Use GPT-3.5 for large/simple, Claude for small/complex
         elif user.subscription_tier == SubscriptionTier.PROFESSIONAL:
-            if config.rows > 50000:  # Use faster model for large datasets
+            if config.rows > 50000 or complexity == "low":
                 strategy.update({
                     "models": ["gpt-3.5-turbo", "claude-3-sonnet"],
                     "use_ensemble": False,
@@ -315,8 +327,7 @@ class MultiModelAgent:
                     "strategy": "professional_balanced",
                     "primary": "claude-3-sonnet"
                 })
-        
-        # Starter/Free: Single Claude Sonnet only
+        # Starter/Free: Use Claude Sonnet only
         else:
             strategy.update({
                 "models": ["claude-3-sonnet"],
@@ -324,7 +335,6 @@ class MultiModelAgent:
                 "strategy": "single_model",
                 "primary": "claude-3-sonnet"
             })
-        
         return strategy
     
     async def _ensemble_generation(

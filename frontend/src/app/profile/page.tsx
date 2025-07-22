@@ -59,10 +59,7 @@ const ProfilePage: FC = () => {
         if (profile.user_metadata && profile.user_metadata.achievements) {
           setAchievements(profile.user_metadata.achievements);
         } else {
-          setAchievements([
-            // fallback mock
-            { id: 1, title: 'Data Pioneer', description: 'Generated your first synthetic dataset', icon: '🚀', earned: true, date: '2024-01-16' }
-          ]);
+          setAchievements([]);
         }
         setError(null);
       } catch (err) {
@@ -101,10 +98,10 @@ const ProfilePage: FC = () => {
   };
 
   if (loading) {
-    return <div className="flex flex-col min-h-screen"><Header /><main className="flex-1 flex items-center justify-center"><div className="text-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div><p className="text-lg text-muted-foreground">Loading profile...</p></div></main></div>;
+    return <div className="flex flex-col min-h-screen"><Header /><main className="flex-1 flex items-center justify-center"><div className="text-center" role="status" aria-live="polite" aria-busy="true"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" tabIndex={0}></div><p className="text-lg text-muted-foreground">Loading profile...</p></div></main></div>;
   }
   if (error) {
-    return <div className="flex flex-col min-h-screen"><Header /><main className="flex-1 flex items-center justify-center"><div className="text-center text-red-600">{error}</div></main></div>;
+    return <div className="flex flex-col min-h-screen"><Header /><main className="flex-1 flex items-center justify-center"><div className="text-center text-red-600" role="alert" aria-live="assertive" tabIndex={-1}>{error}</div></main></div>;
   }
 
   return (
@@ -166,8 +163,8 @@ const ProfilePage: FC = () => {
                         placeholder="Bio"
                       />
                       <div className="flex gap-2">
-                        <Button onClick={handleSaveProfile} size="sm">Save</Button>
-                        <Button onClick={() => setIsEditing(false)} variant="outline" size="sm">
+                        <Button onClick={handleSaveProfile} size="sm" className="touch-target">Save</Button>
+                        <Button onClick={() => setIsEditing(false)} variant="outline" size="sm" className="touch-target">
                           Cancel
                         </Button>
                       </div>
@@ -189,7 +186,7 @@ const ProfilePage: FC = () => {
                           <span>{profileData?.subscription_tier} Plan</span>
                         </div>
                       </div>
-                      <Button onClick={() => setIsEditing(true)} variant="outline" size="sm">
+                      <Button onClick={() => setIsEditing(true)} variant="outline" size="sm" className="touch-target">
                         Edit Profile
                       </Button>
                     </div>

@@ -293,6 +293,7 @@ const PricingPage = () => {
                                 handleUpgrade(tier.id);
                               }
                             }}
+                            className="touch-target"
                           >
                             {tier.id === 'enterprise' ? 'Contact Sales' : tier.price === 0 ? 'Get Started Free' : 'Start '}
                           </Button>

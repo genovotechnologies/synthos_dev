@@ -527,10 +527,10 @@ We encourage you to review this policy periodically for updates.`
                         If you have any questions about this Privacy Policy or want to exercise your privacy rights, please contact us:
                       </p>
                       <div className="space-y-2 text-sm">
-                        <p><strong>Data Protection Officer:</strong> privacy@synthos.ai</p>
-                        <p><strong>EU Representative:</strong> eu-privacy@synthos.ai</p>
-                        <p><strong>Address:</strong> 123 AI Street, San Francisco, CA 94105</p>
-                        <p><strong>Phone:</strong> +1 (555) 123-4567</p>
+                        <p><strong>Data Protection Officer:</strong> privacy@synthos.dev</p>
+                        <p><strong>EU Representative:</strong> eu-privacy@synthos.dev</p>
+                        <p><strong>Address:</strong> Magodo Lagos, Nigeria 200222</p>
+                        <p><strong>Phone:</strong> +234 802 970 9341</p>
                       </div>
                       
                       <div className="mt-6 p-4 bg-primary/10 rounded-lg">

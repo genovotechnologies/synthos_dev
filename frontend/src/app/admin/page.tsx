@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api';
+import { useMemo } from 'react';
 
 interface AdminStats {
   total_users: number;
@@ -49,6 +50,12 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [promptCache, setPromptCache] = useState<any>(null);
+  const [feedbackStats, setFeedbackStats] = useState<any>({});
+  const [drilldown, setDrilldown] = useState<any>(null);
+  const [dateRange, setDateRange] = useState<{start: string, end: string} | null>(null);
+  const [filterUser, setFilterUser] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -65,6 +72,32 @@ export default function AdminPage() {
 
     fetchAdminData();
   }, [isAuthenticated, user, router]);
+
+  // Real-time polling
+  useEffect(() => {
+    let interval: any;
+    if (activeTab === 'analytics') {
+      const fetchAnalytics = async () => {
+        try {
+          const analyticsData = await apiClient.getAnalyticsPerformance();
+          setAnalytics(analyticsData);
+          const promptCacheData = await apiClient.getPromptCache();
+          setPromptCache(promptCacheData);
+          if (analyticsData.performance_log) {
+            const jobIds = analyticsData.performance_log.slice(-5).map((_, i) => String(i + 1));
+            const feedbacks: any = {};
+            for (const jobId of jobIds) {
+              feedbacks[jobId] = await apiClient.getFeedback(jobId);
+            }
+            setFeedbackStats(feedbacks);
+          }
+        } catch (err) {}
+      };
+      fetchAnalytics();
+      interval = setInterval(fetchAnalytics, 10000);
+    }
+    return () => interval && clearInterval(interval);
+  }, [activeTab]);
 
   const fetchAdminData = async () => {
     try {
@@ -141,6 +174,29 @@ export default function AdminPage() {
     { id: 'system', label: 'System', icon: '⚙️' },
     { id: 'analytics', label: 'Analytics', icon: '📈' }
   ];
+
+  // Simple trend chart (SVG)
+  const TrendChart = ({ data, label }: { data: number[], label: string }) => {
+    const max = Math.max(...data, 1);
+    const points = data.map((v, i) => `${(i / (data.length - 1)) * 100},${100 - (v / max) * 100}`).join(' ');
+    return (
+      <svg viewBox="0 0 100 100" width="100%" height="60" aria-label={label} role="img">
+        <polyline fill="none" stroke="#6366f1" strokeWidth="2" points={points} />
+        <text x="2" y="12" fontSize="10" fill="#888">{label}</text>
+      </svg>
+    );
+  };
+
+  // Drill-down modal
+  const DrilldownModal = ({ data, onClose }: { data: any, onClose: () => void }) => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-lg p-6 max-w-lg w-full shadow-xl relative">
+        <button onClick={onClose} className="absolute top-2 right-2 text-xl">×</button>
+        <h2 className="text-xl font-bold mb-2">Drill-down Details</h2>
+        <pre className="text-xs overflow-x-auto max-h-96">{JSON.stringify(data, null, 2)}</pre>
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -499,14 +555,59 @@ export default function AdminPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Usage Analytics</CardTitle>
+                  <CardDescription>
+                    Visualize generation performance, quality, cost, and feedback trends. Manage prompt optimization and export analytics.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8">
-                    <div className="text-4xl mb-4">📊</div>
-                    <h3 className="text-lg font-semibold mb-2">Analytics Dashboard</h3>
-                    <p className="text-muted-foreground">
-                      Detailed analytics and reporting features will be available here
-                    </p>
+                  {analytics && (
+                    <div className="mb-8">
+                      <div className="mb-4 flex flex-wrap gap-2 items-center">
+                        <label className="text-xs">Date Range:</label>
+                        <input type="date" value={dateRange?.start || ''} onChange={e => setDateRange(r => ({...r, start: e.target.value}))} className="border rounded px-2 py-1 text-xs" />
+                        <span className="mx-1">-</span>
+                        <input type="date" value={dateRange?.end || ''} onChange={e => setDateRange(r => ({...r, end: e.target.value}))} className="border rounded px-2 py-1 text-xs" />
+                        <label className="text-xs ml-4">User:</label>
+                        <input type="text" value={filterUser || ''} onChange={e => setFilterUser(e.target.value)} placeholder="User email or ID" className="border rounded px-2 py-1 text-xs" />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                          <TrendChart data={analytics.performance_log.map((e: any) => e[1] || 0)} label="Response Time (s)" onClick={() => setDrilldown(analytics.performance_log)} />
+                        </div>
+                        <div>
+                          <TrendChart data={analytics.performance_log.map((e: any) => e[2] || 0)} label="Quality" onClick={() => setDrilldown(analytics.performance_log)} />
+                        </div>
+                        <div>
+                          <TrendChart data={analytics.performance_log.map((e: any) => e[3] || 0)} label="Cost" onClick={() => setDrilldown(analytics.performance_log)} />
+                        </div>
+                      </div>
+                      <div className="mt-4 text-xs text-muted-foreground">
+                        Quality Degradation Events: {analytics.quality_degradation_events.length}
+                      </div>
+                    </div>
+                  )}
+                  {promptCache && (
+                    <div className="mb-8">
+                      <h4 className="font-semibold mb-2">Prompt Cache</h4>
+                      <div className="text-xs">Cached prompts: {Object.keys(promptCache).length}</div>
+                      <Button size="sm" className="touch-target mt-2" aria-label="Refresh Prompt Cache">Refresh Cache</Button>
+                    </div>
+                  )}
+                  <div className="mb-8">
+                    <h4 className="font-semibold mb-2">Recent Feedback</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      {Object.entries(feedbackStats).map(([jobId, stats]: any) => (
+                        <div key={jobId} className="p-3 border rounded-lg bg-muted cursor-pointer" onClick={() => setDrilldown(stats)}>
+                          <div className="text-xs mb-1">Job #{jobId}</div>
+                          <div className="text-sm">Avg. Score: <span className="font-bold">{stats.average_score ? stats.average_score.toFixed(2) : '-'}</span></div>
+                          <div className="text-xs text-muted-foreground">All Scores: {stats.all_scores?.map((s: any) => s[0]).join(', ')}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-4 mt-6">
+                    <Button size="sm" className="touch-target" aria-label="Export Analytics as CSV">Export CSV</Button>
+                    <Button size="sm" className="touch-target" aria-label="View A/B Test Results">A/B Test Results</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -514,6 +615,7 @@ export default function AdminPage() {
           )}
         </div>
       </main>
+      {drilldown && <DrilldownModal data={drilldown} onClose={() => setDrilldown(null)} />}
     </div>
   );
 } 

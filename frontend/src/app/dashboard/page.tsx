@@ -47,6 +47,10 @@ export default function DashboardPage() {
   const [recentJobs, setRecentJobs] = useState<GenerationJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [promptCache, setPromptCache] = useState<any>(null);
+  const [feedback, setFeedback] = useState<{ [jobId: string]: number }>({});
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState<{ [jobId: string]: boolean }>({});
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -95,60 +99,58 @@ export default function DashboardPage() {
     };
 
     fetchDashboardData();
+
+    // Fetch analytics and prompt cache
+    const fetchAnalytics = async () => {
+      try {
+        const analyticsData = await apiClient.getAnalyticsPerformance();
+        setAnalytics(analyticsData);
+        const promptCacheData = await apiClient.getPromptCache();
+        setPromptCache(promptCacheData);
+      } catch (err) {
+        // Ignore analytics errors for now
+      }
+    };
+    fetchAnalytics();
   }, [isAuthenticated, router]);
 
+  // Replace direct fetch with apiClient for upload
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('name', file.name);
-
     try {
-      const response = await fetch('/api/v1/datasets/upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: formData
-      });
-
-      if (response.ok) {
-        // Refresh datasets
-        window.location.reload();
-      } else {
-        setError('Failed to upload file');
-      }
+      await apiClient.uploadDataset(file, { name: file.name });
+      // Optionally, refetch datasets instead of reload
+      setDatasets(await apiClient.getDatasets());
+      setError(null);
     } catch (err) {
-      setError('Upload failed');
+      setError('Failed to upload file');
     }
   };
 
+  // Replace direct fetch with apiClient for generation
   const startGeneration = async (datasetId: number) => {
     try {
-      const response = await fetch('/api/v1/generation/generate', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          dataset_id: datasetId,
-          rows: 1000,
-          privacy_level: 'medium'
-        })
+      await apiClient.startGeneration({
+        dataset_id: datasetId,
+        rows: 1000,
+        privacy_level: 'medium'
       });
-
-      if (response.ok) {
-        // Refresh jobs
-        window.location.reload();
-      } else {
-        setError('Failed to start generation');
-      }
+      setRecentJobs(await apiClient.getGenerationJobs());
+      setError(null);
     } catch (err) {
-      setError('Generation failed');
+      setError('Failed to start generation');
     }
+  };
+
+  const handleFeedbackChange = (jobId: string, value: number) => {
+    setFeedback((prev) => ({ ...prev, [jobId]: value }));
+  };
+
+  const handleFeedbackSubmit = async (jobId: string) => {
+    if (!feedback[jobId]) return;
+    await apiClient.submitFeedback(jobId, feedback[jobId]);
+    setFeedbackSubmitted((prev) => ({ ...prev, [jobId]: true }));
   };
 
   if (loading) {
@@ -156,8 +158,8 @@ export default function DashboardPage() {
       <div className="flex flex-col min-h-screen">
         <Header />
         <main className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="text-center" role="status" aria-live="polite" aria-busy="true">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" tabIndex={0}></div>
             <p className="text-lg text-muted-foreground">Loading dashboard...</p>
           </div>
         </main>
@@ -171,7 +173,7 @@ export default function DashboardPage() {
       <main className="flex-1 bg-gradient-to-br from-background via-background to-primary/5">
         <div className="container mx-auto px-4 py-8">
           {error && (
-            <div className="mb-6 p-4 bg-red-100 border border-red-300 rounded-lg text-red-700">
+            <div className="mb-6 p-4 bg-red-100 border border-red-300 rounded-lg text-red-700" role="alert" aria-live="assertive" tabIndex={-1}>
               {error}
             </div>
           )}
@@ -257,7 +259,7 @@ export default function DashboardPage() {
                       className="hidden"
                       id="file-upload"
                     />
-                    <Button asChild>
+                    <Button asChild className="touch-target">
                       <label htmlFor="file-upload" className="cursor-pointer">
                         Upload Dataset
                       </label>
@@ -300,6 +302,7 @@ export default function DashboardPage() {
                             <Button 
                               size="sm" 
                               onClick={() => startGeneration(dataset.id)}
+                              className="touch-target"
                             >
                               Generate
                             </Button>
@@ -375,19 +378,19 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Button variant="outline" className="h-20 flex flex-col items-center gap-2" asChild>
+                  <Button variant="outline" className="h-20 flex flex-col items-center gap-2 touch-target" asChild>
                     <Link href="/datasets">
                       <span className="text-2xl">📊</span>
                       <span>View Analytics</span>
                     </Link>
                   </Button>
-                  <Button variant="outline" className="h-20 flex flex-col items-center gap-2" asChild>
+                  <Button variant="outline" className="h-20 flex flex-col items-center gap-2 touch-target" asChild>
                     <Link href="/api">
                       <span className="text-2xl">⚙️</span>
                       <span>API Settings</span>
                     </Link>
                   </Button>
-                  <Button variant="outline" className="h-20 flex flex-col items-center gap-2" asChild>
+                  <Button variant="outline" className="h-20 flex flex-col items-center gap-2 touch-target" asChild>
                     <Link href="/documentation">
                       <span className="text-2xl">📚</span>
                       <span>Documentation</span>
@@ -397,8 +400,72 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Analytics Section */}
+          <AnalyticsSection />
         </div>
       </main>
     </div>
   );
 }
+
+  // --- Analytics Section ---
+  const AnalyticsSection = () => (
+    <Card className="mt-8">
+      <CardHeader>
+        <CardTitle>Generation Analytics & Feedback</CardTitle>
+        <CardDescription>
+          View performance, prompt optimization, and provide feedback on generation jobs.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {analytics && (
+          <div className="mb-6">
+            <h4 className="font-semibold mb-2">Performance Log (last 5)</h4>
+            <ul className="text-xs space-y-1">
+              {analytics.performance_log.slice(-5).map((entry: any, i: number) => (
+                <li key={i}>
+                  Time: {new Date(entry[0] * 1000).toLocaleString()}, Response: {entry[1] || '-'}s, Quality: {entry[2] || '-'}, Cost: {entry[3] || '-'}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-2 text-xs text-muted-foreground">
+              Quality Degradation Events: {analytics.quality_degradation_events.length}
+            </div>
+          </div>
+        )}
+        {promptCache && (
+          <div className="mb-6">
+            <h4 className="font-semibold mb-2">Prompt Cache</h4>
+            <div className="text-xs">Cached prompts: {Object.keys(promptCache).length}</div>
+          </div>
+        )}
+        <div className="mb-2">
+          <h4 className="font-semibold mb-2">Job Feedback</h4>
+          {recentJobs.slice(0, 3).map((job) => (
+            <div key={job.id} className="mb-2 flex items-center gap-2">
+              <span className="text-xs">Job #{job.id}</span>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={feedback[job.id] || ''}
+                onChange={(e) => handleFeedbackChange(job.id, Number(e.target.value))}
+                className="w-16 px-2 py-1 border rounded text-xs"
+                placeholder="1-10"
+                disabled={feedbackSubmitted[job.id]}
+              />
+              <Button
+                size="sm"
+                className="touch-target"
+                onClick={() => handleFeedbackSubmit(job.id)}
+                disabled={feedbackSubmitted[job.id] || !feedback[job.id]}
+              >
+                {feedbackSubmitted[job.id] ? 'Submitted' : 'Submit Feedback'}
+              </Button>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );

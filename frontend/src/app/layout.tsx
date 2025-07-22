@@ -14,12 +14,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        {process.env.NEXT_PUBLIC_DEMO_MODE === 'true' && (
-          <div className="fixed top-0 left-0 w-full bg-yellow-400 text-black text-center py-2 z-50">
-            Demo Mode: All data is mock and authentication is bypassed.
-          </div>
-        )}
-        {children}
+        <a href="#main-content" className="sr-only focus:not-sr-only absolute top-2 left-2 z-50 bg-primary text-primary-foreground px-4 py-2 rounded shadow-lg transition-all duration-200">Skip to main content</a>
+        <main id="main-content">
+          {children}
+        </main>
       </body>
     </html>
   );

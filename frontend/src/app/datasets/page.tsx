@@ -185,7 +185,7 @@ export default function DatasetsPage() {
       <div className="flex flex-col min-h-screen">
         <Header />
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary" role="status" aria-live="polite" aria-busy="true" tabIndex={0}></div>
         </div>
       </div>
     );
@@ -204,13 +204,14 @@ export default function DatasetsPage() {
           </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-100 border border-red-300 rounded-lg text-red-700">
+            <div className="mb-6 p-4 bg-red-100 border border-red-300 rounded-lg text-red-700" role="alert" aria-live="assertive" tabIndex={-1}>
               {error}
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={() => setError(null)}
                 className="ml-4"
+                aria-label="Dismiss error message"
               >
                 Dismiss
               </Button>
@@ -275,7 +276,7 @@ export default function DatasetsPage() {
                         required
                       />
                     </div>
-                    <Button type="submit" disabled={uploadLoading || !selectedFile}>
+                    <Button type="submit" disabled={uploadLoading || !selectedFile} className="touch-target">
                       {uploadLoading ? 'Uploading...' : 'Upload Dataset'}
                     </Button>
                   </form>
@@ -334,6 +335,7 @@ export default function DatasetsPage() {
                             size="sm" 
                             onClick={() => startGeneration(dataset.id)}
                             disabled={dataset.status !== 'ready'}
+                            className="touch-target"
                           >
                             Generate
                           </Button>
@@ -341,6 +343,7 @@ export default function DatasetsPage() {
                             variant="outline" 
                             size="sm"
                             onClick={() => handleDownloadDataset(dataset.id)}
+                            className="touch-target"
                           >
                             Download
                           </Button>
@@ -348,6 +351,7 @@ export default function DatasetsPage() {
                             variant="destructive" 
                             size="sm"
                             onClick={() => handleDeleteDataset(dataset.id)}
+                            className="touch-target"
                           >
                             Delete
                           </Button>

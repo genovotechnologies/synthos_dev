@@ -4,23 +4,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { secureStorage } from '../lib/secure-storage';
 
-const DEMO_USER = {
-  id: '1',
-  email: 'demo@synthos.com',
-  full_name: 'Demo User',
-  company: 'Demo Corp',
-  role: 'Data Scientist',
-  subscription_tier: 'Professional',
-  avatar_url: '',
-  joined_date: '2024-01-15',
-  bio: 'This is a demo user for Synthos.',
-  user_metadata: {
-    achievements: [
-      { id: 1, title: 'Data Pioneer', description: 'Generated your first synthetic dataset', icon: '🚀', earned: true, date: '2024-01-16' }
-    ]
-  }
-};
-
 const AuthContext = createContext<any>(null);
 
 export const useAuth = () => useContext(AuthContext) || {};
@@ -32,43 +15,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
-      setUser(DEMO_USER);
-      setIsAuthenticated(true);
-    } else {
-      const initializeAuth = async () => {
-        try {
-          // Validate storage integrity first
-          if (!secureStorage.validateIntegrity()) {
-            console.warn('Storage integrity validation failed, clearing auth state');
-            setIsLoading(false);
-            return;
-          }
-
-          const storedToken = secureStorage.getToken();
-          const storedUser = secureStorage.getUser();
-
-          if (storedToken && storedUser) {
-            setUser(storedUser);
-            setIsAuthenticated(true);
-            
-            // Validate token with server
-            const isValid = await validateTokenWithServer(storedToken);
-            if (!isValid) {
-              console.warn('Token validation failed, clearing auth state');
-              logout();
-            }
-          }
-        } catch (error) {
-          console.error('Auth initialization error:', error);
-          logout();
-        } finally {
+    const initializeAuth = async () => {
+      try {
+        // Validate storage integrity first
+        if (!secureStorage.validateIntegrity()) {
+          console.warn('Storage integrity validation failed, clearing auth state');
           setIsLoading(false);
+          return;
         }
-      };
 
-      initializeAuth();
-    }
+        const storedToken = secureStorage.getToken();
+        const storedUser = secureStorage.getUser();
+
+        if (storedToken && storedUser) {
+          setUser(storedUser);
+          setIsAuthenticated(true);
+          
+          // Validate token with server
+          const isValid = await validateTokenWithServer(storedToken);
+          if (!isValid) {
+            console.warn('Token validation failed, clearing auth state');
+            logout();
+          }
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        logout();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
   }, []);
 
   const validateTokenWithServer = async (token: string): Promise<boolean> => {
@@ -123,7 +101,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           throw new Error('Failed to store authentication token securely');
         }
         
-        setUser(DEMO_USER); // For demo mode, set user to demo
+        setUser(user);
         setIsAuthenticated(true);
 
         // Fetch user data
@@ -190,7 +168,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           throw new Error('Failed to store authentication token securely');
         }
         
-        setUser(DEMO_USER); // For demo mode, set user to demo
+        setUser(user);
         setIsAuthenticated(true);
         return true;
       }
@@ -247,7 +225,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           throw new Error('Failed to store refreshed token securely');
         }
         
-        setUser(DEMO_USER); // For demo mode, set user to demo
+        setUser(user);
         setIsAuthenticated(true);
         return true;
       }

@@ -209,13 +209,14 @@ const FeaturesPage: FC = () => {
                 >
                   <Button
                     size="lg"
-                    className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90"
+                    className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 touch-target"
                   >
                     Try All Features Free
                   </Button>
                   <Button
                     size="lg"
                     variant="outline"
+                    className="touch-target"
                   >
                     Schedule Demo
                   </Button>
@@ -474,13 +475,14 @@ const FeaturesPage: FC = () => {
               >
                 <Button
                   size="lg"
-                  className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90"
+                  className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 touch-target"
                 >
                   Start Free Trial
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
+                  className="touch-target"
                 >
                   View Documentation
                 </Button>

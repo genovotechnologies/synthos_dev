@@ -19,6 +19,7 @@ import pickle
 from pathlib import Path
 import aiofiles
 import time
+import os
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -28,6 +29,10 @@ from app.core.redis import get_redis_client
 
 # Import enhanced realism engine
 from app.agents.enhanced_realism_engine import EnhancedRealismEngine, RealismConfig, IndustryDomain
+
+import numpy as np
+from scipy.stats import ks_2samp, chi2_contingency
+from collections import defaultdict
 
 logger = get_logger(__name__)
 
@@ -106,6 +111,12 @@ class AdvancedClaudeAgent:
             ModelType.CLAUDE_2: {"context": 100000, "output": 4096}
         }
         self.realism_engine = EnhancedRealismEngine()
+        # === Advanced optimization and analytics ===
+        self.prompt_optimizer = PromptOptimizer()
+        self.response_processor = ClaudeResponseProcessor()
+        self.context_manager = ContextManager()
+        self.adaptive_learning = AdaptiveLearning()
+        self.analytics = GenerationAnalytics()
     
     async def health_check(self) -> bool:
         """Enhanced health check for AI service"""
@@ -131,7 +142,6 @@ class AdvancedClaudeAgent:
         """
         start_time = time.time()
         memory_usage = self._get_memory_usage()
-        
         try:
             logger.info(
                 "Starting advanced synthetic data generation",
@@ -141,21 +151,25 @@ class AdvancedClaudeAgent:
                 model=config.model_type.value,
                 enable_streaming=config.enable_streaming
             )
-            
+            # --- Prompt Optimization ---
+            schema = getattr(dataset, 'columns', None)
+            sample_data = getattr(dataset, 'sample_data', None)
+            privacy_level = getattr(config, 'privacy_level', 'medium')
+            # Build context-aware prompt (future: use in _advanced_schema_analysis)
+            self.prompt_optimizer.build_context_aware_prompt(schema, sample_data, privacy_level)
+            # --- Smart Chunking (future: use for large datasets) ---
+            self.context_manager.chunk_intelligently(dataset)
             # Step 1: Intelligent schema analysis with AI reasoning
             schema_analysis = await self._advanced_schema_analysis(dataset, config)
             await job.update_progress(10.0, "Schema analysis complete")
-            
             # Step 2: Pattern detection using multiple AI perspectives
             patterns = await self._multi_perspective_pattern_detection(dataset, config)
             await job.update_progress(20.0, "Pattern detection complete")
-            
             # Step 3: Strategic generation planning
             generation_plan = await self._create_intelligent_generation_plan(
                 schema_analysis, patterns, config
             )
             await job.update_progress(30.0, "Generation strategy planned")
-            
             # Step 4: Multi-batch generation with streaming
             if config.enable_streaming:
                 synthetic_data = await self._stream_generation_batches(
@@ -165,45 +179,40 @@ class AdvancedClaudeAgent:
                 synthetic_data = await self._batch_generation_standard(
                     generation_plan, config, job
                 )
-            
             await job.update_progress(70.0, "Data generation complete")
-            
+            # --- Multi-stage Validation and Enhancement ---
+            self.response_processor.validate_statistical_properties(dataset, synthetic_data)
+            synthetic_data = self.response_processor.repair_data_quality(synthetic_data)
             # Step 5: Advanced privacy protection
             if config.add_noise:
                 synthetic_data = await self._apply_advanced_privacy_protection(
                     synthetic_data, config, schema_analysis
                 )
-            
             await job.update_progress(80.0, "Privacy protection applied")
-            
             # Step 6: Comprehensive quality assessment
             quality_metrics = await self._comprehensive_quality_assessment(
                 dataset, synthetic_data, config, start_time, memory_usage
             )
-            
             await job.update_progress(90.0, "Quality assessment complete")
-            
             # Step 7: Enhanced realism processing for critical industry accuracy
             synthetic_data, realism_metrics = await self._apply_enhanced_realism_processing(
                 synthetic_data, dataset, config, schema_analysis
             )
-            
             await job.update_progress(95.0, "Enhanced realism processing complete")
-            
             # Step 8: Add enterprise watermarks and metadata
             if settings.ENABLE_WATERMARKS:
                 synthetic_data = await self._add_intelligent_watermarks(
                     synthetic_data, dataset, config
                 )
-            
             await job.update_progress(100.0, "Generation complete")
-            
+            # --- Analytics and Adaptive Learning ---
+            self.analytics.track_claude_performance()
+            self.adaptive_learning.learn_from_user_feedback(job.id, getattr(quality_metrics, 'overall_quality', None))
             # Cache results for future optimizations
             if config.cache_strategy:
                 await self._cache_generation_results(
                     dataset, config, synthetic_data, quality_metrics
                 )
-            
             logger.info(
                 "Advanced synthetic data generation completed",
                 dataset_id=dataset.id,
@@ -212,9 +221,7 @@ class AdvancedClaudeAgent:
                 execution_time=quality_metrics.execution_time,
                 strategy=config.strategy.value
             )
-            
             return synthetic_data, quality_metrics
-            
         except Exception as e:
             logger.error(
                 "Advanced synthetic data generation failed",
@@ -230,7 +237,7 @@ class AdvancedClaudeAgent:
         dataset: Dataset, 
         config: GenerationConfig
     ) -> Dict[str, Any]:
-        """AI-powered schema analysis with deep understanding"""
+        """AI-powered schema analysis with deep understanding and few-shot examples"""
         
         cache_key = f"schema_analysis_{dataset.id}_{hash(str(dataset.columns))}"
         if config.cache_strategy and (cached := await self._get_cache(cache_key)):
@@ -261,28 +268,39 @@ class AdvancedClaudeAgent:
                 for col in dataset.columns
             ]
         }
+        # Add few-shot examples
+        pattern_samples = await self._prepare_pattern_analysis_samples(dataset)
+        few_shot_examples = pattern_samples.get("sample_rows", [])
         
         analysis_prompt = f"""
-        As an expert data scientist and synthetic data generation specialist, analyze this dataset schema for optimal synthetic data generation:
+        As an expert data scientist and synthetic data generation specialist, analyze this dataset schema for optimal synthetic data generation.
         
         Dataset Context: {json.dumps(schema_context, indent=2)}
+        
+        Few-Shot Examples (real data rows):
+        {json.dumps(few_shot_examples, indent=2)}
         
         Generation Requirements:
         - Target rows: {config.rows:,}
         - Privacy level: {config.privacy_level}
         - Strategy: {config.strategy.value}
         - Quality threshold: {config.quality_threshold}
+        - Maintain correlations: {config.maintain_correlations}
+        - Preserve distributions: {config.preserve_distributions}
+        - Add noise: {config.add_noise}
+        - Semantic coherence: {config.semantic_coherence}
+        - Business rules: {config.business_rules}
+        - Custom constraints: {config.custom_constraints}
         
         Provide a comprehensive analysis including:
-        
-        1. **Data Types & Distributions**: Detailed analysis of each column's characteristics
-        2. **Relationships**: Inter-column dependencies and correlations
-        3. **Business Logic**: Inferred business rules and constraints
-        4. **Privacy Implications**: Sensitive data identification and protection needs
-        5. **Generation Complexity**: Difficulty assessment for each column
-        6. **Optimization Opportunities**: Strategies for efficient generation
-        7. **Quality Metrics**: Specific quality measures for this dataset
-        8. **Risk Assessment**: Potential issues and mitigation strategies
+        1. Data Types & Distributions: Detailed analysis of each column's characteristics and how to mimic them
+        2. Relationships: Inter-column dependencies and correlations, with explicit mapping
+        3. Business Logic: Inferred business rules and constraints, with examples
+        4. Privacy Implications: Sensitive data identification and protection needs
+        5. Generation Complexity: Difficulty assessment for each column
+        6. Optimization Opportunities: Strategies for efficient, high-quality generation
+        7. Quality Metrics: Specific quality measures for this dataset
+        8. Risk Assessment: Potential issues and mitigation strategies
         
         Return as structured JSON with actionable insights for synthetic data generation.
         """
@@ -292,15 +310,10 @@ class AdvancedClaudeAgent:
                 analysis_prompt, config.model_type, temperature=0.3
             )
             analysis = json.loads(response)
-            
-            # Enhance with statistical analysis
             analysis["statistical_insights"] = await self._statistical_enhancement(dataset)
-            
             if config.cache_strategy:
                 await self._set_cache(cache_key, analysis, ttl=3600)
-            
             return analysis
-            
         except json.JSONDecodeError as e:
             logger.warning(
                 "Claude response parsing failed, using enhanced fallback", 
@@ -507,25 +520,32 @@ class AdvancedClaudeAgent:
         batch_idx: int,
         config: GenerationConfig
     ) -> pd.DataFrame:
-        """Generate a single batch using intelligent AI reasoning"""
-        
+        """Generate a single batch using intelligent AI reasoning with few-shot and chain prompting"""
+        # Prepare few-shot examples for this batch
+        few_shot_examples = plan.get("few_shot_examples")
+        if not few_shot_examples and hasattr(self, "_prepare_pattern_analysis_samples"):
+            # Fallback: try to get from dataset if not in plan
+            dataset = plan.get("dataset")
+            if dataset:
+                pattern_samples = await self._prepare_pattern_analysis_samples(dataset)
+                few_shot_examples = pattern_samples.get("sample_rows", [])
         batch_prompt = f"""
-        Generate {batch_size} rows of synthetic data following this intelligent plan:
+        Generate {batch_size} rows of synthetic data following this intelligent plan and using the provided few-shot examples for guidance.
         
         Generation Plan: {json.dumps(plan, indent=2)}
         Batch Index: {batch_idx}
+        
+        Few-Shot Examples (real data rows):
+        {json.dumps(few_shot_examples, indent=2)}
         
         Requirements:
         1. Follow the column generation order from the plan
         2. Maintain all specified relationships and constraints
         3. Ensure data quality meets threshold: {config.quality_threshold}
-        4. Apply business rules and logic consistently
-        5. Generate realistic, coherent data
-        
-        Return ONLY a valid JSON array of {batch_size} data objects.
-        Each object should have all required columns with appropriate values.
+        4. Apply business rules and logic consistently, as shown in the examples
+        5. Generate realistic, coherent data that matches the patterns in the few-shot examples
+        6. Return ONLY a valid JSON array of {batch_size} data objects. Each object should have all required columns with appropriate values.
         """
-        
         for attempt in range(config.max_retries):
             try:
                 response = await self._call_claude_advanced(
@@ -534,30 +554,21 @@ class AdvancedClaudeAgent:
                     temperature=config.temperature,
                     max_tokens=min(config.max_tokens, batch_size * 50)
                 )
-                
-                # Parse and validate the generated data
                 batch_data = json.loads(response)
                 df = pd.DataFrame(batch_data)
-                
-                # Validate batch quality
                 if await self._validate_batch_quality(df, plan, config):
                     return df
                 else:
                     logger.warning(f"Batch {batch_idx} quality below threshold, retrying...")
-                    
             except Exception as e:
                 logger.warning(
                     f"Batch generation attempt {attempt + 1} failed", 
                     batch_idx=batch_idx,
                     error=str(e)
                 )
-                
                 if attempt == config.max_retries - 1:
-                    # Fallback to statistical generation
                     logger.info(f"Using fallback generation for batch {batch_idx}")
                     return await self._fallback_batch_generation(plan, batch_size, config)
-        
-        # This should never be reached, but just in case
         return await self._fallback_batch_generation(plan, batch_size, config)
     
     async def _comprehensive_quality_assessment(
@@ -1349,3 +1360,135 @@ class AdvancedClaudeAgent:
             dummy_data.append(row)
         
         return pd.DataFrame(dummy_data) 
+
+# === Advanced Prompt Engineering and Generation Optimization ===
+
+class PromptOptimizer:
+    """
+    Dynamically builds context-aware prompts for synthetic data generation.
+    """
+    def build_context_aware_prompt(self, schema, sample_data, privacy_level):
+        prompt = ""
+        for col in schema or []:
+            col_name = getattr(col, 'name', str(col))
+            col_type = getattr(col, 'data_type', 'string')
+            col_privacy = getattr(col, 'privacy_category', 'general')
+            prompt += f"Column: {col_name}\nType: {col_type}\n"
+            if sample_data is not None:
+                # Add up to 3 few-shot examples for this column
+                examples = [str(row.get(col_name, '')) for row in sample_data[:3]]
+                prompt += f"Examples: {examples}\n"
+            if col_privacy == 'sensitive' or privacy_level == 'high':
+                prompt += "Instruction: Apply strict privacy protection.\n"
+            else:
+                prompt += "Instruction: Standard privacy.\n"
+        prompt += f"Overall privacy level: {privacy_level}\n"
+        return prompt
+
+class ClaudeResponseProcessor:
+    """
+    Multi-stage validation and enhancement of Claude-generated data.
+    """
+    def validate_statistical_properties(self, original, synthetic):
+        # For each numeric column, use KS test; for categorical, use chi-squared
+        if original is None or synthetic is None:
+            return {}
+        results = {}
+        for col in original.columns:
+            if col not in synthetic.columns:
+                continue
+            if np.issubdtype(original[col].dtype, np.number):
+                stat, p = ks_2samp(original[col].dropna(), synthetic[col].dropna())
+                results[col] = {'ks_stat': stat, 'p_value': p}
+            else:
+                try:
+                    obs = np.array([original[col].value_counts().reindex(synthetic[col].unique(), fill_value=0),
+                                    synthetic[col].value_counts().reindex(synthetic[col].unique(), fill_value=0)])
+                    chi2, p, _, _ = chi2_contingency(obs)
+                    results[col] = {'chi2_stat': chi2, 'p_value': p}
+                except Exception:
+                    results[col] = {'chi2_stat': None, 'p_value': None}
+        return results
+
+    def repair_data_quality(self, synthetic_data):
+        # Fix common issues: type mismatches, referential integrity, fill missing values
+        if synthetic_data is None:
+            return synthetic_data
+        df = synthetic_data.copy()
+        for col in df.columns:
+            # Try to infer type from data
+            if df[col].dtype == object:
+                try:
+                    df[col] = pd.to_numeric(df[col], errors='ignore')
+                except Exception:
+                    pass
+            # Fill missing values
+            if df[col].isnull().any():
+                if np.issubdtype(df[col].dtype, np.number):
+                    df[col] = df[col].fillna(df[col].mean())
+                else:
+                    df[col] = df[col].fillna('unknown')
+        # TODO: Add referential integrity checks if foreign keys are known
+        return df
+
+class ContextManager:
+    """
+    Smart chunking for large datasets.
+    """
+    def chunk_intelligently(self, dataset, chunk_size=10000):
+        # Split dataset into chunks, preserving relationships if possible
+        if hasattr(dataset, 'to_dict'):
+            df = pd.DataFrame(dataset.to_dict())
+        elif isinstance(dataset, pd.DataFrame):
+            df = dataset
+        else:
+            return [dataset]
+        n = len(df)
+        chunks = [df.iloc[i:i+chunk_size] for i in range(0, n, chunk_size)]
+        # TODO: Add logic to preserve foreign key relationships across chunks
+        return chunks
+
+class AdaptiveLearning:
+    """
+    Adaptive learning from user feedback.
+    """
+    def __init__(self):
+        self.feedback_store = defaultdict(list)  # generation_id -> list of (score, timestamp)
+        self.prompt_profiles = defaultdict(dict)  # user_id or dataset_id -> prompt config
+
+    def learn_from_user_feedback(self, generation_id, quality_score):
+        import time
+        self.feedback_store[generation_id].append((quality_score, time.time()))
+        # TODO: Use feedback to adjust prompt strategies, e.g., via moving average or A/B test
+        # For now, just store feedback
+        return True
+
+    def get_average_score(self, generation_id):
+        scores = [score for score, _ in self.feedback_store[generation_id]]
+        return np.mean(scores) if scores else None
+
+class GenerationAnalytics:
+    """
+    Analytics and optimization for Claude-based generation.
+    """
+    def __init__(self):
+        self.performance_log = []  # List of (timestamp, response_time, quality, cost)
+        self.quality_degradation_events = []
+        self.prompt_cache = {}  # schema_hash -> prompt
+
+    def track_claude_performance(self, response_time=None, quality=None, cost=None):
+        import time
+        self.performance_log.append((time.time(), response_time, quality, cost))
+        # Detect quality degradation
+        if quality is not None and len(self.performance_log) > 5:
+            recent = [q for _, _, q, _ in self.performance_log[-5:] if q is not None]
+            if len(recent) == 5 and np.mean(recent) < 0.7:
+                self.quality_degradation_events.append(time.time())
+        # TODO: Add cost optimization logic
+        return True
+
+    def cache_prompt(self, schema_hash, prompt):
+        self.prompt_cache[schema_hash] = prompt
+
+    def get_cached_prompt(self, schema_hash):
+        return self.prompt_cache.get(schema_hash) 

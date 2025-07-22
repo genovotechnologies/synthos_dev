@@ -5,7 +5,7 @@ JWT-based authentication with enterprise features
 
 from datetime import timedelta, datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -344,3 +344,33 @@ async def logout(
     )
     
     return {"message": "Successfully logged out"} 
+
+
+@router.post("/create-admin")
+async def create_admin(
+    email: str = Body(...),
+    password: str = Body(...),
+    secret: str = Body(...),
+    db: Session = Depends(get_db)
+):
+    """Create the first admin user. Only allowed if no admin exists and secret matches."""
+    from app.core.security import get_password_hash
+    from app.models.user import User, UserRole
+    ADMIN_CREATION_SECRET = settings.ADMIN_CREATION_SECRET or "changeme"  # Set in env
+    existing_admin = db.query(User).filter(User.role == UserRole.ADMIN).first()
+    if existing_admin:
+        raise HTTPException(status_code=403, detail="Admin already exists")
+    if secret != ADMIN_CREATION_SECRET:
+        raise HTTPException(status_code=401, detail="Invalid secret")
+    hashed_password = get_password_hash(password)
+    admin_user = User(
+        email=email,
+        hashed_password=hashed_password,
+        role=UserRole.ADMIN,
+        is_active=True,
+        is_verified=True
+    )
+    db.add(admin_user)
+    db.commit()
+    db.refresh(admin_user)
+    return {"status": "admin created", "email": admin_user.email} 

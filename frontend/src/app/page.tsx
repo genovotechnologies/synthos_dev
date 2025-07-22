@@ -168,15 +168,15 @@ export default function LandingPage() {
                 {/* Trust Indicators */}
                 <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center">
-                    <Shield className="h-4 w-4 mr-1 text-green-500" />
+                    <Shield className="h-4 w-4 mr-1 text-green-500" aria-hidden="true" />
                     SOC 2 Compliant
                   </div>
                   <div className="flex items-center">
-                    <Star className="h-4 w-4 mr-1 text-yellow-500" />
+                    <Star className="h-4 w-4 mr-1 text-yellow-500" aria-hidden="true" />
                     GDPR Ready
                   </div>
                   <div className="flex items-center">
-                    <Database className="h-4 w-4 mr-1 text-blue-500" />
+                    <Database className="h-4 w-4 mr-1 text-blue-500" aria-hidden="true" />
                     99.9% Uptime
                   </div>
                 </div>
@@ -593,31 +593,31 @@ export default function LandingPage() {
             <div>
               <h4 className="font-semibold mb-4">Product</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="/features" className="hover:text-foreground transition-colors">Features</Link></li>
-                <li><Link href="/pricing" className="hover:text-foreground transition-colors">Pricing</Link></li>
-                <li><Link href="/api" className="hover:text-foreground transition-colors">API</Link></li>
-                <li><Link href="/datasets" className="hover:text-foreground transition-colors">Datasets</Link></li>
-                <li><Link href="/custom-models" className="hover:text-foreground transition-colors">Custom Models</Link></li>
+                <li><Link href="/features" className="hover:text-foreground transition-colors touch-target">Features</Link></li>
+                <li><Link href="/pricing" className="hover:text-foreground transition-colors touch-target">Pricing</Link></li>
+                <li><Link href="/api" className="hover:text-foreground transition-colors touch-target">API</Link></li>
+                <li><Link href="/datasets" className="hover:text-foreground transition-colors touch-target">Datasets</Link></li>
+                <li><Link href="/custom-models" className="hover:text-foreground transition-colors touch-target">Custom Models</Link></li>
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="/about" className="hover:text-foreground transition-colors">About</Link></li>
-                <li><Link href="/contact" className="hover:text-foreground transition-colors">Blog</Link></li>
-                <li><Link href="/contact" className="hover:text-foreground transition-colors">Careers</Link></li>
-                <li><Link href="/contact" className="hover:text-foreground transition-colors">Contact</Link></li>
+                <li><Link href="/about" className="hover:text-foreground transition-colors touch-target">About</Link></li>
+                <li><Link href="/contact" className="hover:text-foreground transition-colors touch-target">Blog</Link></li>
+                <li><Link href="/contact" className="hover:text-foreground transition-colors touch-target">Careers</Link></li>
+                <li><Link href="/contact" className="hover:text-foreground transition-colors touch-target">Contact</Link></li>
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold mb-4">Support</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="/documentation" className="hover:text-foreground transition-colors">Documentation</Link></li>
-                <li><Link href="/contact" className="hover:text-foreground transition-colors">Help Center</Link></li>
-                <li><Link href="/billing" className="hover:text-foreground transition-colors">Billing</Link></li>
-                <li><Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link></li>
+                <li><Link href="/documentation" className="hover:text-foreground transition-colors touch-target">Documentation</Link></li>
+                <li><Link href="/contact" className="hover:text-foreground transition-colors touch-target">Help Center</Link></li>
+                <li><Link href="/billing" className="hover:text-foreground transition-colors touch-target">Billing</Link></li>
+                <li><Link href="/privacy" className="hover:text-foreground transition-colors touch-target">Privacy</Link></li>
               </ul>
             </div>
           </div>
@@ -627,9 +627,9 @@ export default function LandingPage() {
               © 2025 Synthos. All rights reserved.
             </p>
             <div className="flex items-center space-x-4">
-              <Link href="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Terms</Link>
-              <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Privacy</Link>
-              <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Cookies</Link>
+              <Link href="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors touch-target">Terms</Link>
+              <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors touch-target">Privacy</Link>
+              <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors touch-target">Cookies</Link>
             </div>
           </div>
         </div>
