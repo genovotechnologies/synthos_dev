@@ -1,5 +1,14 @@
 import axios from 'axios';
 
+const DEMO_USER = {
+  id: 0,
+  email: "demo@synthos.dev",
+  full_name: "Demo User",
+  subscription_tier: "free",
+  created_at: new Date().toISOString(),
+  // Add any other fields your app expects
+};
+
 // Security configuration
 const FORCE_HTTPS = process.env.NEXT_PUBLIC_FORCE_HTTPS === 'true';
 
