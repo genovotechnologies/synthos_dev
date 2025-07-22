@@ -59,32 +59,9 @@ const PricingPage = () => {
       }
     } catch (err) {
       console.error('Error fetching pricing plans:', err);
-      // Use fallback data from constants
-      setPlans(SUBSCRIPTION_TIERS.map(tier => ({
-        id: tier.id,
-        name: tier.name,
-        price: tier.price,
-        monthly_limit: tier.monthly_limit,
-        features: [...tier.features],
-        stripe_price_id: tier.stripe_price_id,
-        most_popular: tier.popular,
-        enterprise: tier.id === 'enterprise'
-      } as PaymentPlan)));
-      
-      // Set default payment providers
-      setPaymentProviders([
-        {
-          id: 'stripe',
-          name: 'Stripe',
-          available: true,
-          description: 'Credit card payments',
-          supported_countries: ['US', 'CA', 'UK', 'EU'],
-          payment_methods: ['card', 'bank_transfer']
-        }
-      ]);
-      setSelectedProvider('stripe');
-      
-      console.log('Using fallback pricing data');
+      setError('Failed to load pricing plans. Please try again later.');
+      setPlans([]);
+      setPaymentProviders([]);
     } finally {
       setLoading(false);
     }
@@ -135,6 +112,16 @@ const PricingPage = () => {
         <Header />
         <div className="flex items-center justify-center min-h-screen">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+        <Header />
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center text-red-600 text-xl">{error}</div>
         </div>
       </div>
     );

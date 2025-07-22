@@ -1,105 +1,74 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { secureStorage } from '../lib/secure-storage';
 
-interface User {
-  id: number;
-  email: string;
-  full_name: string;
-  company?: string;
-  role: string;
-  subscription_tier: string;
-  is_active: boolean;
-  is_verified: boolean;
-  created_at: string;
-  last_login_at?: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  token: string | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (userData: RegisterData) => Promise<boolean>;
-  logout: () => void;
-  refreshToken: () => Promise<boolean>;
-  updateUser: (userData: Partial<User>) => void;
-}
-
-interface RegisterData {
-  email: string;
-  password: string;
-  full_name: string;
-  company?: string;
-}
-
-const AuthContext = createContext<AuthContextType | null>(null);
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+const DEMO_USER = {
+  id: '1',
+  email: 'demo@synthos.com',
+  full_name: 'Demo User',
+  company: 'Demo Corp',
+  role: 'Data Scientist',
+  subscription_tier: 'Professional',
+  avatar_url: '',
+  joined_date: '2024-01-15',
+  bio: 'This is a demo user for Synthos.',
+  user_metadata: {
+    achievements: [
+      { id: 1, title: 'Data Pioneer', description: 'Generated your first synthetic dataset', icon: '🚀', earned: true, date: '2024-01-16' }
+    ]
   }
-  return context;
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:8000';
+const AuthContext = createContext<any>(null);
 
-// Security validation for API URL
-const validateApiUrl = (url: string): string => {
-  // In production, force HTTPS
-  if (process.env.NODE_ENV === 'production' && url.startsWith('http://')) {
-    console.warn('⚠️ Converting HTTP to HTTPS for production security');
-    return url.replace('http://', 'https://');
-  }
-  return url;
-};
+export const useAuth = () => useContext(AuthContext);
 
-const SECURE_API_URL = validateApiUrl(API_BASE_URL);
-
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [user, setUser] = useState<any>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // Initialize auth state securely
   useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        // Validate storage integrity first
-        if (!secureStorage.validateIntegrity()) {
-          console.warn('Storage integrity validation failed, clearing auth state');
-          setIsLoading(false);
-          return;
-        }
-
-        const storedToken = secureStorage.getToken();
-        const storedUser = secureStorage.getUser();
-
-        if (storedToken && storedUser) {
-          setToken(storedToken);
-          setUser(storedUser);
-          
-          // Validate token with server
-          const isValid = await validateTokenWithServer(storedToken);
-          if (!isValid) {
-            console.warn('Token validation failed, clearing auth state');
-            logout();
+    if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+      setUser(DEMO_USER);
+      setIsAuthenticated(true);
+    } else {
+      const initializeAuth = async () => {
+        try {
+          // Validate storage integrity first
+          if (!secureStorage.validateIntegrity()) {
+            console.warn('Storage integrity validation failed, clearing auth state');
+            setIsLoading(false);
+            return;
           }
-        }
-      } catch (error) {
-        console.error('Auth initialization error:', error);
-        logout();
-      } finally {
-        setIsLoading(false);
-      }
-    };
 
-    initializeAuth();
+          const storedToken = secureStorage.getToken();
+          const storedUser = secureStorage.getUser();
+
+          if (storedToken && storedUser) {
+            setUser(storedUser);
+            setIsAuthenticated(true);
+            
+            // Validate token with server
+            const isValid = await validateTokenWithServer(storedToken);
+            if (!isValid) {
+              console.warn('Token validation failed, clearing auth state');
+              logout();
+            }
+          }
+        } catch (error) {
+          console.error('Auth initialization error:', error);
+          logout();
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      initializeAuth();
+    }
   }, []);
 
   const validateTokenWithServer = async (token: string): Promise<boolean> => {
@@ -154,7 +123,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           throw new Error('Failed to store authentication token securely');
         }
         
-        setToken(access_token);
+        setUser(DEMO_USER); // For demo mode, set user to demo
+        setIsAuthenticated(true);
 
         // Fetch user data
         const userResponse = await fetch(`${SECURE_API_URL}/api/v1/users/me`, {
@@ -220,7 +190,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           throw new Error('Failed to store authentication token securely');
         }
         
-        setToken(access_token);
+        setUser(DEMO_USER); // For demo mode, set user to demo
+        setIsAuthenticated(true);
         return true;
       }
 
@@ -240,7 +211,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     // Clear state
     setUser(null);
-    setToken(null);
+    setIsAuthenticated(false);
     
     // Clear any remaining localStorage items (legacy cleanup)
     try {
@@ -276,7 +247,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           throw new Error('Failed to store refreshed token securely');
         }
         
-        setToken(access_token);
+        setUser(DEMO_USER); // For demo mode, set user to demo
+        setIsAuthenticated(true);
         return true;
       }
 
@@ -289,7 +261,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const updateUser = (updates: Partial<User>) => {
+  const updateUser = (updates: Partial<any>) => {
     if (user) {
       const updatedUser = { ...user, ...updates };
       setUser(updatedUser);
@@ -303,8 +275,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     <AuthContext.Provider
       value={{
         user,
-        token,
-        isAuthenticated: !!user && !!token,
+        isAuthenticated,
         isLoading,
         login,
         register,

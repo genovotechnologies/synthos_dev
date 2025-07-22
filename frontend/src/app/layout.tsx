@@ -10,17 +10,16 @@ export const metadata: Metadata = {
   description: 'Generate high-quality synthetic data with ease.',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${fontClass} bg-background text-foreground antialiased`}>
-        <Providers>
-          {children}
-        </Providers>
+    <html lang="en">
+      <body>
+        {process.env.NEXT_PUBLIC_DEMO_MODE === 'true' && (
+          <div className="fixed top-0 left-0 w-full bg-yellow-400 text-black text-center py-2 z-50">
+            Demo Mode: All data is mock and authentication is bypassed.
+          </div>
+        )}
+        {children}
       </body>
     </html>
   );

@@ -345,11 +345,7 @@ interface DataVisualization3DProps {
 }
 
 export default function DataVisualization3D({
-  data = Array.from({ length: 50 }, (_, i) => ({ 
-    value: Math.random(), 
-    label: `Data Point ${i + 1}`,
-    category: ['A', 'B', 'C', 'D'][Math.floor(Math.random() * 4)]
-  })),
+  data = [],
   className = "",
   height = "400px",
   interactive = true,
@@ -380,13 +376,21 @@ export default function DataVisualization3D({
         return item;
       });
     }
-    return Array.from({ length: 50 }, (_, i) => ({ 
-      value: Math.random(), 
-      label: `Synthetic Record ${i + 1}`,
-      category: ['Users', 'Products', 'Orders', 'Reviews'][Math.floor(Math.random() * 4)],
-      timestamp: new Date(Date.now() - Math.random() * 86400000 * 30).toISOString()
-    }));
+    return [];
   }, [data]);
+
+  if (enrichedData.length === 0) {
+    return (
+      <div className={`relative overflow-hidden rounded-xl ${className}`} style={{ height }}>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center space-y-4">
+            <BarChart3 className="h-16 w-16 mx-auto text-primary" />
+            <p className="text-sm text-muted-foreground">No data available for visualization.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const Fallback3D = useCallback(({ error }: { error?: Error }) => {
     console.warn('3D visualization fallback activated:', error?.message);

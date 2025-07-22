@@ -7,6 +7,7 @@ from fastapi import APIRouter
 
 from app.api.v1 import auth, users, datasets, generation, payment, admin, privacy
 from app.api.v1 import custom_models
+from app.api.v1 import marketing
 
 # Create main API router
 api_router = APIRouter()
@@ -25,4 +26,10 @@ api_router.include_router(
     custom_models.router,
     prefix="/custom-models",
     tags=["custom-models"]
+)
+
+api_router.include_router(
+    marketing.router,
+    prefix="",
+    tags=["marketing"]
 ) 

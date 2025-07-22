@@ -1,14 +1,34 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, type FC } from 'react';
 import { motion } from 'framer-motion';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AI_MODELS } from '@/lib/constants';
+import { apiClient } from '@/lib/api';
 
-const FeaturesPage = () => {
+const FeaturesPage: FC = () => {
   const [activeFeature, setActiveFeature] = useState(0);
+  const [models, setModels] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchModels = async () => {
+      setLoading(true);
+      try {
+        const data = await apiClient.getModels();
+        setModels(data);
+        setError(null);
+      } catch (err) {
+        setError('Failed to load AI models');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchModels();
+  }, []);
 
   const mainFeatures = [
     {
@@ -318,66 +338,66 @@ const FeaturesPage = () => {
                 Choose from the world's most advanced AI models, each optimized for different use cases and requirements.
               </p>
             </motion.div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-              {AI_MODELS.slice(0, 6).map((model, index) => (
-                <motion.div
-                  key={model.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
-                  viewport={{ once: true }}
-                  whileHover={{ y: -5, scale: 1.02 }}
-                >
-                  <Card className="h-full hover:shadow-xl transition-all duration-300">
-                    <CardHeader>
-                      <div className="flex items-center justify-between mb-2">
-                        <CardTitle className="text-lg">{model.name}</CardTitle>
-                        <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
-                          {model.provider}
-                        </span>
-                      </div>
-                      <CardDescription>{model.description}</CardDescription>
-                    </CardHeader>
-                    
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex justify-between text-sm">
-                          <span>Accuracy</span>
-                          <div className="flex items-center gap-2">
-                            <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                              <motion.div
-                                className="h-full bg-gradient-to-r from-green-500 to-emerald-500"
-                                initial={{ width: 0 }}
-                                whileInView={{ width: `${model.accuracy * 100}%` }}
-                                transition={{ duration: 1, delay: index * 0.1 }}
-                              />
+            {loading ? (
+              <div className="flex justify-center items-center h-40">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <span className="ml-4 text-muted-foreground">Loading models...</span>
+              </div>
+            ) : error ? (
+              <div className="text-center text-red-600">{error}</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+                {models.slice(0, 6).map((model, index) => (
+                  <motion.div
+                    key={model.id}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.6, delay: index * 0.1 }}
+                    viewport={{ once: true }}
+                    whileHover={{ y: -5, scale: 1.02 }}
+                  >
+                    <Card className="h-full hover:shadow-xl transition-all duration-300">
+                      <CardHeader>
+                        <div className="flex items-center justify-between mb-2">
+                          <CardTitle className="text-lg">{model.name}</CardTitle>
+                          <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                            {model.provider}
+                          </span>
+                        </div>
+                        <CardDescription>{model.description || ''}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          <div className="flex justify-between text-sm">
+                            <span>Accuracy</span>
+                            <div className="flex items-center gap-2">
+                              <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+                                <motion.div
+                                  className="h-full bg-gradient-to-r from-green-500 to-emerald-500"
+                                  initial={{ width: 0 }}
+                                  whileInView={{ width: `${(model.accuracy * 100 || 0)}%` }}
+                                  transition={{ duration: 1, delay: index * 0.1 }}
+                                />
+                              </div>
+                              <span className="font-medium">{(model.accuracy * 100).toFixed(1)}%</span>
                             </div>
-                            <span className="font-medium">{(model.accuracy * 100).toFixed(1)}%</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Context</span>
+                            <span className="font-medium">{model.max_context || model.context_length}</span>
+                          </div>
+                          <div className="pt-2 border-t border-border">
+                            <p className="text-xs text-muted-foreground">
+                              <strong>Best for:</strong> {model.best_for || ''}
+                            </p>
                           </div>
                         </div>
-                        
-                        <div className="flex justify-between text-sm">
-                          <span>Speed</span>
-                          <span className="font-medium text-primary">{model.speed}</span>
-                        </div>
-                        
-                        <div className="flex justify-between text-sm">
-                          <span>Context</span>
-                          <span className="font-medium">{model.context_length}</span>
-                        </div>
-                        
-                        <div className="pt-2 border-t border-border">
-                          <p className="text-xs text-muted-foreground">
-                            <strong>Best for:</strong> {model.best_for}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 

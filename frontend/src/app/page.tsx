@@ -17,57 +17,36 @@ import { ArrowRight, Check, Zap, Shield, BarChart3, Database, Globe, Star } from
 function DataVisualizationWithData() {
   const [visualizationData, setVisualizationData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchVisualizationData = async () => {
       try {
-        // Try to fetch real datasets for visualization
-        const datasets = await apiClient.getDatasets().catch(() => []);
-        const generationJobs = await apiClient.getGenerationJobs().catch(() => []);
-        
-        // Create visualization data from real API data
+        const datasets = await apiClient.getDatasets();
+        const generationJobs = await apiClient.getGenerationJobs();
         const combinedData = [
           ...datasets.map((dataset: any, i: number) => ({
-            value: Math.min(dataset.row_count / 10000, 1) || Math.random(),
+            value: Math.min(dataset.row_count / 10000, 1),
             label: dataset.name || `Dataset ${i + 1}`,
             category: 'Datasets',
             timestamp: dataset.created_at
           })),
           ...generationJobs.map((job: any, i: number) => ({
-            value: (job.progress_percentage || Math.random() * 100) / 100,
+            value: (job.progress_percentage || 0) / 100,
             label: `Generation Job ${i + 1}`,
             category: 'Generation',
             timestamp: job.created_at
           }))
         ];
-
-        // If no real data, use enhanced sample data
-        if (combinedData.length === 0) {
-          const sampleData = Array.from({ length: 40 }, (_, i) => ({
-            value: Math.random(),
-            label: `Synthetic Record ${i + 1}`,
-            category: ['Users', 'Products', 'Orders', 'Reviews'][Math.floor(Math.random() * 4)],
-            timestamp: new Date(Date.now() - Math.random() * 86400000 * 30).toISOString()
-          }));
-          setVisualizationData(sampleData);
-        } else {
-          setVisualizationData(combinedData);
-        }
+        setVisualizationData(combinedData);
+        setError(null);
       } catch (error) {
-        console.warn('Failed to fetch visualization data:', error);
-        // Fallback to sample data
-        const sampleData = Array.from({ length: 40 }, (_, i) => ({
-          value: Math.random(),
-          label: `Data Point ${i + 1}`,
-          category: ['Analytics', 'ML Models', 'Datasets', 'API'][Math.floor(Math.random() * 4)],
-          timestamp: new Date(Date.now() - Math.random() * 86400000 * 7).toISOString()
-        }));
-        setVisualizationData(sampleData);
+        setError('Failed to fetch visualization data');
+        setVisualizationData([]);
       } finally {
         setLoading(false);
       }
     };
-
     fetchVisualizationData();
   }, []);
 
@@ -81,7 +60,16 @@ function DataVisualizationWithData() {
       </div>
     );
   }
-
+  if (error || visualizationData.length === 0) {
+    return (
+      <div className="h-96 flex items-center justify-center rounded-2xl bg-muted">
+        <div className="text-center space-y-4">
+          <BarChart3 className="h-16 w-16 mx-auto text-primary" />
+          <p className="text-sm text-muted-foreground">No data available for visualization.</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <DataVisualization3D
       data={visualizationData}
@@ -94,49 +82,29 @@ function DataVisualizationWithData() {
 }
 
 export default function LandingPage() {
-  const features = [
-    {
-      icon: <Database className="h-6 w-6" />,
-      title: "Smart Data Generation",
-      description: "Generate high-quality synthetic data that maintains statistical properties"
-    },
-    {
-      icon: <Shield className="h-6 w-6" />,
-      title: "Privacy-First",
-      description: "Built-in privacy protection with GDPR compliance and differential privacy"
-    },
-    {
-      icon: <BarChart3 className="h-6 w-6" />,
-      title: "Quality Analytics",
-      description: "Comprehensive quality metrics and statistical validation for your data"
-    },
-    {
-      icon: <Globe className="h-6 w-6" />,
-      title: "API-First Design",
-      description: "Robust REST API with SDKs for Python, JavaScript, and R"
-    }
-  ];
-
-  const testimonials = [
-    {
-      name: "CHIBOY",
-      role: "Data Scientist",
-      content: "Synthos has revolutionized our data pipeline. The quality is exceptional.",
-      avatar: "CB"
-    },
-    {
-      name: "Gasper Samuel",
-      role: "ML Engineer",
-      content: "The privacy features give us confidence to work with sensitive datasets.",
-      avatar: "GS"
-    },
-    {
-      name: "Seun",
-      role: "ML/AI Engineer",
-      content: "Easy integration and fantastic API. Our development time dropped by 60%.",
-      avatar: "SA"
-    }
-  ];
+  const [features, setFeatures] = useState<any[]>([]);
+  const [testimonials, setTestimonials] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [featuresData, testimonialsData] = await Promise.all([
+          apiClient.getFeatures(),
+          apiClient.getTestimonials()
+        ]);
+        setFeatures(featuresData);
+        setTestimonials(testimonialsData);
+        setError(null);
+      } catch (err) {
+        setError('Failed to load landing page data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   return (
     <div className="flex flex-col min-h-screen relative overflow-x-hidden">

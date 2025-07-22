@@ -254,6 +254,9 @@ const apiService = {
 
   // Authentication API methods
   async signIn(email: string, password: string) {
+    if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+      return { access_token: 'demo-token', user: DEMO_USER };
+    }
     const response = await api.post('/api/v1/auth/signin', {
       email,
       password,
@@ -291,6 +294,9 @@ const apiService = {
 
   // User profile API methods
   async getProfile() {
+    if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+      return DEMO_USER;
+    }
     const response = await api.get('/api/v1/users/me');
     return response.data;
   },
@@ -335,6 +341,12 @@ const apiService = {
   // System health and monitoring
   async getSystemHealth() {
     const response = await api.get('/api/v1/system/health');
+    return response.data;
+  },
+
+  // AI Models API methods
+  async getModels() {
+    const response = await api.get('/api/v1/models');
     return response.data;
   },
 };

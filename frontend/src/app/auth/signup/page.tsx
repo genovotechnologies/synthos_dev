@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import { apiClient } from '@/lib/api';
 
 const SignUpPage = () => {
   const [formData, setFormData] = useState({
@@ -21,6 +22,7 @@ const SignUpPage = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   const calculatePasswordStrength = (password: string) => {
     let strength = 0;
@@ -40,12 +42,16 @@ const SignUpPage = () => {
     }
     
     setIsLoading(true);
+    setError(null);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      await apiClient.signUp(formData);
+      window.location.href = '/auth/signin';
+    } catch (err: any) {
+      setError('Sign up failed. Please try again.');
+    } finally {
       setIsLoading(false);
-      console.log('Sign up attempt:', formData);
-    }, 2000);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -158,6 +164,7 @@ const SignUpPage = () => {
               
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  {error && <div className="text-red-600 text-center mb-4">{error}</div>}
                   {/* Name Fields */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">

@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, type FC } from 'react';
 import { motion } from 'framer-motion';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { apiClient } from '@/lib/api';
 
-const ApiPage = () => {
+const ApiPage: FC = () => {
   const [activeEndpoint, setActiveEndpoint] = useState('generate');
   const [testRequest, setTestRequest] = useState('');
   const [testResponse, setTestResponse] = useState('');
@@ -187,10 +188,26 @@ curl -X POST "https://api.synthos.dev/v1/generate" \\
   const testApiCall = async () => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
       const endpoint = endpoints.find(e => e.id === activeEndpoint);
-      setTestResponse(endpoint?.response || '{}');
+      let response;
+      if (endpoint) {
+        if (endpoint.method === 'GET') {
+          const fn = (apiClient as any)[endpoint.id === 'datasets' ? 'getDatasets' : endpoint.id === 'models' ? 'getModels' : 'getProfile'];
+          response = await fn();
+        } else if (endpoint.method === 'POST') {
+          // For demo, use example request body
+          const body = testRequest ? JSON.parse(testRequest) : {};
+          if (endpoint.id === 'generate') {
+            response = await apiClient.startGeneration(body);
+          } else if (endpoint.id === 'upload') {
+            // Not implemented: file upload demo
+            response = { message: 'File upload demo not implemented in browser' };
+          } else {
+            response = await apiClient[endpoint.id](body);
+          }
+        }
+      }
+      setTestResponse(JSON.stringify(response, null, 2));
     } catch (error) {
       setTestResponse('{"error": "Request failed"}');
     } finally {

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import { apiClient } from '@/lib/api';
 
 const SignInPage = () => {
   const [formData, setFormData] = useState({
@@ -15,16 +16,21 @@ const SignInPage = () => {
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
+    setError(null);
+    try {
+      await apiClient.signIn(formData.email, formData.password);
+      // Redirect or reload after successful sign-in
+      window.location.href = '/dashboard';
+    } catch (err: any) {
+      setError('Sign in failed. Please check your credentials.');
+    } finally {
       setIsLoading(false);
-      console.log('Sign in attempt:', formData);
-    }, 1500);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -119,6 +125,7 @@ const SignInPage = () => {
               
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  {error && <div className="text-red-600 text-center mb-4">{error}</div>}
                   {/* Email Field */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium leading-none">
