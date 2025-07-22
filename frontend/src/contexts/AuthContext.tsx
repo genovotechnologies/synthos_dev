@@ -73,7 +73,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const validateTokenWithServer = async (token: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${SECURE_API_URL}/api/v1/auth/validate`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/validate`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -103,7 +103,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error('Invalid email format');
       }
 
-      const response = await fetch(`${SECURE_API_URL}/api/v1/auth/login`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -127,7 +127,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsAuthenticated(true);
 
         // Fetch user data
-        const userResponse = await fetch(`${SECURE_API_URL}/api/v1/users/me`, {
+        const userResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/users/me`, {
           headers: {
             'Authorization': `Bearer ${access_token}`,
             'Content-Type': 'application/json',
@@ -173,7 +173,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error('Password must be at least 8 characters long');
       }
 
-      const response = await fetch(`${SECURE_API_URL}/api/v1/auth/register`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -230,7 +230,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return false;
       }
 
-      const response = await fetch(`${SECURE_API_URL}/api/v1/auth/refresh`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/refresh`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${currentToken}`,
