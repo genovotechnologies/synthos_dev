@@ -355,6 +355,12 @@ const apiService = {
     const response = await api.get('/api/v1/marketing/features');
     return response.data;
   },
+
+  // Testimonials API method
+  async getTestimonials() {
+    const response = await api.get('/api/v1/marketing/testimonials');
+    return response.data;
+  },
 };
 
 // API constants with security defaults
