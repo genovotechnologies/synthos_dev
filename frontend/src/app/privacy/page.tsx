@@ -486,7 +486,7 @@ We encourage you to review this policy periodically for updates.`
                         </CardHeader>
                         <CardContent>
                           <div className="prose prose-sm max-w-none text-muted-foreground">
-                            {section.content.split('\n').map((paragraph, pIndex) => {
+                            {section.content.split('\n').map((paragraph: string, pIndex: number) => {
                               if (paragraph.startsWith('**') && paragraph.endsWith('**')) {
                                 return (
                                   <h4 key={pIndex} className="font-semibold text-foreground mt-4 mb-2">

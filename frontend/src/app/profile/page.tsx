@@ -127,7 +127,7 @@ const ProfilePage: FC = () => {
               <Card>
                 <CardHeader className="text-center">
                   <div className="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-primary to-blue-600 rounded-full flex items-center justify-center text-white text-3xl font-bold">
-                    {profileData?.full_name?.split(' ').map(n => n[0]).join('')}
+                    {profileData?.full_name?.split(' ').map((n: string) => n[0]).join('')}
                   </div>
                   <CardTitle>{profileData?.full_name}</CardTitle>
                   <CardDescription>

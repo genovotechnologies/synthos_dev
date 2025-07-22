@@ -85,7 +85,7 @@ function SafeFloatingShapes() {
 
   return (
     <>
-      {shapes.map((shape, index) => (
+      {shapes.map((shape: any, index: number) => (
         <Float 
           key={`${shape.type}-${index}`}
           speed={shape.speed} 

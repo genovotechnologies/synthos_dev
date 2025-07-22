@@ -51,7 +51,7 @@ const AboutPage = () => {
                 <Card className="h-full text-center hover:shadow-xl transition-all duration-300">
                   <CardHeader>
                     <div className="w-24 h-24 bg-gradient-to-br from-primary to-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-2xl font-bold">
-                      {member.name.split(' ').map(n => n[0]).join('')}
+                      {member.name.split(' ').map((n: string) => n[0]).join('')}
                     </div>
                     <CardTitle className="text-xl">{member.name}</CardTitle>
                     <CardDescription className="text-primary font-medium">{member.role}</CardDescription>

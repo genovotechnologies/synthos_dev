@@ -128,7 +128,7 @@ function FloatingShapes() {
 
   return (
     <>
-      {shapes.filter(shape => shape && shape.type && shape.color && shape.args && shape.position).map((shape, index) => (
+      {shapes.filter(shape => shape && shape.type && shape.color && shape.args && shape.position).map((shape: Shape, index: number) => (
         <Float 
           key={index}
           speed={shape.speed || 1.0} 

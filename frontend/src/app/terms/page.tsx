@@ -213,7 +213,7 @@ Class action waivers apply to the extent permitted by law.`
                         </CardHeader>
                         <CardContent>
                           <div className="prose prose-sm max-w-none text-muted-foreground">
-                            {section.content.split('\n').map((paragraph, pIndex) => (
+                            {section.content.split('\n').map((paragraph: string, pIndex: number) => (
                               <p key={pIndex} className="mb-4 last:mb-0">
                                 {paragraph}
                               </p>
