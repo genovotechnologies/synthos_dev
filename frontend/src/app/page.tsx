@@ -12,15 +12,29 @@ import ErrorBoundary from '@/components/ui/ErrorBoundary';
 import { SUBSCRIPTION_TIERS, AI_MODELS } from '@/lib/constants';
 import { apiClient } from '@/lib/api';
 import { ArrowRight, Check, Zap, Shield, BarChart3, Database, Globe, Star } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Data visualization component that fetches real data
 function DataVisualizationWithData() {
   const [visualizationData, setVisualizationData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     const fetchVisualizationData = async () => {
+      if (!isAuthenticated) {
+        // Demo data for unauthenticated users
+        setVisualizationData([
+          { value: 0.8, label: 'Demo Dataset A', category: 'Datasets', timestamp: '2024-01-01' },
+          { value: 0.6, label: 'Demo Dataset B', category: 'Datasets', timestamp: '2024-01-02' },
+          { value: 0.9, label: 'Demo Generation 1', category: 'Generation', timestamp: '2024-01-03' },
+          { value: 0.7, label: 'Demo Generation 2', category: 'Generation', timestamp: '2024-01-04' },
+        ]);
+        setLoading(false);
+        setError(null);
+        return;
+      }
       try {
         const datasets = await apiClient.getDatasets();
         const generationJobs = await apiClient.getGenerationJobs();
@@ -48,7 +62,7 @@ function DataVisualizationWithData() {
       }
     };
     fetchVisualizationData();
-  }, []);
+  }, [isAuthenticated]);
 
   if (loading) {
     return (
@@ -347,11 +361,13 @@ export default function LandingPage() {
                   key={tier.id}
                   initial={{ opacity: 0, y: 50, scale: 0.8 }}
                   whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                  whileHover={{ 
-                    y: -10, 
-                    scale: 1.02,
-                    transition: { type: "spring", stiffness: 300, damping: 20 }
-                  }}
+                  whileHover={
+                    index === 0
+                      ? { x: -32, scale: 1.04, transition: { type: "spring", stiffness: 350, damping: 22 } }
+                      : index === 2
+                        ? { x: 32, scale: 1.04, transition: { type: "spring", stiffness: 350, damping: 22 } }
+                        : { scale: 1.08, transition: { type: "spring", stiffness: 400, damping: 24 } }
+                  }
                   transition={{ 
                     duration: 0.6, 
                     delay: index * 0.2,
@@ -360,25 +376,26 @@ export default function LandingPage() {
                     damping: 15
                   }}
                   viewport={{ once: true }}
-                  className={tier.popular ? 'relative z-10' : 'relative'}
+                  className={'relative'}
                 >
-                  {tier.popular && (
-                    <motion.div 
-                      className="absolute -top-4 left-1/2 transform -translate-x-1/2"
-                      initial={{ opacity: 0, scale: 0 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 0.8 + index * 0.2, type: "spring" }}
-                    >
-                      <div className="bg-gradient-to-r from-primary to-purple-600 text-white px-4 py-1 rounded-full text-sm font-medium shadow-lg backdrop-blur-sm">
-                        Most Popular
-                      </div>
-                    </motion.div>
-                  )}
-                  <Card className={`h-full relative overflow-hidden group transition-all duration-500 ${
+                  <Card className={`h-full relative group transition-all duration-500 w-full ${
                     tier.popular 
-                      ? 'border-primary/50 shadow-2xl bg-gradient-to-br from-background/80 via-background/60 to-primary/5 backdrop-blur-md border-2' 
-                      : 'bg-gradient-to-br from-background/40 via-background/20 to-background/10 backdrop-blur-md border border-border/30 hover:border-primary/30'
+                      ? 'border-primary/50 bg-gradient-to-br from-background/80 via-background/60 to-primary/5 backdrop-blur-md border-2' 
+                      : 'bg-gradient-to-br from-background/40 via-background/20 to-background/10 backdrop-blur-md border border-border/30 hover:border-primary/30 hover:shadow-2xl hover:z-20'
                   }`}>
+                    {tier.popular && (
+                      <motion.div 
+                        className="absolute -top-5 left-1/2 -translate-x-1/2 z-30 flex justify-center"
+                        initial={{ opacity: 0, scale: 0 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.8 + index * 0.2, type: "spring" }}
+                        viewport={{ once: true }}
+                      >
+                        <div className="bg-gradient-to-r from-primary to-purple-600 text-white px-5 py-1.5 rounded-full text-base font-semibold shadow-lg backdrop-blur-sm border-2 border-white/80 dark:border-background/80">
+                          Most Popular
+                        </div>
+                      </motion.div>
+                    )}
                     <CardHeader className="text-center pb-6 relative">
                       {/* Glassmorphism accent */}
                       <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-t-lg" />
@@ -388,6 +405,7 @@ export default function LandingPage() {
                         whileInView={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.3 + index * 0.1 }}
                         className="relative z-10"
+                        viewport={{ once: true }}
                       >
                         <CardTitle className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">
                           {tier.name}
@@ -399,6 +417,7 @@ export default function LandingPage() {
                         initial={{ opacity: 0, scale: 0.8 }}
                         whileInView={{ opacity: 1, scale: 1 }}
                         transition={{ delay: 0.4 + index * 0.1, type: "spring" }}
+                        viewport={{ once: true }}
                       >
                         <span className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
                           {tier.price === null ? 'Contact Sales' : tier.price === 0 ? 'Free' : `$${tier.price}`}
@@ -413,6 +432,7 @@ export default function LandingPage() {
                         whileInView={{ opacity: 1 }}
                         transition={{ delay: 0.5 + index * 0.1 }}
                         className="relative z-10"
+                        viewport={{ once: true }}
                       >
                         <CardDescription className="mt-2 text-muted-foreground/80">
                           {tier.monthly_limit === -1 ? 'Unlimited' : tier.monthly_limit.toLocaleString()} synthetic records per month
@@ -428,6 +448,7 @@ export default function LandingPage() {
                         initial={{ opacity: 0 }}
                         whileInView={{ opacity: 1 }}
                         transition={{ delay: 0.6 + index * 0.1 }}
+                        viewport={{ once: true }}
                       >
                         {tier.features.slice(0, 5).map((feature, featureIndex) => (
                           <motion.li 
@@ -441,6 +462,7 @@ export default function LandingPage() {
                               stiffness: 100
                             }}
                             whileHover={{ x: 5 }}
+                            viewport={{ once: true }}
                           >
                             <Check className="h-4 w-4 text-green-500 mr-3 mt-0.5 flex-shrink-0 transition-transform group-hover:scale-110" />
                             <span className="text-sm text-foreground/90 group-hover:text-foreground transition-colors">
@@ -455,6 +477,7 @@ export default function LandingPage() {
                         whileInView={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.8 + index * 0.1, type: "spring" }}
                         className="relative z-10"
+                        viewport={{ once: true }}
                       >
                         <Button 
                           className={`w-full touch-target relative overflow-hidden group transition-all duration-300 ${
@@ -483,48 +506,53 @@ export default function LandingPage() {
         </section>
 
         {/* Testimonials Section */}
-        <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <section className="py-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+          {/* Subtle animated background dots (optional, for visual polish) */}
+          <div className="absolute inset-0 -z-10 flex items-center justify-center pointer-events-none">
+            <div className="w-full h-full bg-gradient-to-br from-background/80 to-primary/10" />
+            {/* You can add a canvas or SVG for animated dots here if desired */}
+          </div>
           <div className="container mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-              className="text-center mb-16"
-            >
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
                 Trusted by <span className="text-gradient">Data Teams</span>
               </h2>
               <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto">
                 See what our customers say about their experience with Synthos.
               </p>
-            </motion.div>
-
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
-              {testimonials.map((testimonial, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  viewport={{ once: true }}
-                >
-                  <Card className="h-full">
-                    <CardContent className="pt-6">
-                      <blockquote className="text-lg mb-6">"{testimonial.content}"</blockquote>
-                      <div className="flex items-center">
-                        <div className="w-10 h-10 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold text-sm mr-3">
-                          {testimonial.avatar}
-                        </div>
-                        <div>
-                          <div className="font-semibold">{testimonial.name}</div>
-                          <div className="text-sm text-muted-foreground">{testimonial.role}</div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
+              {/* Example testimonials, replace or map from data as needed */}
+              <div className="bg-white dark:bg-background rounded-2xl shadow-lg p-8 flex flex-col justify-between">
+                <blockquote className="text-lg mb-6">"Synthos has revolutionized our data pipeline. The quality is exceptional."</blockquote>
+                <div className="flex items-center">
+                  <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-sm mr-3">CB</div>
+                  <div>
+                    <div className="font-semibold">CHIBOY</div>
+                    <div className="text-sm text-muted-foreground">Data Scientist</div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white dark:bg-background rounded-2xl shadow-lg p-8 flex flex-col justify-between">
+                <blockquote className="text-lg mb-6">"The privacy features give us confidence to work with sensitive datasets."</blockquote>
+                <div className="flex items-center">
+                  <div className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-semibold text-sm mr-3">GS</div>
+                  <div>
+                    <div className="font-semibold">Gasper Samuel</div>
+                    <div className="text-sm text-muted-foreground">ML Engineer</div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white dark:bg-background rounded-2xl shadow-lg p-8 flex flex-col justify-between">
+                <blockquote className="text-lg mb-6">"Easy integration and fantastic API. Our development time dropped by 60%."</blockquote>
+                <div className="flex items-center">
+                  <div className="w-10 h-10 bg-blue-400 text-white rounded-full flex items-center justify-center font-semibold text-sm mr-3">SA</div>
+                  <div>
+                    <div className="font-semibold">Seun</div>
+                    <div className="text-sm text-muted-foreground">ML/AI Engineer</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>

@@ -252,6 +252,12 @@ const apiService = {
     return response.data;
   },
 
+  // Add testimonials API method
+  async getTestimonials() {
+    const response = await api.get('/api/v1/marketing/testimonials');
+    return response.data;
+  },
+
   // Analytics API methods
   async getAnalyticsPerformance() {
     const response = await api.get('/api/v1/analytics/performance');
