@@ -136,10 +136,10 @@ export default function AdminPage() {
     try {
       switch (action) {
         case 'activate':
-          await apiClient.updateUserStatus(Number(userId), true);
+          await apiClient.updateUserStatus(Number(userId), 'active');
           break;
         case 'deactivate':
-          await apiClient.updateUserStatus(Number(userId), false);
+          await apiClient.updateUserStatus(Number(userId), 'inactive');
           break;
         case 'delete':
           await apiClient.deleteUser(userId);
