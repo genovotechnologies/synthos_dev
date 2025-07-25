@@ -566,9 +566,15 @@ export default function AdminPage() {
                     <div className="mb-8">
                       <div className="mb-4 flex flex-wrap gap-2 items-center">
                         <label className="text-xs">Date Range:</label>
-                        <input type="date" value={dateRange?.start || ''} onChange={e => setDateRange(r => ({...r, start: e.target.value}))} className="border rounded px-2 py-1 text-xs" />
+                        <input type="date" value={dateRange?.start || ''} onChange={e => setDateRange(r => ({
+                          start: e.target.value,
+                          end: r && r.end ? r.end : ''
+                        }))} className="border rounded px-2 py-1 text-xs" />
                         <span className="mx-1">-</span>
-                        <input type="date" value={dateRange?.end || ''} onChange={e => setDateRange(r => ({...r, end: e.target.value}))} className="border rounded px-2 py-1 text-xs" />
+                        <input type="date" value={dateRange?.end || ''} onChange={e => setDateRange(r => ({
+                          start: r && r.start ? r.start : '',
+                          end: e.target.value
+                        }))} className="border rounded px-2 py-1 text-xs" />
                         <label className="text-xs ml-4">User:</label>
                         <input type="text" value={filterUser || ''} onChange={e => setFilterUser(e.target.value)} placeholder="User email or ID" className="border rounded px-2 py-1 text-xs" />
                       </div>
