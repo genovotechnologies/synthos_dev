@@ -580,13 +580,19 @@ export default function AdminPage() {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
-                          <TrendChart data={analytics.performance_log.map((e: any) => e[1] || 0)} label="Response Time (s)" onClick={() => setDrilldown(analytics.performance_log)} />
+                          <div onClick={() => setDrilldown(analytics.performance_log)} style={{ cursor: 'pointer' }}>
+                            <TrendChart data={analytics.performance_log.map((e: any) => e[1] || 0)} label="Response Time (s)" />
+                          </div>
                         </div>
                         <div>
-                          <TrendChart data={analytics.performance_log.map((e: any) => e[2] || 0)} label="Quality" onClick={() => setDrilldown(analytics.performance_log)} />
+                          <div onClick={() => setDrilldown(analytics.performance_log)} style={{ cursor: 'pointer' }}>
+                            <TrendChart data={analytics.performance_log.map((e: any) => e[2] || 0)} label="Quality" />
+                          </div>
                         </div>
                         <div>
-                          <TrendChart data={analytics.performance_log.map((e: any) => e[3] || 0)} label="Cost" onClick={() => setDrilldown(analytics.performance_log)} />
+                          <div onClick={() => setDrilldown(analytics.performance_log)} style={{ cursor: 'pointer' }}>
+                            <TrendChart data={analytics.performance_log.map((e: any) => e[3] || 0)} label="Cost" />
+                          </div>
                         </div>
                       </div>
                       <div className="mt-4 text-xs text-muted-foreground">
