@@ -142,7 +142,7 @@ export default function AdminPage() {
           await apiClient.updateUserStatus(Number(userId), 'inactive');
           break;
         case 'delete':
-          await apiClient.deleteUser(userId);
+          await apiClient.deleteUser(Number(userId));
           break;
         default:
           console.warn(`Unknown action: ${action}`);
