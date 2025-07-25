@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AI_MODELS } from '@/lib/constants';
 import { apiClient } from '@/lib/api';
+import Link from 'next/link';
 
 const FeaturesPage: FC = () => {
   const [activeFeature, setActiveFeature] = useState(0);
@@ -15,19 +16,10 @@ const FeaturesPage: FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchModels = async () => {
-      setLoading(true);
-      try {
-        const data = await apiClient.getModels();
-        setModels(data);
-        setError(null);
-      } catch (err) {
-        setError('Failed to load AI models');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchModels();
+    // Use static AI_MODELS constant for demo
+    setModels(AI_MODELS);
+    setLoading(false);
+    setError(null);
   }, []);
 
   const mainFeatures = [
@@ -207,18 +199,11 @@ const FeaturesPage: FC = () => {
                   className="flex flex-col sm:flex-row gap-4 justify-center"
                   whileHover={{ scale: 1.02 }}
                 >
-                  <Button
-                    size="lg"
-                    className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 touch-target"
-                  >
-                    Try All Features Free
+                  <Button asChild size="lg" className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 touch-target">
+                    <Link href="/auth/signup">Try All Features Free</Link>
                   </Button>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="touch-target"
-                  >
-                    Schedule Demo
+                  <Button asChild size="lg" variant="outline" className="touch-target">
+                    <Link href="/contact">Schedule Demo</Link>
                   </Button>
                 </motion.div>
               </div>
@@ -258,6 +243,7 @@ const FeaturesPage: FC = () => {
                             ? "linear-gradient(135deg, rgba(var(--primary), 0.1), rgba(59, 130, 246, 0.1))"
                             : "linear-gradient(135deg, transparent, transparent)"
                         }}
+                        viewport={{ once: true }}
                       />
                       
                       <CardHeader className="relative z-10">
@@ -269,6 +255,7 @@ const FeaturesPage: FC = () => {
                               rotate: 360 
                             }}
                             transition={{ duration: 0.6 }}
+                            viewport={{ once: true }}
                           >
                             {feature.icon}
                           </motion.div>
@@ -298,6 +285,7 @@ const FeaturesPage: FC = () => {
                               whileInView={{ opacity: 1, x: 0 }}
                               transition={{ delay: index * 0.1 + benefitIndex * 0.05 }}
                               className="flex items-center gap-2 text-sm"
+                              viewport={{ once: true }}
                             >
                               <div className="w-2 h-2 bg-primary rounded-full" />
                               {benefit}
@@ -473,18 +461,11 @@ const FeaturesPage: FC = () => {
                 className="flex flex-col sm:flex-row gap-4 justify-center"
                 whileHover={{ scale: 1.02 }}
               >
-                <Button
-                  size="lg"
-                  className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 touch-target"
-                >
-                  Start Free Trial
+                <Button asChild size="lg" className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 touch-target">
+                  <Link href="/auth/signup">Start Free Trial</Link>
                 </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="touch-target"
-                >
-                  View Documentation
+                <Button asChild size="lg" variant="outline" className="touch-target">
+                  <Link href="/documentation">View Documentation</Link>
                 </Button>
               </motion.div>
             </motion.div>
