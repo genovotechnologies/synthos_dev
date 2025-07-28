@@ -17,7 +17,7 @@ const FeaturesPage: FC = () => {
 
   useEffect(() => {
     // Use static AI_MODELS constant for demo
-    setModels(AI_MODELS);
+    setModels([...AI_MODELS]);
     setLoading(false);
     setError(null);
   }, []);

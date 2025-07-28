@@ -8,10 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import ThreeBackgroundSafe from '@/components/ui/ThreeBackgroundSafe';
 import DataVisualization3D from '@/components/ui/DataVisualization3D';
+import Floating3DElements from '@/components/ui/Floating3DElements';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
-import { SUBSCRIPTION_TIERS, AI_MODELS } from '@/lib/constants';
+import { SUBSCRIPTION_TIERS, AI_MODELS, FEATURES } from '@/lib/constants';
 import { apiClient } from '@/lib/api';
-import { ArrowRight, Check, Zap, Shield, BarChart3, Database, Globe, Star } from 'lucide-react';
+import { ArrowRight, Check, Zap, Shield, BarChart3, Database, Globe, Star, TrendingUp, Cpu, Lock, Zap as ZapIcon, Target, Code, Building2, Activity, DollarSign } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Data visualization component that fetches real data
@@ -95,20 +96,110 @@ function DataVisualizationWithData() {
   );
 }
 
+// Custom icon component for features
+function FeatureIcon({ icon, color }: { icon: string; color: string }) {
+  const iconMap: { [key: string]: React.ReactNode } = {
+    '🤖': <Cpu className="h-6 w-6" />,
+    '🔒': <Lock className="h-6 w-6" />,
+    '⚡': <ZapIcon className="h-6 w-6" />,
+    '📊': <BarChart3 className="h-6 w-6" />,
+    '🔌': <Code className="h-6 w-6" />,
+    '🏭': <Building2 className="h-6 w-6" />,
+    '📈': <TrendingUp className="h-6 w-6" />,
+    '💰': <DollarSign className="h-6 w-6" />,
+  };
+
+  // Special non-circular icon designs
+  const specialIconMap: { [key: string]: React.ReactNode } = {
+    '🤖': (
+      <div className="relative">
+        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
+          <Cpu className="h-5 w-5 text-white" />
+        </div>
+        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-sm"></div>
+      </div>
+    ),
+    '🔒': (
+      <div className="relative">
+        <div className="w-8 h-6 bg-gradient-to-br from-green-500 to-emerald-500 rounded-t-lg flex items-center justify-center">
+          <Lock className="h-4 w-4 text-white" />
+        </div>
+        <div className="w-6 h-2 bg-gradient-to-br from-green-500 to-emerald-500 rounded-b-lg mx-auto"></div>
+      </div>
+    ),
+    '⚡': (
+      <div className="relative">
+        <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 transform rotate-45 flex items-center justify-center">
+          <ZapIcon className="h-5 w-5 text-white transform -rotate-45" />
+        </div>
+      </div>
+    ),
+    '📊': (
+      <div className="relative">
+        <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
+          <BarChart3 className="h-5 w-5 text-white" />
+        </div>
+        <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-yellow-500 rounded-full"></div>
+        <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full"></div>
+      </div>
+    ),
+    '🔌': (
+      <div className="relative">
+        <div className="w-8 h-6 bg-gradient-to-br from-indigo-500 to-blue-500 rounded-lg flex items-center justify-center">
+          <Code className="h-4 w-4 text-white" />
+        </div>
+        <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-4 h-1 bg-indigo-500 rounded-full"></div>
+      </div>
+    ),
+    '🏭': (
+      <div className="relative">
+        <div className="w-8 h-8 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-lg flex items-center justify-center">
+          <Building2 className="h-5 w-5 text-white" />
+        </div>
+        <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-4 h-1 bg-teal-500 rounded-full"></div>
+        <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-4 h-1 bg-teal-500 rounded-full"></div>
+      </div>
+    ),
+    '📈': (
+      <div className="relative">
+        <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
+          <TrendingUp className="h-5 w-5 text-white" />
+        </div>
+        <div className="absolute -top-1 -left-1 w-2 h-2 bg-green-500 rounded-full"></div>
+        <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+      </div>
+    ),
+    '💰': (
+      <div className="relative">
+        <div className="w-8 h-8 bg-gradient-to-br from-lime-500 to-green-500 rounded-lg flex items-center justify-center">
+          <DollarSign className="h-5 w-5 text-white" />
+        </div>
+        <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-sm transform rotate-12"></div>
+      </div>
+    ),
+  };
+
+  return (
+    <div className={`w-16 h-16 flex items-center justify-center group-hover:scale-110 transition-all duration-300`}>
+      {specialIconMap[icon] || (
+        <div className={`w-12 h-12 bg-gradient-to-br ${color} rounded-lg flex items-center justify-center text-white shadow-lg group-hover:shadow-xl transition-all duration-300`}>
+          {iconMap[icon] || <span className="text-2xl">{icon}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function LandingPage() {
-  const [features, setFeatures] = useState<any[]>([]);
   const [testimonials, setTestimonials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [featuresData, testimonialsData] = await Promise.all([
-          apiClient.getFeatures(),
-          apiClient.getTestimonials()
-        ]);
-        setFeatures(featuresData);
+        const testimonialsData = await apiClient.getTestimonials();
         setTestimonials(testimonialsData);
         setError(null);
       } catch (err) {
@@ -124,7 +215,7 @@ export default function LandingPage() {
     <div className="flex flex-col min-h-screen relative overflow-x-hidden">
       {/* Background */}
       <ErrorBoundary fallback={() => <div className="fixed inset-0 -z-10 bg-gradient-to-br from-background via-background to-primary/5" />}>
-        <ThreeBackgroundSafe quality="medium" interactive={false} />
+        <ThreeBackgroundSafe quality="high" interactive={true} particleCount={10000} />
       </ErrorBoundary>
 
       <Header />
@@ -132,7 +223,12 @@ export default function LandingPage() {
       <main className="flex-1">
         {/* Hero Section */}
         <section className="relative min-h-screen flex items-center py-20 px-4 sm:px-6 lg:px-8">
-          <div className="container mx-auto">
+          {/* Floating 3D Elements */}
+          <ErrorBoundary fallback={() => null}>
+            <Floating3DElements elementCount={50} className="absolute inset-0 pointer-events-none" />
+          </ErrorBoundary>
+          
+          <div className="container mx-auto relative z-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
               {/* Hero Content */}
               <motion.div
@@ -222,7 +318,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Features Section */}
+        {/* Features Section - Why Choose Synthos */}
         <section className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
           <div className="container mx-auto">
             <motion.div
@@ -240,28 +336,44 @@ export default function LandingPage() {
               </p>
             </motion.div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
-              {features.map((feature, index) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8 max-w-7xl mx-auto">
+              {FEATURES.map((feature, index) => (
                 <motion.div
-                  key={index}
+                  key={feature.id}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                   viewport={{ once: true }}
+                  whileHover={{ y: -5, scale: 1.02 }}
+                  className="group"
                 >
-                  <Card className="h-full text-center hover:glow-primary transition-all duration-300 cursor-pointer group">
+                  <Card className="h-full text-center hover:shadow-xl transition-all duration-300 cursor-pointer group border-0 bg-gradient-to-br from-background/50 to-background/30 backdrop-blur-sm">
                     <CardHeader className="pb-4">
-                      <div className="mx-auto w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                        <div className="text-primary">
-                          {feature.icon}
-                        </div>
+                      <div className="flex justify-center mb-4">
+                        <FeatureIcon icon={feature.icon} color={feature.color} />
                       </div>
-                      <CardTitle className="text-lg sm:text-xl">{feature.title}</CardTitle>
+                      <CardTitle className="text-lg sm:text-xl font-bold">{feature.title}</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <CardDescription className="text-sm sm:text-base">
+                    <CardContent className="space-y-4">
+                      <CardDescription className="text-sm sm:text-base leading-relaxed">
                         {feature.description}
                       </CardDescription>
+                      
+                      {/* Stats */}
+                      <div className="grid grid-cols-3 gap-2 pt-4">
+                        {Object.entries(feature.stats).map(([key, value], statIndex) => (
+                          <motion.div 
+                            key={key}
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            whileInView={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: index * 0.1 + statIndex * 0.05 }}
+                            className="text-center p-2 bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg"
+                          >
+                            <div className="text-xs text-muted-foreground capitalize">{key}</div>
+                            <div className="text-sm font-semibold text-primary">{value}</div>
+                          </motion.div>
+                        ))}
+                      </div>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -355,32 +467,20 @@ export default function LandingPage() {
               </p>
             </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
-              {SUBSCRIPTION_TIERS.slice(0, 3).map((tier, index) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 lg:gap-8 max-w-7xl mx-auto">
+              {SUBSCRIPTION_TIERS.map((tier, index) => (
                 <motion.div
                   key={tier.id}
-                  initial={{ opacity: 0, y: 50, scale: 0.8 }}
-                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                  whileHover={
-                    index === 0
-                      ? { x: -32, scale: 1.04, transition: { type: "spring", stiffness: 350, damping: 22 } }
-                      : index === 2
-                        ? { x: 32, scale: 1.04, transition: { type: "spring", stiffness: 350, damping: 22 } }
-                        : { scale: 1.08, transition: { type: "spring", stiffness: 400, damping: 24 } }
-                  }
-                  transition={{ 
-                    duration: 0.6, 
-                    delay: index * 0.2,
-                    type: "spring",
-                    stiffness: 100,
-                    damping: 15
-                  }}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
                   viewport={{ once: true }}
-                  className={'relative'}
+                  whileHover={{ y: -10, scale: 1.02 }}
+                  className={`relative ${tier.popular ? 'md:col-span-2 lg:col-span-1 xl:col-span-1' : ''}`}
                 >
                   <Card className={`h-full relative group transition-all duration-500 w-full ${
                     tier.popular 
-                      ? 'border-primary/50 bg-gradient-to-br from-background/80 via-background/60 to-primary/5 backdrop-blur-md border-2' 
+                      ? 'border-primary/50 bg-gradient-to-br from-background/80 via-background/60 to-primary/5 backdrop-blur-md border-2 shadow-xl' 
                       : 'bg-gradient-to-br from-background/40 via-background/20 to-background/10 backdrop-blur-md border border-border/30 hover:border-primary/30 hover:shadow-2xl hover:z-20'
                   }`}>
                     {tier.popular && (
@@ -396,7 +496,8 @@ export default function LandingPage() {
                         </div>
                       </motion.div>
                     )}
-                    <CardHeader className="text-center pb-6 relative">
+                    
+                    <CardHeader className="relative">
                       {/* Glassmorphism accent */}
                       <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-t-lg" />
                       
@@ -443,7 +544,7 @@ export default function LandingPage() {
                       {/* Glassmorphism content background */}
                       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/2 to-white/5 rounded-b-lg" />
                       
-                      <motion.ul 
+                      <motion.ul
                         className="space-y-3 relative z-10"
                         initial={{ opacity: 0 }}
                         whileInView={{ opacity: 1 }}
@@ -506,21 +607,23 @@ export default function LandingPage() {
         </section>
 
         {/* Testimonials Section */}
-        <section className="py-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-          {/* Subtle animated background dots (optional, for visual polish) */}
-          <div className="absolute inset-0 -z-10 flex items-center justify-center pointer-events-none">
-            <div className="w-full h-full bg-gradient-to-br from-background/80 to-primary/10" />
-            {/* You can add a canvas or SVG for animated dots here if desired */}
-          </div>
+        <section className="py-20 px-4 sm:px-6 lg:px-8">
           <div className="container mx-auto">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
-                Trusted by <span className="text-gradient">Data Teams</span>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
+              className="text-center mb-16"
+            >
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6">
+                Trusted by <span className="text-gradient">Data Scientists</span>
               </h2>
               <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto">
-                See what our customers say about their experience with Synthos.
+                See what our customers say about Synthos.
               </p>
-            </div>
+            </motion.div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
               {/* Example testimonials, replace or map from data as needed */}
               <div className="bg-white dark:bg-background rounded-2xl shadow-lg p-8 flex flex-col justify-between">
@@ -544,12 +647,12 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="bg-white dark:bg-background rounded-2xl shadow-lg p-8 flex flex-col justify-between">
-                <blockquote className="text-lg mb-6">"Easy integration and fantastic API. Our development time dropped by 60%."</blockquote>
+                <blockquote className="text-lg mb-6">"The API integration is seamless and the documentation is excellent."</blockquote>
                 <div className="flex items-center">
-                  <div className="w-10 h-10 bg-blue-400 text-white rounded-full flex items-center justify-center font-semibold text-sm mr-3">SA</div>
+                  <div className="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center font-semibold text-sm mr-3">AS</div>
                   <div>
-                    <div className="font-semibold">Seun</div>
-                    <div className="text-sm text-muted-foreground">ML/AI Engineer</div>
+                    <div className="font-semibold">Alex Smith</div>
+                    <div className="text-sm text-muted-foreground">Software Engineer</div>
                   </div>
                 </div>
               </div>
@@ -558,42 +661,42 @@ export default function LandingPage() {
         </section>
 
         {/* CTA Section */}
-        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-primary via-blue-600 to-purple-700">
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-primary/10 via-primary/5 to-blue-600/10">
           <div className="container mx-auto text-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.6 }}
               viewport={{ once: true }}
               className="max-w-4xl mx-auto"
             >
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
-                Ready to Transform Your Data Workflow?
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6">
+                Ready to Transform Your <span className="text-gradient">Data Strategy</span>?
               </h2>
-              <p className="text-lg sm:text-xl text-white/90 mb-8 leading-relaxed">
-                Join thousands of developers and data scientists who trust Synthos
-                for their synthetic data needs. Start your free trial today.
+              <p className="text-lg sm:text-xl text-muted-foreground mb-8">
+                Join thousands of data scientists and engineers who trust Synthos for their synthetic data needs.
               </p>
+              
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button 
                   size="lg" 
-                  variant="secondary" 
-                  asChild
-                  className="touch-target text-base sm:text-lg px-8 py-4 hover:scale-105 transition-transform"
+                  asChild 
+                  className="glow-primary hover:glow-primary transition-all duration-300 transform hover:scale-105 touch-target text-base sm:text-lg px-8 py-4"
                 >
                   <Link href="/auth/signup" className="flex items-center">
-                    Start Building Now
+                    Get Started Free
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
                 <Button 
                   size="lg" 
                   variant="outline" 
-                  className="border-white/20 text-white hover:bg-white/10 touch-target text-base sm:text-lg px-8 py-4 hover:scale-105 transition-transform" 
-                  asChild
+                  asChild 
+                  className="glass hover:glass-strong transition-all duration-300 transform hover:scale-105 touch-target text-base sm:text-lg px-8 py-4"
                 >
-                  <Link href="/contact">
-                    Talk to Sales
+                  <Link href="/contact" className="flex items-center">
+                    <Zap className="mr-2 h-5 w-5" />
+                    Schedule Demo
                   </Link>
                 </Button>
               </div>

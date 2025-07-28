@@ -279,7 +279,7 @@ const PricingPage = () => {
 
                         <div className="pt-6">
                           <Button
-                            className={`w-full ${
+                            className={`w-full touch-target ${
                               isPopular 
                                 ? 'bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90' 
                                 : ''
@@ -293,7 +293,6 @@ const PricingPage = () => {
                                 handleUpgrade(tier.id);
                               }
                             }}
-                            className="touch-target"
                           >
                             {tier.id === 'enterprise' ? 'Contact Sales' : tier.price === 0 ? 'Get Started Free' : 'Start '}
                           </Button>

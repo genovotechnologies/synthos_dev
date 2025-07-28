@@ -486,31 +486,195 @@ class CustomModelService:
         await self._validate_uploaded_model(custom_model)
         return custom_model.get_validation_metrics()
     
+    async def _run_pytorch_inference(self, model, input_data: pd.DataFrame) -> pd.DataFrame:
+        """Run PyTorch model inference with advanced features"""
+        try:
+            import torch
+            import torch.nn as nn
+            
+            # Ensure model is in evaluation mode
+            model.eval()
+            
+            # Convert input data to tensor with proper dtype
+            if input_data.dtypes.any() == 'object':
+                # Handle mixed data types
+                numeric_cols = input_data.select_dtypes(include=[np.number]).columns
+                input_tensor = torch.tensor(input_data[numeric_cols].values, dtype=torch.float32)
+            else:
+                input_tensor = torch.tensor(input_data.values, dtype=torch.float32)
+            
+            # Add batch dimension if needed
+            if input_tensor.dim() == 1:
+                input_tensor = input_tensor.unsqueeze(0)
+            
+            # Run inference with gradient computation disabled
+            with torch.no_grad():
+                try:
+                    output = model(input_tensor)
+                    
+                    # Handle different output types
+                    if isinstance(output, torch.Tensor):
+                        if output.dim() > 1:
+                            preds = output.softmax(dim=-1) if output.size(-1) > 1 else output.sigmoid()
+                        else:
+                            preds = output
+                    elif isinstance(output, (list, tuple)):
+                        preds = output[0] if len(output) > 0 else torch.zeros(input_tensor.size(0))
+                    else:
+                        preds = output
+                    
+                    # Convert to numpy
+                    if hasattr(preds, 'cpu'):
+                        preds = preds.cpu()
+                    if hasattr(preds, 'numpy'):
+                        preds = preds.numpy()
+                    else:
+                        preds = preds.detach().cpu().numpy()
+                    
+                    # Flatten if needed
+                    if preds.ndim > 1:
+                        preds = preds.flatten()
+                    
+                    return pd.DataFrame({"prediction": preds})
+                    
+                except Exception as e:
+                    logger.error(f"PyTorch model inference failed: {e}")
+                    # Fallback to simple forward pass
+                    output = model(input_tensor)
+                    if hasattr(output, 'detach'):
+                        preds = output.detach().cpu().numpy()
+                    else:
+                        preds = output.numpy()
+                    return pd.DataFrame({"prediction": preds.flatten()})
+                    
+        except ImportError:
+            raise RuntimeError("PyTorch is not installed. Install with: pip install torch")
+        except Exception as e:
+            raise RuntimeError(f"PyTorch inference failed: {e}")
+
+    async def _run_huggingface_inference(self, model, input_data: pd.DataFrame) -> pd.DataFrame:
+        """Run HuggingFace model inference with advanced features"""
+        try:
+            from transformers import pipeline, AutoTokenizer, AutoModel
+            import torch
+            
+            # Handle different model types
+            if isinstance(model, str):
+                # Model is a string path/name
+                try:
+                    # Try to create a pipeline
+                    pipe = pipeline("text-generation", model=model, device="cpu")
+                    texts = input_data.iloc[:, 0].astype(str).tolist()  # Assume first column is text
+                    outputs = pipe(texts, max_length=50, num_return_sequences=1)
+                    predictions = [out[0]['generated_text'] for out in outputs]
+                    return pd.DataFrame({"prediction": predictions})
+                except Exception:
+                    # Fallback to direct model usage
+                    tokenizer = AutoTokenizer.from_pretrained(model)
+                    model_instance = AutoModel.from_pretrained(model)
+                    
+                    # Tokenize input
+                    texts = input_data.iloc[:, 0].astype(str).tolist()
+                    inputs = tokenizer(texts, return_tensors="pt", padding=True, truncation=True)
+                    
+                    # Run inference
+                    with torch.no_grad():
+                        outputs = model_instance(**inputs)
+                        # Use last hidden state as prediction
+                        predictions = outputs.last_hidden_state.mean(dim=1).cpu().numpy()
+                        return pd.DataFrame({"prediction": predictions.flatten()})
+            
+            else:
+                # Model is already loaded
+                if hasattr(model, 'predict'):
+                    predictions = model.predict(input_data)
+                else:
+                    # Assume it's a pipeline
+                    predictions = model(input_data.to_dict(orient='records'))
+                
+                return pd.DataFrame({"prediction": predictions})
+                
+        except ImportError:
+            raise RuntimeError("Transformers is not installed. Install with: pip install transformers")
+        except Exception as e:
+            raise RuntimeError(f"HuggingFace inference failed: {e}")
+
+    async def _run_onnx_inference(self, model, input_data: pd.DataFrame) -> pd.DataFrame:
+        """Run ONNX model inference with advanced features"""
+        try:
+            import onnxruntime as ort
+            
+            # Create inference session with optimizations
+            sess_options = ort.SessionOptions()
+            sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+            sess_options.intra_op_num_threads = 1
+            sess_options.inter_op_num_threads = 1
+            
+            # Load model
+            if isinstance(model, str):
+                # Model is a file path
+                sess = ort.InferenceSession(model, sess_options)
+            else:
+                # Model is already loaded
+                sess = model
+            
+            # Get input details
+            input_name = sess.get_inputs()[0].name
+            input_shape = sess.get_inputs()[0].shape
+            
+            # Prepare input data
+            input_values = input_data.values.astype('float32')
+            
+            # Handle dynamic shapes
+            if input_shape[0] == -1:  # Dynamic batch size
+                input_values = input_values.reshape(-1, *input_shape[1:])
+            
+            # Run inference
+            outputs = sess.run(None, {input_name: input_values})
+            
+            # Handle multiple outputs
+            if len(outputs) == 1:
+                predictions = outputs[0]
+            else:
+                # Combine multiple outputs (e.g., classification + confidence)
+                predictions = np.column_stack(outputs)
+            
+            # Ensure 1D output
+            if predictions.ndim > 1:
+                predictions = predictions.flatten()
+            
+            return pd.DataFrame({"prediction": predictions})
+            
+        except ImportError:
+            raise RuntimeError("ONNX Runtime is not installed. Install with: pip install onnxruntime")
+        except Exception as e:
+            raise RuntimeError(f"ONNX inference failed: {e}")
+
     async def test_model_inference(
         self,
         custom_model: CustomModel,
         test_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Test model inference with sample data"""
-        
-        # Create test DataFrame
+        import psutil
+        import os
         test_df = pd.DataFrame([test_data])
-        
         start_time = datetime.utcnow()
-        
-        # Run inference
+        process = psutil.Process(os.getpid())
+        mem_before = process.memory_info().rss
+        cpu_before = process.cpu_percent(interval=None)
         result_df = await self.run_custom_model_inference(custom_model, test_df)
-        
+        mem_after = process.memory_info().rss
+        cpu_after = process.cpu_percent(interval=None)
         end_time = datetime.utcnow()
         inference_time = (end_time - start_time).total_seconds() * 1000
-        
         return {
             "sample_output": result_df.to_dict('records')[0],
             "inference_time_ms": inference_time,
             "performance_metrics": {
                 "inference_speed": "fast" if inference_time < 100 else "medium" if inference_time < 500 else "slow",
-                "memory_usage": "low",  # Placeholder
-                "cpu_usage": "medium"   # Placeholder
+                "memory_usage": f"{(mem_after-mem_before)/1024/1024:.2f} MB",
+                "cpu_usage": f"{cpu_after-cpu_before:.2f}%"
             }
         }
     
@@ -570,20 +734,4 @@ class CustomModelService:
     
     def _get_file_extension(self, filename: str) -> str:
         """Get file extension from filename"""
-        return Path(filename).suffix.lstrip('.')
-    
-    # Placeholder implementations for other inference methods
-    async def _run_pytorch_inference(self, model, input_data: pd.DataFrame) -> pd.DataFrame:
-        """Run PyTorch model inference"""
-        # Placeholder - would implement actual PyTorch inference
-        return pd.DataFrame({"prediction": [0.5] * len(input_data)})
-    
-    async def _run_huggingface_inference(self, model, input_data: pd.DataFrame) -> pd.DataFrame:
-        """Run HuggingFace model inference"""
-        # Placeholder - would implement actual HuggingFace inference
-        return pd.DataFrame({"prediction": [0.5] * len(input_data)})
-    
-    async def _run_onnx_inference(self, model, input_data: pd.DataFrame) -> pd.DataFrame:
-        """Run ONNX model inference"""
-        # Placeholder - would implement actual ONNX inference
-        return pd.DataFrame({"prediction": [0.5] * len(input_data)}) 
+        return Path(filename).suffix.lstrip('.') 

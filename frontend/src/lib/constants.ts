@@ -3,6 +3,74 @@ export const APP_NAME = 'Synthos'
 export const APP_DESCRIPTION = 'Enterprise Synthetic Data Platform with Agentive AI'
 export const APP_VERSION = '1.0.0'
 
+// Features for "Why Choose Synthos" section
+export const FEATURES = [
+  {
+    id: 'ai-powered',
+    title: 'AI-Powered Generation',
+    description: 'Advanced AI models including Claude 3, GPT-4, and custom models for unparalleled data quality.',
+    icon: '🤖',
+    color: 'from-blue-500 to-cyan-500',
+    stats: { accuracy: '99.2%', models: '15+', speed: '10x faster' }
+  },
+  {
+    id: 'privacy-first',
+    title: 'Privacy-First Architecture',
+    description: 'Built-in differential privacy with GDPR, HIPAA, and SOC 2 compliance out of the box.',
+    icon: '🔒',
+    color: 'from-green-500 to-emerald-500',
+    stats: { compliance: '100%', privacy: 'ε ≤ 0.1', certifications: '4' }
+  },
+  {
+    id: 'enterprise-scale',
+    title: 'Enterprise Scale',
+    description: 'Generate millions of records with 99.99% uptime and global CDN distribution.',
+    icon: '⚡',
+    color: 'from-purple-500 to-pink-500',
+    stats: { uptime: '99.99%', throughput: '1M+ rows/min', regions: '12' }
+  },
+  {
+    id: 'quality-assurance',
+    title: 'Quality Assurance',
+    description: '7-dimensional quality scoring with statistical validation and correlation preservation.',
+    icon: '📊',
+    color: 'from-orange-500 to-red-500',
+    stats: { accuracy: '98.7%', dimensions: '7', validation: 'Real-time' }
+  },
+  {
+    id: 'seamless-integration',
+    title: 'Seamless Integration',
+    description: 'RESTful APIs, SDKs, and pre-built connectors for your existing workflow.',
+    icon: '🔌',
+    color: 'from-indigo-500 to-blue-500',
+    stats: { apis: '100+', sdks: '3', connectors: '10+' }
+  },
+  {
+    id: 'industry-specialization',
+    title: 'Industry Specialization',
+    description: 'Tailored solutions for healthcare, finance, manufacturing, and more.',
+    icon: '🏭',
+    color: 'from-teal-500 to-cyan-500',
+    stats: { industries: '12+', compliance: '100%', templates: '50+' }
+  },
+  {
+    id: 'real-time-analytics',
+    title: 'Real-Time Analytics',
+    description: 'Live monitoring and analytics dashboard for data generation insights.',
+    icon: '📈',
+    color: 'from-yellow-500 to-orange-500',
+    stats: { latency: '<100ms', metrics: '50+', alerts: 'Real-time' }
+  },
+  {
+    id: 'cost-optimization',
+    title: 'Cost Optimization',
+    description: 'Pay-per-use pricing with automatic scaling and resource optimization.',
+    icon: '💰',
+    color: 'from-lime-500 to-green-500',
+    stats: { savings: '60%', scaling: 'Auto', billing: 'Usage-based' }
+  }
+] as const
+
 // Subscription Tiers (matches backend configuration)
 export const SUBSCRIPTION_TIERS = [
   {

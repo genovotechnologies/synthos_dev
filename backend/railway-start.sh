@@ -36,6 +36,6 @@ python -m alembic upgrade head
 mkdir -p /app/uploads /app/exports
 echo "✅ Upload directories created"
 
-# Start the FastAPI server
+# Start the FastAPI server with proper Python path
 echo "🌟 Starting FastAPI server..."
-exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2 
+cd /app && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2 

@@ -313,37 +313,95 @@ class AdvancedSecurityScanner:
         return vulnerabilities
     
     async def _test_password_policies(self) -> List[SecurityVulnerability]:
-        """Test password policy enforcement"""
-        
+        """Test password policy implementation with real validation"""
         vulnerabilities = []
         
-        # Test weak password acceptance
-        weak_passwords = [
-            "password", "123456", "admin", "test", "qwerty",
-            "abc123", "password123", "admin123", "letmein"
-        ]
-        
-        for weak_password in weak_passwords:
-            # This would test against your actual password validation
-            # For now, we'll simulate based on common weak patterns
-            if self._is_weak_password(weak_password):
-                vulnerabilities.append(SecurityVulnerability(
-                    id=f"weak_password_{hashlib.md5(weak_password.encode()).hexdigest()[:8]}",
-                    title="Weak Password Policy",
-                    description=f"System may accept weak passwords like '{weak_password}'",
-                    severity=VulnerabilityLevel.MEDIUM,
-                    test_type=SecurityTestType.AUTHENTICATION,
-                    affected_component="Password Validation",
-                    evidence={"weak_password_example": weak_password},
-                    remediation="Implement strong password policy with complexity requirements",
-                    cvss_score=6.1,
-                    cwe_id="CWE-521",
-                    timestamp=datetime.utcnow()
-                ))
-                break  # Only report once
-        
+        try:
+            # Test weak password acceptance
+            weak_passwords = [
+                "password", "123456", "admin", "test", "qwerty",
+                "abc123", "password123", "admin123", "letmein",
+                "welcome", "login", "abc123", "123456789",
+                "password1", "12345678", "qwerty123", "1234567890",
+                "admin123", "password123", "123456789", "qwerty123"
+            ]
+            
+            for weak_password in weak_passwords:
+                # Test against actual password validation
+                if self._is_weak_password(weak_password):
+                    # Check if system would accept this password
+                    # This would typically involve making a registration request
+                    try:
+                        import aiohttp
+                        async with aiohttp.ClientSession() as session:
+                            # Test registration endpoint
+                            data = {
+                                "username": f"test_user_{hashlib.md5(weak_password.encode()).hexdigest()[:8]}",
+                                "password": weak_password,
+                                "email": f"test_{hashlib.md5(weak_password.encode()).hexdigest()[:8]}@example.com"
+                            }
+                            
+                            # Try to register with weak password
+                            async with session.post(
+                                f"{self.base_url}/auth/register",
+                                json=data,
+                                timeout=10
+                            ) as response:
+                                
+                                if response.status == 200 or response.status == 201:
+                                    # Weak password was accepted
+                                    vulnerabilities.append(SecurityVulnerability(
+                                        id=f"weak_password_{hashlib.md5(weak_password.encode()).hexdigest()[:8]}",
+                                        title="Weak Password Policy",
+                                        description=f"System accepts weak passwords like '{weak_password}'",
+                                        severity=VulnerabilityLevel.HIGH,
+                                        test_type=SecurityTestType.AUTHENTICATION,
+                                        affected_component="Password Validation",
+                                        evidence={"weak_password_example": weak_password, "status_code": response.status},
+                                        remediation="Implement strong password policy with complexity requirements",
+                                        cvss_score=7.5,
+                                        cwe_id="CWE-521",
+                                        timestamp=datetime.utcnow(),
+                                        false_positive=False
+                                    ))
+                                    
+                    except Exception as e:
+                        logger.warning(f"Password policy test failed: {e}")
+                        continue
+            
+            # Test password complexity requirements
+            complexity_tests = [
+                {"password": "short", "expected": False, "description": "Too short"},
+                {"password": "nouppercase", "expected": False, "description": "No uppercase"},
+                {"password": "NOLOWERCASE", "expected": False, "description": "No lowercase"},
+                {"password": "NoNumbers", "expected": False, "description": "No numbers"},
+                {"password": "NoSpecial123", "expected": False, "description": "No special characters"},
+                {"password": "ValidPass123!", "expected": True, "description": "Valid password"}
+            ]
+            
+            for test in complexity_tests:
+                is_weak = self._is_weak_password(test["password"])
+                if test["expected"] and is_weak:
+                    vulnerabilities.append(SecurityVulnerability(
+                        id=f"complexity_{hashlib.md5(test['password'].encode()).hexdigest()[:8]}",
+                        title="Password Complexity Policy",
+                        description=f"Password complexity check failed: {test['description']}",
+                        severity=VulnerabilityLevel.MEDIUM,
+                        test_type=SecurityTestType.AUTHENTICATION,
+                        affected_component="Password Validation",
+                        evidence={"test_password": test["password"], "expected": test["expected"], "actual": is_weak},
+                        remediation="Implement comprehensive password complexity requirements",
+                        cvss_score=5.0,
+                        cwe_id="CWE-521",
+                        timestamp=datetime.utcnow(),
+                        false_positive=False
+                    ))
+            
+        except Exception as e:
+            logger.error(f"Password policy test failed: {e}")
+            
         return vulnerabilities
-    
+
     async def _test_sql_injection(self) -> SecurityTestResult:
         """Test for SQL injection vulnerabilities"""
         
@@ -657,76 +715,807 @@ class AdvancedSecurityScanner:
         payload: str, 
         context: str
     ) -> bool:
-        """Simulate SQL injection test (placeholder)"""
-        # In a real implementation, this would make actual requests
-        # and analyze responses for SQL injection indicators
-        return False  # Assume no vulnerabilities for simulation
-    
-    # Additional helper methods would be implemented here...
+        """Simulate SQL injection test with real HTTP requests"""
+        try:
+            import aiohttp
+            import re
+            
+            # Common SQL injection payloads
+            sql_payloads = [
+                "' OR '1'='1",
+                "' UNION SELECT NULL--",
+                "'; DROP TABLE users--",
+                "' OR 1=1--",
+                "admin'--",
+                "1' OR '1'='1'--",
+                "' OR 'x'='x",
+                "1' AND '1'='2",
+                "1' AND '1'='1",
+                "'; EXEC xp_cmdshell('dir')--"
+            ]
+            
+            # Test each payload
+            for payload in sql_payloads:
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        # Test GET request
+                        params = {parameter: payload}
+                        async with session.get(context, params=params, timeout=10) as response:
+                            content = await response.text()
+                            
+                            # Check for SQL error indicators
+                            sql_errors = [
+                                "sql syntax",
+                                "mysql_fetch_array",
+                                "ORA-",
+                                "PostgreSQL",
+                                "SQLite",
+                                "Microsoft SQL",
+                                "mysql_num_rows",
+                                "mysql_fetch",
+                                "mysql_result",
+                                "mysql_query",
+                                "mysql_connect",
+                                "mysql_select_db",
+                                "mysql_error",
+                                "mysql_close",
+                                "mysql_pconnect",
+                                "mysql_list_dbs",
+                                "mysql_list_tables",
+                                "mysql_list_fields",
+                                "mysql_db_name",
+                                "mysql_tablename",
+                                "mysql_field_name",
+                                "mysql_field_type",
+                                "mysql_field_len",
+                                "mysql_field_flags",
+                                "mysql_field_table",
+                                "mysql_field_seek",
+                                "mysql_data_seek",
+                                "mysql_fetch_row",
+                                "mysql_fetch_assoc",
+                                "mysql_fetch_object",
+                                "mysql_fetch_field",
+                                "mysql_fetch_lengths",
+                                "mysql_fetch_array",
+                                "mysql_fetch_all",
+                                "mysql_affected_rows",
+                                "mysql_insert_id",
+                                "mysql_num_rows",
+                                "mysql_num_fields",
+                                "mysql_field_seek",
+                                "mysql_data_seek",
+                                "mysql_fetch_row",
+                                "mysql_fetch_assoc",
+                                "mysql_fetch_object",
+                                "mysql_fetch_field",
+                                "mysql_fetch_lengths",
+                                "mysql_fetch_array",
+                                "mysql_fetch_all",
+                                "mysql_affected_rows",
+                                "mysql_insert_id",
+                                "mysql_num_rows",
+                                "mysql_num_fields"
+                            ]
+                            
+                            for error in sql_errors:
+                                if re.search(error, content, re.IGNORECASE):
+                                    return True
+                                    
+                except Exception as e:
+                    logger.warning(f"SQL injection test failed for payload {payload}: {e}")
+                    continue
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"SQL injection simulation failed: {e}")
+            return False
+
     async def _test_password_policies(self) -> List[SecurityVulnerability]:
-        """Test password policy implementation"""
-        return []
-    
+        """Test password policy implementation with real validation"""
+        vulnerabilities = []
+        
+        try:
+            # Test weak password acceptance
+            weak_passwords = [
+                "password", "123456", "admin", "test", "qwerty",
+                "abc123", "password123", "admin123", "letmein",
+                "welcome", "login", "abc123", "123456789",
+                "password1", "12345678", "qwerty123", "1234567890",
+                "admin123", "password123", "123456789", "qwerty123"
+            ]
+            
+            for weak_password in weak_passwords:
+                # Test against actual password validation
+                if self._is_weak_password(weak_password):
+                    # Check if system would accept this password
+                    # This would typically involve making a registration request
+                    try:
+                        import aiohttp
+                        async with aiohttp.ClientSession() as session:
+                            # Test registration endpoint
+                            data = {
+                                "username": f"test_user_{hashlib.md5(weak_password.encode()).hexdigest()[:8]}",
+                                "password": weak_password,
+                                "email": f"test_{hashlib.md5(weak_password.encode()).hexdigest()[:8]}@example.com"
+                            }
+                            
+                            # Try to register with weak password
+                            async with session.post(
+                                f"{self.base_url}/auth/register",
+                                json=data,
+                                timeout=10
+                            ) as response:
+                                
+                                if response.status == 200 or response.status == 201:
+                                    # Weak password was accepted
+                                    vulnerabilities.append(SecurityVulnerability(
+                                        id=f"weak_password_{hashlib.md5(weak_password.encode()).hexdigest()[:8]}",
+                                        title="Weak Password Policy",
+                                        description=f"System accepts weak passwords like '{weak_password}'",
+                                        severity=VulnerabilityLevel.HIGH,
+                                        test_type=SecurityTestType.AUTHENTICATION,
+                                        affected_component="Password Validation",
+                                        evidence={"weak_password_example": weak_password, "status_code": response.status},
+                                        remediation="Implement strong password policy with complexity requirements",
+                                        cvss_score=7.5,
+                                        cwe_id="CWE-521",
+                                        timestamp=datetime.utcnow(),
+                                        false_positive=False
+                                    ))
+                                    
+                    except Exception as e:
+                        logger.warning(f"Password policy test failed: {e}")
+                        continue
+            
+            # Test password complexity requirements
+            complexity_tests = [
+                {"password": "short", "expected": False, "description": "Too short"},
+                {"password": "nouppercase", "expected": False, "description": "No uppercase"},
+                {"password": "NOLOWERCASE", "expected": False, "description": "No lowercase"},
+                {"password": "NoNumbers", "expected": False, "description": "No numbers"},
+                {"password": "NoSpecial123", "expected": False, "description": "No special characters"},
+                {"password": "ValidPass123!", "expected": True, "description": "Valid password"}
+            ]
+            
+            for test in complexity_tests:
+                is_weak = self._is_weak_password(test["password"])
+                if test["expected"] and is_weak:
+                    vulnerabilities.append(SecurityVulnerability(
+                        id=f"complexity_{hashlib.md5(test['password'].encode()).hexdigest()[:8]}",
+                        title="Password Complexity Policy",
+                        description=f"Password complexity check failed: {test['description']}",
+                        severity=VulnerabilityLevel.MEDIUM,
+                        test_type=SecurityTestType.AUTHENTICATION,
+                        affected_component="Password Validation",
+                        evidence={"test_password": test["password"], "expected": test["expected"], "actual": is_weak},
+                        remediation="Implement comprehensive password complexity requirements",
+                        cvss_score=5.0,
+                        cwe_id="CWE-521",
+                        timestamp=datetime.utcnow(),
+                        false_positive=False
+                    ))
+            
+        except Exception as e:
+            logger.error(f"Password policy test failed: {e}")
+            
+        return vulnerabilities
+
     async def _test_session_management(self) -> List[SecurityVulnerability]:
-        """Test session management security"""
-        return []
-    
+        """Test session management security with real session analysis"""
+        vulnerabilities = []
+        
+        try:
+            import aiohttp
+            import jwt
+            from datetime import datetime, timedelta
+            
+            # Test session fixation
+            async with aiohttp.ClientSession() as session:
+                # Login and get session
+                login_data = {"username": "test_user", "password": "test_password"}
+                async with session.post(f"{self.base_url}/auth/login", json=login_data) as response:
+                    if response.status == 200:
+                        cookies = response.cookies
+                        session_id = None
+                        
+                        # Extract session ID from cookies
+                        for cookie in cookies:
+                            if "session" in cookie.key.lower() or "token" in cookie.key.lower():
+                                session_id = cookie.value
+                                break
+                        
+                        if session_id:
+                            # Test if session ID is predictable
+                            try:
+                                # Try to decode JWT if it's a JWT token
+                                decoded = jwt.decode(session_id, options={"verify_signature": False})
+                                if "iat" in decoded and "exp" in decoded:
+                                    # Check if expiration is too long
+                                    exp_time = datetime.fromtimestamp(decoded["exp"])
+                                    if exp_time > datetime.utcnow() + timedelta(hours=24):
+                                        vulnerabilities.append(SecurityVulnerability(
+                                            id="session_long_expiration",
+                                            title="Long Session Expiration",
+                                            description="Session expiration time is too long",
+                                            severity=VulnerabilityLevel.MEDIUM,
+                                            test_type=SecurityTestType.AUTHENTICATION,
+                                            affected_component="Session Management",
+                                            evidence={"expiration_time": exp_time.isoformat()},
+                                            remediation="Reduce session expiration time",
+                                            cvss_score=4.0,
+                                            cwe_id="CWE-613",
+                                            timestamp=datetime.utcnow(),
+                                            false_positive=False
+                                        ))
+                            except:
+                                # Not a JWT, check for other session security issues
+                                pass
+                        
+                        # Test session invalidation on logout
+                        async with session.post(f"{self.base_url}/auth/logout") as logout_response:
+                            if logout_response.status == 200:
+                                # Try to use the old session
+                                async with session.get(f"{self.base_url}/api/user/profile") as profile_response:
+                                    if profile_response.status == 200:
+                                        vulnerabilities.append(SecurityVulnerability(
+                                            id="session_not_invalidated",
+                                            title="Session Not Invalidated on Logout",
+                                            description="Session remains valid after logout",
+                                            severity=VulnerabilityLevel.HIGH,
+                                            test_type=SecurityTestType.AUTHENTICATION,
+                                            affected_component="Session Management",
+                                            evidence={"status_code": profile_response.status},
+                                            remediation="Properly invalidate sessions on logout",
+                                            cvss_score=8.0,
+                                            cwe_id="CWE-613",
+                                            timestamp=datetime.utcnow(),
+                                            false_positive=False
+                                        ))
+                                        
+        except Exception as e:
+            logger.error(f"Session management test failed: {e}")
+            
+        return vulnerabilities
+
     async def _test_rate_limiting(self) -> List[SecurityVulnerability]:
-        """Test rate limiting implementation"""
-        return []
-    
+        """Test rate limiting implementation with real requests"""
+        vulnerabilities = []
+        
+        try:
+            import aiohttp
+            import asyncio
+            
+            # Test rate limiting on login endpoint
+            async with aiohttp.ClientSession() as session:
+                login_data = {"username": "test_user", "password": "test_password"}
+                
+                # Make multiple rapid requests
+                tasks = []
+                for i in range(20):  # Try 20 rapid requests
+                    task = session.post(f"{self.base_url}/auth/login", json=login_data)
+                    tasks.append(task)
+                
+                # Execute all requests concurrently
+                responses = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                # Count successful responses
+                successful_requests = 0
+                for response in responses:
+                    if isinstance(response, aiohttp.ClientResponse) and response.status == 200:
+                        successful_requests += 1
+                
+                # If too many requests succeeded, rate limiting might be weak
+                if successful_requests > 10:
+                    vulnerabilities.append(SecurityVulnerability(
+                        id="weak_rate_limiting",
+                        title="Weak Rate Limiting",
+                        description=f"Rate limiting allows {successful_requests} rapid requests",
+                        severity=VulnerabilityLevel.MEDIUM,
+                        test_type=SecurityTestType.AUTHENTICATION,
+                        affected_component="Rate Limiting",
+                        evidence={"successful_requests": successful_requests, "total_requests": len(responses)},
+                        remediation="Implement stricter rate limiting",
+                        cvss_score=5.0,
+                        cwe_id="CWE-307",
+                        timestamp=datetime.utcnow(),
+                        false_positive=False
+                    ))
+                    
+        except Exception as e:
+            logger.error(f"Rate limiting test failed: {e}")
+            
+        return vulnerabilities
+
     async def _test_brute_force_protection(self) -> List[SecurityVulnerability]:
-        """Test brute force protection"""
-        return []
-    
+        """Test brute force protection with real attack simulation"""
+        vulnerabilities = []
+        
+        try:
+            import aiohttp
+            import asyncio
+            
+            # Common passwords for brute force test
+            common_passwords = [
+                "password", "123456", "admin", "test", "qwerty",
+                "abc123", "password123", "admin123", "letmein",
+                "welcome", "login", "abc123", "123456789"
+            ]
+            
+            async with aiohttp.ClientSession() as session:
+                successful_logins = 0
+                
+                for password in common_passwords:
+                    login_data = {"username": "admin", "password": password}
+                    
+                    try:
+                        async with session.post(f"{self.base_url}/auth/login", json=login_data) as response:
+                            if response.status == 200:
+                                successful_logins += 1
+                                
+                                vulnerabilities.append(SecurityVulnerability(
+                                    id=f"brute_force_{hashlib.md5(password.encode()).hexdigest()[:8]}",
+                                    title="Brute Force Attack Successful",
+                                    description=f"Successfully logged in with common password: {password}",
+                                    severity=VulnerabilityLevel.HIGH,
+                                    test_type=SecurityTestType.AUTHENTICATION,
+                                    affected_component="Authentication",
+                                    evidence={"password_used": password, "status_code": response.status},
+                                    remediation="Implement account lockout and strong password policies",
+                                    cvss_score=8.0,
+                                    cwe_id="CWE-307",
+                                    timestamp=datetime.utcnow(),
+                                    false_positive=False
+                                ))
+                                
+                    except Exception as e:
+                        logger.warning(f"Brute force test failed for password {password}: {e}")
+                        continue
+                
+                # Test account lockout
+                if successful_logins > 0:
+                    # Try to login with wrong password multiple times
+                    wrong_password = "wrong_password_123"
+                    lockout_attempts = 0
+                    
+                    for i in range(10):  # Try 10 wrong attempts
+                        login_data = {"username": "admin", "password": wrong_password}
+                        
+                        try:
+                            async with session.post(f"{self.base_url}/auth/login", json=login_data) as response:
+                                if response.status == 200:
+                                    lockout_attempts += 1
+                        except:
+                            pass
+                    
+                    if lockout_attempts > 5:
+                        vulnerabilities.append(SecurityVulnerability(
+                            id="no_account_lockout",
+                            title="No Account Lockout Protection",
+                            description="Account not locked after multiple failed attempts",
+                            severity=VulnerabilityLevel.HIGH,
+                            test_type=SecurityTestType.AUTHENTICATION,
+                            affected_component="Authentication",
+                            evidence={"failed_attempts": lockout_attempts},
+                            remediation="Implement account lockout after failed attempts",
+                            cvss_score=7.5,
+                            cwe_id="CWE-307",
+                            timestamp=datetime.utcnow(),
+                            false_positive=False
+                        ))
+                        
+        except Exception as e:
+            logger.error(f"Brute force protection test failed: {e}")
+            
+        return vulnerabilities
+
     async def _test_input_validation(self) -> SecurityTestResult:
-        """Test input validation security"""
+        """Test input validation security with real payload testing"""
+        vulnerabilities = []
+        start_time = time.time()
+        
+        try:
+            import aiohttp
+            
+            # Test XSS payloads
+            xss_payloads = [
+                "<script>alert('XSS')</script>",
+                "javascript:alert('XSS')",
+                "<img src=x onerror=alert('XSS')>",
+                "<svg onload=alert('XSS')>",
+                "';alert('XSS');//",
+                "<iframe src=javascript:alert('XSS')>",
+                "<body onload=alert('XSS')>",
+                "<input onfocus=alert('XSS') autofocus>"
+            ]
+            
+            # Test SQL injection payloads
+            sql_payloads = [
+                "' OR '1'='1",
+                "'; DROP TABLE users--",
+                "' UNION SELECT NULL--",
+                "admin'--",
+                "1' OR '1'='1'--"
+            ]
+            
+            # Test command injection payloads
+            command_payloads = [
+                "; ls -la",
+                "| cat /etc/passwd",
+                "&& whoami",
+                "`id`",
+                "$(whoami)"
+            ]
+            
+            async with aiohttp.ClientSession() as session:
+                # Test on various endpoints
+                test_endpoints = [
+                    "/api/user/profile",
+                    "/api/datasets",
+                    "/api/generation",
+                    "/auth/login"
+                ]
+                
+                for endpoint in test_endpoints:
+                    for payload in xss_payloads + sql_payloads + command_payloads:
+                        try:
+                            # Test GET parameter injection
+                            params = {"test": payload}
+                            async with session.get(f"{self.base_url}{endpoint}", params=params) as response:
+                                content = await response.text()
+                                
+                                # Check for reflected payload
+                                if payload in content:
+                                    vulnerabilities.append(SecurityVulnerability(
+                                        id=f"input_validation_{hashlib.md5(payload.encode()).hexdigest()[:8]}",
+                                        title="Input Validation Bypass",
+                                        description=f"Payload reflected in response: {payload[:50]}...",
+                                        severity=VulnerabilityLevel.HIGH,
+                                        test_type=SecurityTestType.INPUT_VALIDATION,
+                                        affected_component=endpoint,
+                                        evidence={"payload": payload, "endpoint": endpoint},
+                                        remediation="Implement proper input validation and sanitization",
+                                        cvss_score=8.0,
+                                        cwe_id="CWE-20",
+                                        timestamp=datetime.utcnow(),
+                                        false_positive=False
+                                    ))
+                                    
+                        except Exception as e:
+                            logger.warning(f"Input validation test failed: {e}")
+                            continue
+                            
+        except Exception as e:
+            logger.error(f"Input validation test failed: {e}")
+            
+        duration = time.time() - start_time
+        
         return SecurityTestResult(
             test_name="Input Validation",
-            passed=True,
-            vulnerabilities=[],
-            duration_seconds=0.0,
-            metadata={}
+            passed=len(vulnerabilities) == 0,
+            vulnerabilities=vulnerabilities,
+            duration_seconds=duration,
+            metadata={"tested_payloads": len(xss_payloads + sql_payloads + command_payloads)}
         )
-    
+
     async def _test_xss_vulnerabilities(self) -> SecurityTestResult:
-        """Test for XSS vulnerabilities"""
+        """Test for XSS vulnerabilities with real payload testing"""
+        vulnerabilities = []
+        start_time = time.time()
+        
+        try:
+            import aiohttp
+            
+            # Comprehensive XSS payloads
+            xss_payloads = [
+                # Basic XSS
+                "<script>alert('XSS')</script>",
+                "<script>alert(String.fromCharCode(88,83,83))</script>",
+                
+                # Event handlers
+                "<img src=x onerror=alert('XSS')>",
+                "<svg onload=alert('XSS')>",
+                "<body onload=alert('XSS')>",
+                "<input onfocus=alert('XSS') autofocus>",
+                "<select onchange=alert('XSS')><option>1</option></select>",
+                
+                # JavaScript protocols
+                "javascript:alert('XSS')",
+                "javascript:alert('XSS')//",
+                "javascript:alert('XSS');//",
+                
+                # Encoded payloads
+                "&#60;script&#62;alert('XSS')&#60;/script&#62;",
+                "%3Cscript%3Ealert('XSS')%3C/script%3E",
+                
+                # DOM XSS
+                "<script>document.location='javascript:alert(\"XSS\")'</script>",
+                "<script>eval('alert(\"XSS\")')</script>",
+                
+                # Polyglot payloads
+                "';alert(String.fromCharCode(88,83,83))//';alert(String.fromCharCode(88,83,83))//\";alert(String.fromCharCode(88,83,83))//\";alert(String.fromCharCode(88,83,83))//--></SCRIPT>\">'><SCRIPT>alert(String.fromCharCode(88,83,83))</SCRIPT>",
+                
+                # Filter bypass
+                "<ScRiPt>alert('XSS')</ScRiPt>",
+                "<script>alert('XSS')</script>",
+                "<script>alert('XSS')</script>",
+                "<script>alert('XSS')</script>"
+            ]
+            
+            async with aiohttp.ClientSession() as session:
+                # Test on various endpoints
+                test_endpoints = [
+                    "/api/user/profile",
+                    "/api/datasets",
+                    "/api/generation",
+                    "/auth/login"
+                ]
+                
+                for endpoint in test_endpoints:
+                    for payload in xss_payloads:
+                        try:
+                            # Test GET parameter injection
+                            params = {"test": payload}
+                            async with session.get(f"{self.base_url}{endpoint}", params=params) as response:
+                                content = await response.text()
+                                
+                                # Check for reflected XSS
+                                if payload in content or "alert('XSS')" in content:
+                                    vulnerabilities.append(SecurityVulnerability(
+                                        id=f"xss_{hashlib.md5(payload.encode()).hexdigest()[:8]}",
+                                        title="Reflected XSS Vulnerability",
+                                        description=f"XSS payload reflected in response: {payload[:50]}...",
+                                        severity=VulnerabilityLevel.HIGH,
+                                        test_type=SecurityTestType.XSS,
+                                        affected_component=endpoint,
+                                        evidence={"payload": payload, "endpoint": endpoint},
+                                        remediation="Implement proper output encoding and CSP headers",
+                                        cvss_score=8.0,
+                                        cwe_id="CWE-79",
+                                        timestamp=datetime.utcnow(),
+                                        false_positive=False
+                                    ))
+                                    
+                        except Exception as e:
+                            logger.warning(f"XSS test failed: {e}")
+                            continue
+                            
+        except Exception as e:
+            logger.error(f"XSS vulnerability test failed: {e}")
+            
+        duration = time.time() - start_time
+        
         return SecurityTestResult(
             test_name="XSS Security",
-            passed=True,
-            vulnerabilities=[],
-            duration_seconds=0.0,
-            metadata={}
+            passed=len(vulnerabilities) == 0,
+            vulnerabilities=vulnerabilities,
+            duration_seconds=duration,
+            metadata={"tested_payloads": len(xss_payloads)}
         )
-    
+
     async def _test_network_security(self, target_url: str) -> SecurityTestResult:
-        """Test network security"""
+        """Test network security with real network analysis"""
+        vulnerabilities = []
+        start_time = time.time()
+        
+        try:
+            import aiohttp
+            import socket
+            import ssl
+            
+            # Test SSL/TLS configuration
+            if target_url.startswith("https://"):
+                try:
+                    hostname = target_url.split("://")[1].split("/")[0]
+                    context = ssl.create_default_context()
+                    
+                    with socket.create_connection((hostname, 443)) as sock:
+                        with context.wrap_socket(sock, server_hostname=hostname) as ssock:
+                            cert = ssock.getpeercert()
+                            
+                            # Check certificate expiration
+                            if cert:
+                                not_after = ssl.cert_time_to_seconds(cert['notAfter'])
+                                if not_after < time.time() + (30 * 24 * 60 * 60):  # 30 days
+                                    vulnerabilities.append(SecurityVulnerability(
+                                        id="ssl_cert_expiring",
+                                        title="SSL Certificate Expiring Soon",
+                                        description="SSL certificate will expire within 30 days",
+                                        severity=VulnerabilityLevel.MEDIUM,
+                                        test_type=SecurityTestType.NETWORK,
+                                        affected_component="SSL/TLS",
+                                        evidence={"expiration": cert['notAfter']},
+                                        remediation="Renew SSL certificate",
+                                        cvss_score=4.0,
+                                        cwe_id="CWE-295",
+                                        timestamp=datetime.utcnow(),
+                                        false_positive=False
+                                    ))
+                                    
+                except Exception as e:
+                    vulnerabilities.append(SecurityVulnerability(
+                        id="ssl_configuration_error",
+                        title="SSL Configuration Error",
+                        description=f"SSL/TLS configuration issue: {e}",
+                        severity=VulnerabilityLevel.HIGH,
+                        test_type=SecurityTestType.NETWORK,
+                        affected_component="SSL/TLS",
+                        evidence={"error": str(e)},
+                        remediation="Fix SSL/TLS configuration",
+                        cvss_score=7.5,
+                        cwe_id="CWE-295",
+                        timestamp=datetime.utcnow(),
+                        false_positive=False
+                    ))
+            
+            # Test for open ports
+            common_ports = [21, 22, 23, 25, 53, 80, 110, 143, 443, 993, 995, 3306, 5432, 6379, 8080, 8443]
+            hostname = target_url.split("://")[1].split("/")[0]
+            
+            for port in common_ports:
+                try:
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.settimeout(1)
+                    result = sock.connect_ex((hostname, port))
+                    sock.close()
+                    
+                    if result == 0:
+                        vulnerabilities.append(SecurityVulnerability(
+                            id=f"open_port_{port}",
+                            title=f"Open Port {port}",
+                            description=f"Port {port} is open and accessible",
+                            severity=VulnerabilityLevel.MEDIUM,
+                            test_type=SecurityTestType.NETWORK,
+                            affected_component="Network Configuration",
+                            evidence={"port": port, "hostname": hostname},
+                            remediation=f"Close or secure port {port} if not needed",
+                            cvss_score=5.0,
+                            cwe_id="CWE-200",
+                            timestamp=datetime.utcnow(),
+                            false_positive=False
+                        ))
+                        
+                except Exception as e:
+                    logger.warning(f"Port scan failed for port {port}: {e}")
+                    continue
+                    
+        except Exception as e:
+            logger.error(f"Network security test failed: {e}")
+            
+        duration = time.time() - start_time
+        
         return SecurityTestResult(
             test_name="Network Security",
-            passed=True,
-            vulnerabilities=[],
-            duration_seconds=0.0,
-            metadata={}
+            passed=len(vulnerabilities) == 0,
+            vulnerabilities=vulnerabilities,
+            duration_seconds=duration,
+            metadata={"target_url": target_url}
         )
-    
+
     async def _test_configuration_security(self) -> SecurityTestResult:
-        """Test configuration security"""
+        """Test configuration security with real configuration analysis"""
+        vulnerabilities = []
+        start_time = time.time()
+        
+        try:
+            import aiohttp
+            
+            # Test security headers
+            required_headers = {
+                "X-Content-Type-Options": "nosniff",
+                "X-Frame-Options": ["DENY", "SAMEORIGIN"],
+                "X-XSS-Protection": "1; mode=block",
+                "Referrer-Policy": ["strict-origin-when-cross-origin", "strict-origin", "no-referrer"],
+                "Content-Security-Policy": None,  # Any CSP is good
+                "Permissions-Policy": None,  # Any Permissions-Policy is good
+                "Strict-Transport-Security": None  # Any HSTS is good
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{self.base_url}/") as response:
+                    headers = response.headers
+                    
+                    for header, expected_values in required_headers.items():
+                        if header not in headers:
+                            vulnerabilities.append(SecurityVulnerability(
+                                id=f"missing_header_{header.lower().replace('-', '_')}",
+                                title=f"Missing Security Header: {header}",
+                                description=f"Security header {header} is not set",
+                                severity=VulnerabilityLevel.MEDIUM,
+                                test_type=SecurityTestType.CONFIGURATION,
+                                affected_component="HTTP Headers",
+                                evidence={"missing_header": header},
+                                remediation=f"Add {header} security header",
+                                cvss_score=5.0,
+                                cwe_id="CWE-693",
+                                timestamp=datetime.utcnow(),
+                                false_positive=False
+                            ))
+                        elif expected_values and headers[header] not in expected_values:
+                            vulnerabilities.append(SecurityVulnerability(
+                                id=f"weak_header_{header.lower().replace('-', '_')}",
+                                title=f"Weak Security Header: {header}",
+                                description=f"Security header {header} has weak value: {headers[header]}",
+                                severity=VulnerabilityLevel.LOW,
+                                test_type=SecurityTestType.CONFIGURATION,
+                                affected_component="HTTP Headers",
+                                evidence={"header": header, "value": headers[header]},
+                                remediation=f"Strengthen {header} security header",
+                                cvss_score=3.0,
+                                cwe_id="CWE-693",
+                                timestamp=datetime.utcnow(),
+                                false_positive=False
+                            ))
+            
+            # Test for information disclosure
+            info_disclosure_endpoints = [
+                "/.env",
+                "/config.json",
+                "/.git/config",
+                "/robots.txt",
+                "/sitemap.xml",
+                "/phpinfo.php",
+                "/test",
+                "/admin",
+                "/debug",
+                "/status"
+            ]
+            
+            for endpoint in info_disclosure_endpoints:
+                try:
+                    async with session.get(f"{self.base_url}{endpoint}") as response:
+                        if response.status == 200:
+                            content = await response.text()
+                            
+                            # Check for sensitive information
+                            sensitive_patterns = [
+                                "password",
+                                "secret",
+                                "key",
+                                "token",
+                                "private",
+                                "database",
+                                "mysql",
+                                "postgres",
+                                "redis",
+                                "api_key",
+                                "access_token"
+                            ]
+                            
+                            for pattern in sensitive_patterns:
+                                if pattern in content.lower():
+                                    vulnerabilities.append(SecurityVulnerability(
+                                        id=f"info_disclosure_{endpoint.replace('/', '_')}",
+                                        title="Information Disclosure",
+                                        description=f"Sensitive information exposed at {endpoint}",
+                                        severity=VulnerabilityLevel.HIGH,
+                                        test_type=SecurityTestType.CONFIGURATION,
+                                        affected_component=endpoint,
+                                        evidence={"endpoint": endpoint, "pattern": pattern},
+                                        remediation=f"Remove or secure {endpoint}",
+                                        cvss_score=7.5,
+                                        cwe_id="CWE-200",
+                                        timestamp=datetime.utcnow(),
+                                        false_positive=False
+                                    ))
+                                    break
+                                    
+                except Exception as e:
+                    logger.warning(f"Info disclosure test failed for {endpoint}: {e}")
+                    continue
+                    
+        except Exception as e:
+            logger.error(f"Configuration security test failed: {e}")
+            
+        duration = time.time() - start_time
+        
         return SecurityTestResult(
             test_name="Configuration Security",
-            passed=True,
-            vulnerabilities=[],
-            duration_seconds=0.0,
-            metadata={}
-        )
-    
-    async def _test_data_protection(self) -> SecurityTestResult:
-        """Test data protection measures"""
-        return SecurityTestResult(
-            test_name="Data Protection",
-            passed=True,
-            vulnerabilities=[],
-            duration_seconds=0.0,
-            metadata={}
+            passed=len(vulnerabilities) == 0,
+            vulnerabilities=vulnerabilities,
+            duration_seconds=duration,
+            metadata={"tested_endpoints": len(info_disclosure_endpoints)}
         )
     
     def _generate_summary(self, test_results: List[SecurityTestResult]) -> Dict[str, Any]:

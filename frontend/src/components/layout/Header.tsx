@@ -124,11 +124,14 @@ export function Header() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="touch-target"
+                className={`touch-target relative transition-all duration-300 focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:outline-none ${theme === 'dark' ? 'glow-primary' : 'glow-secondary'} group`}
                 aria-label="Toggle theme"
+                aria-pressed={theme === 'dark'}
               >
-                <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                <span className="sr-only">Toggle {theme === 'dark' ? 'light' : 'dark'} mode</span>
+                <Sun className={`h-5 w-5 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${theme === 'dark' ? 'rotate-0 scale-100 opacity-0' : 'rotate-0 scale-100 opacity-100'} group-hover:scale-110 group-active:scale-95`} />
+                <Moon className={`h-5 w-5 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${theme === 'dark' ? 'rotate-0 scale-100 opacity-100' : 'rotate-90 scale-0 opacity-0'} group-hover:scale-110 group-active:scale-95`} />
+                <span className="absolute inset-0 rounded-full pointer-events-none animate-pulse opacity-20 group-hover:opacity-40" style={{boxShadow: theme === 'dark' ? '0 0 16px 4px #3b82f6' : '0 0 16px 4px #fbbf24'}} />
               </Button>
 
               {isAuthenticated ? (

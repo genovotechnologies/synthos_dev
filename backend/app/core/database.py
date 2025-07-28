@@ -15,22 +15,22 @@ from app.core.config import settings
 
 logger = structlog.get_logger(__name__)
 
-# Update the database URL to use psycopg3 sync dialect
+# Update the database URL to use psycopg2 sync dialect
 def get_sync_database_url(url: str) -> str:
-    """Convert database URL to use psycopg3 sync dialect"""
+    """Convert database URL to use psycopg2 sync dialect"""
     if url.startswith("postgresql://"):
-        return url.replace("postgresql://", "postgresql+psycopg://")
+        return url.replace("postgresql://", "postgresql+psycopg2://")
     return url
 
 def get_async_database_url(url: str) -> str:
     """Convert database URL to use asyncpg dialect"""
     if url.startswith("postgresql://"):
         return url.replace("postgresql://", "postgresql+asyncpg://")
-    elif url.startswith("postgresql+psycopg://"):
-        return url.replace("postgresql+psycopg://", "postgresql+asyncpg://")
+    elif url.startswith("postgresql+psycopg2://"):
+        return url.replace("postgresql+psycopg2://", "postgresql+asyncpg://")
     return url
 
-# SQLAlchemy engine with connection pooling - use psycopg3
+# SQLAlchemy engine with connection pooling - use psycopg2
 engine = create_engine(
     get_sync_database_url(settings.DATABASE_CONNECTION_URL),
     poolclass=QueuePool,

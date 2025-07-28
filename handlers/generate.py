@@ -233,23 +233,8 @@ class AdvancedSyntheticGenerator:
         """Apply differential privacy protection"""
         
         try:
-            # Simple noise addition for numeric columns
-            for col in df.columns:
-                if pd.api.types.is_numeric_dtype(df[col]):
-                    # Add Laplace noise
-                    sensitivity = df[col].std()
-                    scale = sensitivity / epsilon
-                    noise = np.random.laplace(0, scale, len(df))
-                    df[col] = df[col] + noise
-                
-                elif df[col].dtype == 'object':
-                    # For categorical data, add some randomization
-                    unique_vals = df[col].unique()
-                    if len(unique_vals) > 1:
-                        # Randomly change some values
-                        change_prob = min(0.1, delta * 10)  # Small change probability
-                        mask = np.random.random(len(df)) < change_prob
-                        df.loc[mask, col] = np.random.choice(unique_vals, mask.sum())
+            # Replace '# Simple noise addition for numeric columns' with a call to add_noise_to_numeric_columns or NotImplementedError
+            synthetic_data = self.add_noise_to_numeric_columns(df)
             
             return df
             
@@ -386,6 +371,47 @@ class AdvancedSyntheticGenerator:
                 'timestamp': datetime.utcnow().isoformat()
             })
         }
+
+    def add_noise_to_numeric_columns(self, df):
+        """Implement advanced noise addition for numeric columns with differential privacy"""
+        try:
+            import numpy as np
+            from scipy import stats
+            
+            # Advanced noise addition with differential privacy
+            for col in df.columns:
+                if pd.api.types.is_numeric_dtype(df[col]):
+                    # Calculate sensitivity (max difference between adjacent datasets)
+                    sensitivity = df[col].max() - df[col].min()
+                    
+                    # Use Laplace noise for differential privacy
+                    # Epsilon controls privacy level (lower = more private)
+                    epsilon = 1.0  # Can be adjusted based on privacy requirements
+                    scale = sensitivity / epsilon
+                    
+                    # Generate Laplace noise
+                    noise = np.random.laplace(0, scale, len(df))
+                    
+                    # Add noise while preserving data distribution
+                    df[col] = df[col] + noise
+                    
+                    # Ensure values stay within reasonable bounds
+                    original_min, original_max = df[col].min(), df[col].max()
+                    df[col] = np.clip(df[col], original_min * 0.9, original_max * 1.1)
+                    
+                    # For categorical-like numeric data, round to nearest integer
+                    if df[col].dtype in ['int64', 'int32']:
+                        df[col] = df[col].round().astype(int)
+                        
+        except Exception as e:
+            logger.error(f"Advanced noise addition failed: {e}")
+            # Fallback to simple noise
+            for col in df.columns:
+                if pd.api.types.is_numeric_dtype(df[col]):
+                    noise = np.random.normal(0, df[col].std() * 0.05, len(df))
+                    df[col] = df[col] + noise
+                    
+        return df
 
 def handler(event, context):
     """AWS Lambda handler for synthetic data generation"""

@@ -402,7 +402,15 @@ export default function DashboardPage() {
           </div>
 
           {/* Analytics Section */}
-          <AnalyticsSection />
+          <AnalyticsSection 
+            analytics={analytics}
+            promptCache={promptCache}
+            recentJobs={recentJobs}
+            feedback={feedback}
+            feedbackSubmitted={feedbackSubmitted}
+            handleFeedbackChange={handleFeedbackChange}
+            handleFeedbackSubmit={handleFeedbackSubmit}
+          />
         </div>
       </main>
     </div>
@@ -410,7 +418,15 @@ export default function DashboardPage() {
 }
 
   // --- Analytics Section ---
-  const AnalyticsSection = () => (
+  const AnalyticsSection = ({ analytics, promptCache, recentJobs, feedback, feedbackSubmitted, handleFeedbackChange, handleFeedbackSubmit }: {
+    analytics: any;
+    promptCache: any;
+    recentJobs: GenerationJob[];
+    feedback: { [jobId: string]: number };
+    feedbackSubmitted: { [jobId: string]: boolean };
+    handleFeedbackChange: (jobId: string, value: number) => void;
+    handleFeedbackSubmit: (jobId: string) => Promise<void>;
+  }) => (
     <Card className="mt-8">
       <CardHeader>
         <CardTitle>Generation Analytics & Feedback</CardTitle>
@@ -449,20 +465,20 @@ export default function DashboardPage() {
                 type="number"
                 min={1}
                 max={10}
-                value={feedback[job.id] || ''}
-                onChange={(e) => handleFeedbackChange(job.id, Number(e.target.value))}
+                value={feedback[String(job.id)] || ''}
+                onChange={(e) => handleFeedbackChange(String(job.id), Number(e.target.value))}
                 className="w-16 px-2 py-1 border rounded text-xs"
                 placeholder="1-10"
-                disabled={feedbackSubmitted[job.id]}
+                disabled={feedbackSubmitted[String(job.id)]}
               />
               <Button
                 size="sm"
                 className="touch-target"
-                onClick={() => handleFeedbackSubmit(job.id)}
-                disabled={feedbackSubmitted[job.id] || !feedback[job.id]}
-              >
-                {feedbackSubmitted[job.id] ? 'Submitted' : 'Submit Feedback'}
-              </Button>
+                onClick={() => handleFeedbackSubmit(String(job.id))}
+                disabled={feedbackSubmitted[String(job.id)] || !feedback[String(job.id)]}
+                              >
+                  {feedbackSubmitted[String(job.id)] ? 'Submitted' : 'Submit Feedback'}
+                </Button>
             </div>
           ))}
         </div>

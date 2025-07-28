@@ -1,269 +1,271 @@
 "use client";
 
-import React, { useRef, useMemo, useCallback, Suspense } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Points, PointMaterial, Float, Sphere, Box, Torus, Environment } from '@react-three/drei';
-import * as THREE from 'three';
-import ErrorBoundary from './ErrorBoundary';
+import React, { Suspense, useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
+import { motion } from 'framer-motion';
 
-// Simplified particles component with better error handling
-function SafeParticles() {
-  const ref = useRef<THREE.Points>(null);
-  
-  const [positions, colors] = useMemo(() => {
-    const particleCount = 5000; // Reduced for better performance
-    const positionsArray = new Float32Array(particleCount * 3);
-    const colorsArray = new Float32Array(particleCount * 3);
-    
-    for (let i = 0; i < particleCount; i++) {
-      const i3 = i * 3;
-      // Create distribution
-      const radius = Math.random() * 40 + 15;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.random() * Math.PI;
-      
-      positionsArray[i3] = radius * Math.sin(phi) * Math.cos(theta);
-      positionsArray[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
-      positionsArray[i3 + 2] = radius * Math.cos(phi);
-      
-      // Safe color assignment
-      const normalizedY = Math.max(0, Math.min(1, (positionsArray[i3 + 1] + 40) / 80));
-      colorsArray[i3] = 0.4 + normalizedY * 0.4; // Red
-      colorsArray[i3 + 1] = 0.6 + normalizedY * 0.3; // Green  
-      colorsArray[i3 + 2] = 0.9 + normalizedY * 0.1; // Blue
-    }
-    
-    return [positionsArray, colorsArray];
+// Dynamically import ThreeBackground with no SSR to avoid React compatibility issues
+const ThreeBackground = dynamic(() => import('./ThreeBackground'), {
+  ssr: false,
+  loading: () => <div className="w-full h-full bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900" />
+});
+
+interface ThreeBackgroundSafeProps {
+  className?: string;
+  interactive?: boolean;
+  quality?: 'low' | 'medium' | 'high';
+  theme?: string;
+  fallback?: React.ReactNode;
+  particleCount?: number;
+}
+
+// CSS-only animated background component as fallback
+function AnimatedBackground({ className, theme = 'dark' }: { className?: string; theme?: string }) {
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({
+        x: (e.clientX / window.innerWidth - 0.5) * 2,
+        y: (e.clientY / window.innerHeight - 0.5) * 2,
+      });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  useFrame((state, delta) => {
-    if (ref.current) {
-      const time = state.clock.elapsedTime;
-      ref.current.rotation.x = Math.sin(time * 0.1) * 0.1;
-      ref.current.rotation.y += delta * 0.05;
-    }
-  });
+  const isDark = theme === 'dark';
+  const bgGradient = isDark 
+    ? 'from-gray-900 via-blue-900 to-indigo-900' 
+    : 'from-blue-50 via-indigo-100 to-purple-100';
+  const particleColor = isDark ? 'bg-blue-400' : 'bg-indigo-500';
+  const shapeColor = isDark ? 'bg-blue-500' : 'bg-indigo-400';
 
   return (
-    <Points ref={ref} positions={positions} stride={3} frustumCulled={false}>
-      <PointMaterial
-        transparent
-        color="#60a5fa"
-        size={0.6}
-        sizeAttenuation={true}
-        depthWrite={false}
-      />
-    </Points>
-  );
-}
-
-// Safe geometric shapes component
-function SafeFloatingShapes() {
-  const shapes = useMemo(() => [
-    { 
-      type: 'sphere' as const, 
-      position: [-3, 0, 0] as [number, number, number], 
-      color: '#3b82f6',
-      args: [0.8, 16, 16] as [number, number, number],
-      speed: 1.2
-    },
-    { 
-      type: 'box' as const, 
-      position: [3, 1, -1] as [number, number, number], 
-      color: '#10b981',
-      args: [1, 1, 1] as [number, number, number],
-      speed: 1.0
-    },
-    { 
-      type: 'torus' as const, 
-      position: [0, -2, -1] as [number, number, number], 
-      color: '#f59e0b',
-      args: [0.8, 0.2, 8, 16] as [number, number, number, number],
-      speed: 1.4
-    }
-  ], []);
-
-  return (
-    <>
-      {shapes.map((shape: any, index: number) => (
-        <Float 
-          key={`${shape.type}-${index}`}
-          speed={shape.speed} 
-          rotationIntensity={1} 
-          floatIntensity={1}
-        >
-          {shape.type === 'sphere' && (
-            <Sphere args={shape.args as [number, number, number]} position={shape.position}>
-              <meshStandardMaterial 
-                color={shape.color} 
-                transparent 
-                opacity={0.6}
-                roughness={0.2}
-                metalness={0.8}
-              />
-            </Sphere>
-          )}
-          {shape.type === 'box' && (
-            <Box args={shape.args as [number, number, number]} position={shape.position}>
-              <meshStandardMaterial 
-                color={shape.color} 
-                transparent 
-                opacity={0.6}
-                roughness={0.2}
-                metalness={0.8}
-              />
-            </Box>
-          )}
-          {shape.type === 'torus' && (
-            <Torus args={shape.args as [number, number, number, number]} position={shape.position}>
-              <meshStandardMaterial 
-                color={shape.color} 
-                transparent 
-                opacity={0.6}
-                roughness={0.2}
-                metalness={0.8}
-              />
-            </Torus>
-          )}
-        </Float>
-      ))}
-    </>
-  );
-}
-
-// Safe lighting component
-function SafeLighting() {
-  return (
-    <>
-      <ambientLight intensity={0.4} color="#ffffff" />
-      <pointLight 
-        position={[10, 10, 10]} 
-        intensity={1} 
-        color="#ffffff"
-      />
-      <pointLight 
-        position={[-10, -10, -10]} 
-        intensity={0.6} 
-        color="#3b82f6" 
-      />
-    </>
-  );
-}
-
-// Main scene component
-function SafeScene() {
-  return (
-    <Suspense fallback={null}>
-      <Environment preset="night" />
-      <fog attach="fog" args={['#000011', 20, 80]} />
-      <SafeLighting />
-      <SafeParticles />
-      <SafeFloatingShapes />
-    </Suspense>
-  );
-}
-
-// 2D Fallback component
-function FallbackBackground({ className }: { className?: string }) {
-  return (
-    <div className={`fixed inset-0 -z-10 ${className}`}>
+    <div className={`fixed inset-0 -z-10 overflow-hidden ${className}`}>
       {/* Animated gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-blue-900 to-black animate-pulse" />
+      <div 
+        className={`absolute inset-0 bg-gradient-to-br ${bgGradient} transition-all duration-1000`}
+        style={{
+          transform: `translate(${mousePosition.x * 20}px, ${mousePosition.y * 20}px)`,
+        }}
+      />
       
-      {/* Floating particles simulation with CSS */}
-      <div className="absolute inset-0 overflow-hidden">
-        {Array.from({ length: 50 }).map((_, i) => (
+      {/* Floating particles */}
+      <div className="absolute inset-0">
+        {Array.from({ length: 150 }).map((_, i) => (
           <div
             key={i}
-            className="absolute w-1 h-1 bg-blue-400 rounded-full opacity-60 animate-float"
+            className={`absolute w-1 h-1 ${particleColor} rounded-full opacity-60 animate-float`}
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
               animationDelay: `${Math.random() * 5}s`,
               animationDuration: `${3 + Math.random() * 4}s`,
+              transform: `translate(${mousePosition.x * 10}px, ${mousePosition.y * 10}px)`,
+            }}
+          />
+        ))}
+      </div>
+      
+      {/* Animated shapes */}
+      <div className="absolute inset-0">
+        {Array.from({ length: 12 }).map((_, i) => (
+          <div
+            key={`shape-${i}`}
+            className={`absolute rounded-full opacity-20 animate-pulse ${shapeColor}`}
+            style={{
+              left: `${20 + (i * 8)}%`,
+              top: `${30 + (i * 6)}%`,
+              width: `${100 + i * 20}px`,
+              height: `${100 + i * 20}px`,
+              animationDelay: `${i * 0.5}s`,
+              animationDuration: `${4 + i}s`,
+              transform: `translate(${mousePosition.x * 30}px, ${mousePosition.y * 30}px)`,
             }}
           />
         ))}
       </div>
       
       {/* Gradient overlays */}
-      <div className="absolute inset-0 bg-gradient-to-br from-black/20 via-transparent to-black/40 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-radial from-transparent via-transparent to-black/50 pointer-events-none" />
+      <div className={`absolute inset-0 ${
+        isDark 
+          ? 'bg-gradient-to-br from-black/20 via-transparent to-black/40' 
+          : 'bg-gradient-to-br from-white/10 via-transparent to-white/20'
+      } pointer-events-none`} />
+      
+      {/* Enhanced floating elements for light mode */}
+      {!isDark && (
+        <div className="absolute inset-0">
+          {Array.from({ length: 25 }).map((_, i) => (
+            <motion.div
+              key={`enhanced-${i}`}
+              className={`absolute ${
+                i % 4 === 0 ? 'w-3 h-3 bg-gradient-to-r from-blue-400/50 to-cyan-400/50 rounded-lg' :
+                i % 4 === 1 ? 'w-2 h-4 bg-gradient-to-r from-purple-400/50 to-pink-400/50 rounded-sm' :
+                i % 4 === 2 ? 'w-4 h-2 bg-gradient-to-r from-green-400/50 to-emerald-400/50 rounded-sm' :
+                'w-2 h-2 bg-gradient-to-r from-orange-400/50 to-red-400/50 rounded-full'
+              }`}
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+              }}
+              animate={{
+                y: [0, -40, 0],
+                x: [0, Math.random() * 30 - 15, 0],
+                opacity: [0.3, 0.8, 0.3],
+                scale: [1, 1.3, 1],
+                rotate: [0, 180, 360],
+              }}
+              transition={{
+                duration: 6 + Math.random() * 3,
+                repeat: Infinity,
+                delay: Math.random() * 3,
+                ease: "easeInOut"
+              }}
+            />
+          ))}
+        </div>
+      )}
+      
+      {/* Additional special elements for both themes */}
+      <div className="absolute inset-0">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <motion.div
+            key={`special-${i}`}
+            className={`absolute ${
+              i % 3 === 0 ? 'w-4 h-4 bg-gradient-to-r from-blue-500/30 to-purple-500/30 transform rotate-45' :
+              i % 3 === 1 ? 'w-3 h-6 bg-gradient-to-r from-green-500/30 to-emerald-500/30 rounded-lg' :
+              'w-6 h-3 bg-gradient-to-r from-orange-500/30 to-red-500/30 rounded-lg'
+            }`}
+            style={{
+              left: `${15 + (i * 12)}%`,
+              top: `${25 + (i * 10)}%`,
+            }}
+            animate={{
+              y: [0, -60, 0],
+              x: [0, Math.random() * 40 - 20, 0],
+              opacity: [0.2, 0.7, 0.2],
+              scale: [1, 1.5, 1],
+              rotate: [0, 360, 720],
+            }}
+            transition={{
+              duration: 8 + Math.random() * 4,
+              repeat: Infinity,
+              delay: Math.random() * 5,
+              ease: "easeInOut"
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 }
 
-// Main component interface
-interface ThreeBackgroundSafeProps {
-  className?: string;
-  interactive?: boolean;
-  quality?: 'low' | 'medium' | 'high';
-}
-
-export default function ThreeBackgroundSafe({ 
-  className = "", 
+export default function ThreeBackgroundSafe({
+  className = "",
   interactive = false,
-  quality = 'high'
+  quality = 'high',
+  theme = 'dark',
+  fallback,
+  particleCount = 10000
 }: ThreeBackgroundSafeProps) {
-  const pixelRatio = useMemo((): [number, number] => {
-    switch (quality) {
-      case 'low': return [0.5, 1];
-      case 'medium': return [1, 1.5];
-      case 'high': return [1, 2];
-      default: return [1, 2];
-    }
-  }, [quality]);
+  const [isClient, setIsClient] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [useThreeJS, setUseThreeJS] = useState(true);
 
-  // Fallback component for when 3D fails
-  const ThreeFallback = useCallback(({ error }: { error?: Error }) => {
-    console.warn('Three.js fallback activated:', error?.message);
-    return <FallbackBackground className={className} />;
-  }, [className]);
+  useEffect(() => {
+    setIsClient(true);
+    
+    // Check if WebGL is supported
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (!gl) {
+        console.warn('WebGL not supported, falling back to CSS animations');
+        setUseThreeJS(false);
+      }
+    } catch (error) {
+      console.warn('WebGL check failed, falling back to CSS animations');
+      setUseThreeJS(false);
+    }
+  }, []);
+
+  // Error boundary for React Three.js compatibility issues
+  if (!isClient) {
+    return (
+      <div className={`w-full h-full bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 ${className}`}>
+        {fallback}
+      </div>
+    );
+  }
+
+  if (hasError || !useThreeJS) {
+    return (
+      <div className="relative">
+        <AnimatedBackground className={className} theme={theme} />
+        {fallback && (
+          <div className="relative z-10">
+            {fallback}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <ErrorBoundary fallback={ThreeFallback}>
-      <div className={`fixed inset-0 -z-10 ${className}`}>
-        <Canvas
-          camera={{ 
-            position: [0, 0, 15], 
-            fov: 75,
-            near: 0.1,
-            far: 100
-          }}
-          gl={{ 
-            alpha: true, 
-            antialias: quality !== 'low',
-            powerPreference: "high-performance",
-            stencil: false,
-            depth: true
-          }}
-          dpr={pixelRatio}
-          frameloop={interactive ? "always" : "demand"}
-          performance={{ min: 0.5 }}
-          onCreated={({ gl }) => {
-            gl.setClearColor('#000011', 0);
-          }}
-        >
-          <SafeScene />
-        </Canvas>
-        
-        {/* Enhanced gradient overlays */}
-        <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/30 pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-radial from-transparent via-transparent to-black/40 pointer-events-none" />
-      </div>
+    <ErrorBoundary onError={() => setHasError(true)}>
+      <Suspense fallback={
+        <div className={`w-full h-full bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 ${className}`}>
+          {fallback}
+        </div>
+      }>
+        <ThreeBackground
+          className={className}
+          interactive={interactive}
+          quality={quality}
+          theme={theme}
+          particleCount={particleCount}
+        />
+      </Suspense>
     </ErrorBoundary>
   );
 }
 
-// CSS for floating animation (add to globals.css)
-export const floatingAnimationCSS = `
-@keyframes float {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  33% { transform: translateY(-10px) rotate(120deg); }
-  66% { transform: translateY(5px) rotate(240deg); }
-}
+// Simple error boundary component
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode; onError: () => void },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; onError: () => void }) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
-.animate-float {
-  animation: float linear infinite;
-}
-`; 
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch() {
+    this.props.onError();
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="w-full h-full bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900">
+          <div className="flex items-center justify-center h-full">
+            <div className="text-white text-center">
+              <div className="text-4xl mb-4">🌟</div>
+              <div className="text-lg font-semibold">Synthos</div>
+              <div className="text-sm opacity-75">Enterprise Synthetic Data Platform</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+} 

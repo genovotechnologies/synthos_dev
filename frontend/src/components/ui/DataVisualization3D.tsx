@@ -1,300 +1,255 @@
 "use client";
 
-import React, { useRef, useMemo, useState, useCallback, Suspense } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Text, Float, Environment, PerspectiveCamera } from '@react-three/drei';
-import * as THREE from 'three';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { useTheme } from 'next-themes';
 import ErrorBoundary from './ErrorBoundary';
-import { BarChart3 } from "lucide-react";
+import { BarChart3, TrendingUp, Activity, Database } from "lucide-react";
+import * as THREE from 'three';
 
-// Interactive data point component
-function DataPoint({ 
-  position, 
-  value, 
-  color, 
-  scale = 1, 
-  onClick,
-  isHovered,
-  onHover,
-  onUnhover
-}: {
-  position: [number, number, number];
-  value: number;
-  color: string;
-  scale?: number;
-  onClick?: () => void;
-  isHovered?: boolean;
-  onHover?: () => void;
-  onUnhover?: () => void;
-}) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const [hovered, setHovered] = useState(false);
+// Enhanced 3D Data Visualization Component
+class DataVisualization3DEngine {
+  private scene: THREE.Scene;
+  private camera: THREE.PerspectiveCamera;
+  private renderer: THREE.WebGLRenderer;
+  private container: HTMLElement;
+  private data: any[];
+  private bars: THREE.Mesh[] = [];
+  private clock: THREE.Clock;
+  private isDestroyed: boolean = false;
+  private handleResize: (() => void) | null = null;
+  private handleMouseMove: (() => void) | null = null;
 
-  useFrame((state) => {
-    if (meshRef.current) {
-      const targetScale = (hovered || isHovered) ? scale * 1.5 : scale;
-      meshRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
-      
-      // Gentle floating animation
-      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2 + position[0]) * 0.1;
-    }
-  });
-
-  const handlePointerOver = useCallback(() => {
-    setHovered(true);
-    onHover?.();
-  }, [onHover]);
-
-  const handlePointerOut = useCallback(() => {
-    setHovered(false);
-    onUnhover?.();
-  }, [onUnhover]);
-
-  return (
-    <mesh
-      ref={meshRef}
-      position={position}
-      onClick={onClick}
-      onPointerOver={handlePointerOver}
-      onPointerOut={handlePointerOut}
-    >
-      <sphereGeometry args={[Math.max(0.1, value * 0.5), 16, 16]} />
-      <meshStandardMaterial
-        color={color}
-        transparent
-        opacity={hovered || isHovered ? 0.9 : 0.7}
-        roughness={0.2}
-        metalness={0.8}
-        emissive={color}
-        emissiveIntensity={hovered || isHovered ? 0.3 : 0.1}
-      />
-      {(hovered || isHovered) && (
-        <Text
-          position={[0, value * 0.5 + 0.5, 0]}
-          fontSize={0.3}
-          color={color}
-          anchorX="center"
-          anchorY="middle"
-          maxWidth={2}
-        >
-          {`Value: ${value.toFixed(2)}`}
-        </Text>
-      )}
-    </mesh>
-  );
-}
-
-// Animated grid component
-function DataGrid({ theme }: { theme: string }) {
-  const gridRef = useRef<THREE.Group>(null);
-  
-  useFrame((state) => {
-    if (gridRef.current) {
-      gridRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.2) * 0.1;
-    }
-  });
-
-  const gridColor = theme === 'dark' ? '#3b82f6' : '#1e40af';
-
-  return (
-    <group ref={gridRef}>
-      {/* Grid lines */}
-      {Array.from({ length: 11 }, (_, i) => (
-        <React.Fragment key={i}>
-          <line key={`x-${i}`}>
-            <bufferGeometry>
-              <bufferAttribute
-                attach="attributes-position"
-                count={2}
-                args={[new Float32Array([
-                  -5 + i, 0, -5,
-                  -5 + i, 0, 5
-                ]), 3]}
-              />
-            </bufferGeometry>
-            <lineBasicMaterial color={gridColor} opacity={0.3} transparent />
-          </line>
-          <line key={`z-${i}`}>
-            <bufferGeometry>
-              <bufferAttribute
-                attach="attributes-position"
-                count={2}
-                args={[new Float32Array([
-                  -5, 0, -5 + i,
-                  5, 0, -5 + i
-                ]), 3]}
-              />
-            </bufferGeometry>
-            <lineBasicMaterial color={gridColor} opacity={0.3} transparent />
-          </line>
-        </React.Fragment>
-      ))}
-    </group>
-  );
-}
-
-// Main visualization scene
-function VisualizationScene({ data, theme }: { data: any[], theme: string }) {
-  const [selectedPoint, setSelectedPoint] = useState<number | null>(null);
-  const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
-
-  const dataPoints = useMemo(() => {
-    return data.map((item, index) => {
-      const value = typeof item === 'number' ? item : (item?.value || Math.random());
-      const category = (item?.category || 'default') as string;
-      
-      // Create clusters based on category
-      const categoryOffsets: Record<string, [number, number, number]> = {
-        'Users': [-2, 0, -2],
-        'Products': [2, 0, -2], 
-        'Orders': [-2, 0, 2],
-        'Reviews': [2, 0, 2],
-        'Analytics': [-1, 0, 0],
-        'Sales': [1, 0, 0],
-        'Marketing': [0, 0, -1],
-        'Support': [0, 0, 1],
-        'default': [0, 0, 0]
-      };
-      const categoryOffset = categoryOffsets[category] || categoryOffsets['default'];
-      
-      const categoryColors: Record<string, string> = {
-        'Users': '#3b82f6',
-        'Products': '#ef4444', 
-        'Orders': '#10b981',
-        'Reviews': '#f59e0b',
-        'Analytics': '#8b5cf6',
-        'Sales': '#06b6d4',
-        'Marketing': '#f97316',
-        'Support': '#84cc16',
-        'default': `hsl(${(index / data.length) * 360}, 70%, 60%)`
-      };
-      
-      return {
-        position: [
-          categoryOffset[0] + (Math.random() - 0.5) * 3,
-          value * 3 + Math.random() * 1,
-          categoryOffset[2] + (Math.random() - 0.5) * 3
-        ] as [number, number, number],
-        value,
-        color: categoryColors[category] || categoryColors['default'],
-        category,
-        label: item?.label || `Point ${index + 1}`,
-        id: index
-      };
+  constructor(container: HTMLElement, data: any[]) {
+    this.container = container;
+    this.data = data;
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+    this.renderer = new THREE.WebGLRenderer({ 
+      antialias: true, 
+      alpha: true,
+      powerPreference: "high-performance"
     });
-  }, [data]);
+    this.clock = new THREE.Clock();
 
-  const lightColor = theme === 'dark' ? '#ffffff' : '#f0f0f0';
-  const ambientIntensity = theme === 'dark' ? 0.3 : 0.6;
+    this.setupRenderer();
+    this.setupCamera();
+    this.setupLights();
+    this.createDataVisualization();
+    this.setupEventListeners();
+  }
 
-  return (
-    <Suspense fallback={null}>
-      <PerspectiveCamera makeDefault position={[10, 8, 10]} fov={60} />
-      <OrbitControls
-        enablePan={true}
-        enableZoom={true}
-        enableRotate={true}
-        minDistance={5}
-        maxDistance={30}
-        autoRotate={true}
-        autoRotateSpeed={0.5}
-      />
-      
-      {/* Lighting */}
-      <ambientLight intensity={ambientIntensity} color={lightColor} />
-      <pointLight position={[10, 10, 10]} intensity={1} color={lightColor} />
-      <pointLight position={[-10, -10, -10]} intensity={0.5} color="#3b82f6" />
-      
-      {/* Environment */}
-      <Environment preset={theme === 'dark' ? 'night' : 'dawn'} />
-      
-      {/* Grid */}
-      <DataGrid theme={theme} />
-      
-      {/* Data points */}
-      {dataPoints.map((point, index) => (
-        <DataPoint
-          key={point.id}
-          position={point.position}
-          value={point.value}
-          color={point.color}
-          scale={1}
-          onClick={() => setSelectedPoint(selectedPoint === index ? null : index)}
-          isHovered={hoveredPoint === index || selectedPoint === index}
-          onHover={() => setHoveredPoint(index)}
-          onUnhover={() => setHoveredPoint(null)}
-        />
-      ))}
-      
-      {/* Category labels */}
-      <Text
-        position={[-2, 4, -2]}
-        fontSize={0.3}
-        color="#3b82f6"
-        anchorX="center"
-        anchorY="middle"
-      >
-        Users
-      </Text>
-      <Text
-        position={[2, 4, -2]}
-        fontSize={0.3}
-        color="#ef4444"
-        anchorX="center"
-        anchorY="middle"
-      >
-        Products
-      </Text>
-      <Text
-        position={[-2, 4, 2]}
-        fontSize={0.3}
-        color="#10b981"
-        anchorX="center"
-        anchorY="middle"
-      >
-        Orders
-      </Text>
-      <Text
-        position={[2, 4, 2]}
-        fontSize={0.3}
-        color="#f59e0b"
-        anchorX="center"
-        anchorY="middle"
-      >
-        Reviews
-      </Text>
+  private setupRenderer() {
+    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setClearColor(0x000000, 0);
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.container.appendChild(this.renderer.domElement);
+    
+    // Style the canvas
+    this.renderer.domElement.style.position = 'absolute';
+    this.renderer.domElement.style.top = '0';
+    this.renderer.domElement.style.left = '0';
+    this.renderer.domElement.style.width = '100%';
+    this.renderer.domElement.style.height = '100%';
+    this.renderer.domElement.style.pointerEvents = 'none';
+  }
 
-      {/* Floating title */}
-      <Float speed={1} rotationIntensity={0.2} floatIntensity={0.5}>
-        <Text
-          position={[0, 6, 0]}
-          fontSize={0.8}
-          color={theme === 'dark' ? '#ffffff' : '#1f2937'}
-          anchorX="center"
-          anchorY="middle"
-          maxWidth={10}
-        >
-          Synthetic Data Clusters
-        </Text>
-      </Float>
-    </Suspense>
-  );
+  private setupCamera() {
+    this.camera.position.set(0, 5, 10);
+    this.camera.lookAt(0, 0, 0);
+  }
+
+  private setupLights() {
+    // Ambient light
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+    this.scene.add(ambientLight);
+
+    // Directional light
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(5, 5, 5);
+    this.scene.add(directionalLight);
+
+    // Point lights for dramatic effect
+    const light1 = new THREE.PointLight(0x0066ff, 0.5, 20);
+    light1.position.set(-5, 5, 5);
+    this.scene.add(light1);
+
+    const light2 = new THREE.PointLight(0xff6600, 0.5, 20);
+    light2.position.set(5, -5, -5);
+    this.scene.add(light2);
+  }
+
+  private createDataVisualization() {
+    if (!this.data || this.data.length === 0) return;
+
+    const maxValue = Math.max(...this.data.map(d => typeof d.value === 'number' ? d.value : 0));
+    const barWidth = 0.8;
+    const barSpacing = 1.2;
+    const totalWidth = (this.data.length - 1) * barSpacing;
+    const startX = -totalWidth / 2;
+
+    this.data.forEach((item, index) => {
+      const value = typeof item.value === 'number' ? item.value : Math.random();
+      const normalizedValue = maxValue > 0 ? value / maxValue : 0;
+      const height = Math.max(0.1, normalizedValue * 8);
+
+      // Create bar geometry
+      const geometry = new THREE.BoxGeometry(barWidth, height, barWidth);
+      
+      // Create material with gradient effect
+      const material = new THREE.MeshPhongMaterial({
+        color: this.getColorForIndex(index),
+        transparent: true,
+        opacity: 0.8,
+        shininess: 100
+      });
+
+      const bar = new THREE.Mesh(geometry, material);
+      
+      // Position bars
+      bar.position.x = startX + index * barSpacing;
+      bar.position.y = height / 2;
+      bar.position.z = 0;
+
+      // Store original position for animations
+      bar.userData = {
+        originalY: bar.position.y,
+        targetY: bar.position.y,
+        originalHeight: height,
+        value: value
+      };
+
+      this.bars.push(bar);
+      this.scene.add(bar);
+
+      // Add value label (optional)
+      this.createValueLabel(bar, value, index);
+    });
+
+    // Add grid
+    this.createGrid();
+  }
+
+  private createValueLabel(bar: THREE.Mesh, value: number, index: number) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d')!;
+    canvas.width = 256;
+    canvas.height = 64;
+    
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'white';
+    ctx.font = '24px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(value.toFixed(2), canvas.width / 2, canvas.height / 2 + 8);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+    const sprite = new THREE.Sprite(spriteMaterial);
+    
+    sprite.position.set(bar.position.x, bar.position.y + bar.userData.originalHeight / 2 + 1, 0);
+    sprite.scale.set(2, 0.5, 1);
+    
+    this.scene.add(sprite);
+  }
+
+  private createGrid() {
+    const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
+    gridHelper.position.y = -0.1;
+    this.scene.add(gridHelper);
+  }
+
+  private getColorForIndex(index: number): number {
+    const colors = [
+      0x3b82f6, // blue
+      0xef4444, // red
+      0x10b981, // green
+      0xf59e0b, // yellow
+      0x8b5cf6, // purple
+      0x06b6d4, // cyan
+      0xf97316, // orange
+      0xec4899, // pink
+    ];
+    return colors[index % colors.length];
+  }
+
+  private setupEventListeners() {
+    const handleResize = this.onWindowResize.bind(this);
+    window.addEventListener('resize', handleResize);
+    this.handleResize = handleResize;
+  }
+
+  private onWindowResize() {
+    if (this.isDestroyed) return;
+    
+    this.camera.aspect = this.container.clientWidth / this.container.clientHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+  }
+
+  public animate() {
+    if (this.isDestroyed) return;
+    
+    const time = this.clock.getElapsedTime();
+
+    // Animate bars
+    this.bars.forEach((bar, index) => {
+      // Gentle floating animation
+      bar.position.y = bar.userData.originalY + Math.sin(time * 2 + index * 0.5) * 0.1;
+      
+      // Rotate bars slightly
+      bar.rotation.y = Math.sin(time * 0.5 + index * 0.3) * 0.1;
+      
+      // Pulse effect
+      const scale = 1 + Math.sin(time * 3 + index * 0.2) * 0.05;
+      bar.scale.set(scale, scale, scale);
+    });
+
+    // Rotate camera slowly
+    this.camera.position.x = Math.sin(time * 0.2) * 8;
+    this.camera.position.z = Math.cos(time * 0.2) * 8 + 8;
+    this.camera.lookAt(0, 0, 0);
+
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  public dispose() {
+    this.isDestroyed = true;
+    
+    // Remove event listeners
+    if (this.handleResize) {
+      window.removeEventListener('resize', this.handleResize);
+    }
+    if (this.handleMouseMove) {
+      window.removeEventListener('mousemove', this.handleMouseMove);
+    }
+    
+    // Dispose of Three.js objects
+    this.bars.forEach(bar => {
+      if (bar.geometry) bar.geometry.dispose();
+      if (bar.material && Array.isArray(bar.material)) {
+        bar.material.forEach(mat => mat.dispose());
+      } else if (bar.material) {
+        (bar.material as THREE.Material).dispose();
+      }
+    });
+    
+    if (this.renderer) {
+      this.renderer.dispose();
+    }
+    
+    // Remove canvas from DOM
+    if (this.renderer && this.renderer.domElement && this.renderer.domElement.parentNode) {
+      this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+    }
+  }
+
+  public getDestroyed(): boolean {
+    return this.isDestroyed;
+  }
 }
 
-// Loading fallback
-function LoadingFallback() {
-  return (
-    <div className="flex items-center justify-center h-full">
-      <div className="text-center space-y-4">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-        <p className="text-sm text-muted-foreground">Loading 3D visualization...</p>
-      </div>
-    </div>
-  );
-}
-
-// 2D Fallback visualization
+// Enhanced 2D Fallback visualization
 function Fallback2D({ data, className }: { data: any[], className?: string }) {
   const { theme } = useTheme();
   
@@ -303,7 +258,7 @@ function Fallback2D({ data, className }: { data: any[], className?: string }) {
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="grid grid-cols-6 gap-4 p-8">
           {data.slice(0, 36).map((item, index) => {
-            const value = typeof item === 'number' ? item : Math.random();
+            const value = typeof item === 'number' ? item : (typeof item.value === 'number' ? item.value : Math.random());
             const height = Math.max(20, value * 100);
             const hue = (index / 36) * 360;
             
@@ -352,16 +307,12 @@ export default function DataVisualization3D({
   interactive = true,
   quality = 'medium'
 }: DataVisualization3DProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const engineRef = useRef<DataVisualization3DEngine | null>(null);
+  const animationFrameRef = useRef<number>();
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { theme } = useTheme();
-  
-  const pixelRatio = useMemo((): [number, number] => {
-    switch (quality) {
-      case 'low': return [0.5, 1];
-      case 'medium': return [1, 1.5];
-      case 'high': return [1, 2];
-      default: return [1, 1.5];
-    }
-  }, [quality]);
 
   // Generate more interesting sample data if none provided
   const enrichedData = useMemo(() => {
@@ -377,15 +328,56 @@ export default function DataVisualization3D({
         return item;
       });
     }
-    return [];
+    
+    // Generate sample data if no data provided
+    return Array.from({ length: 12 }, (_, i) => ({
+      value: Math.random() * 0.8 + 0.2,
+      label: `Dataset ${i + 1}`,
+      category: ['Analytics', 'Sales', 'Marketing', 'Support'][i % 4],
+      timestamp: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString()
+    }));
   }, [data]);
+
+  useEffect(() => {
+    if (!containerRef.current || enrichedData.length === 0) return;
+
+    try {
+      // Create 3D visualization engine
+      engineRef.current = new DataVisualization3DEngine(containerRef.current, enrichedData);
+      setIsLoaded(true);
+      setError(null);
+
+      // Animation loop
+      const animate = () => {
+        if (engineRef.current && !engineRef.current.getDestroyed()) {
+          engineRef.current.animate();
+        }
+        animationFrameRef.current = requestAnimationFrame(animate);
+      };
+
+      animate();
+
+      return () => {
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+        }
+        if (engineRef.current) {
+          engineRef.current.dispose();
+        }
+      };
+    } catch (error) {
+      console.error('3D visualization initialization error:', error);
+      setError('Failed to initialize 3D visualization');
+      setIsLoaded(false);
+    }
+  }, [enrichedData]);
 
   if (enrichedData.length === 0) {
     return (
       <div className={`relative overflow-hidden rounded-xl ${className}`} style={{ height }}>
         <div className="flex items-center justify-center h-full">
           <div className="text-center space-y-4">
-            <BarChart3 className="h-16 w-16 mx-auto text-primary" />
+            <Database className="h-16 w-16 mx-auto text-primary" />
             <p className="text-sm text-muted-foreground">No data available for visualization.</p>
           </div>
         </div>
@@ -393,41 +385,23 @@ export default function DataVisualization3D({
     );
   }
 
-  const Fallback3D = useCallback(({ error }: { error?: Error }) => {
-    console.warn('3D visualization fallback activated:', error?.message);
-    return <Fallback2D data={enrichedData} className={className} />;
-  }, [enrichedData, className]);
-
   return (
-    <ErrorBoundary fallback={Fallback3D}>
+    <ErrorBoundary fallback={() => <Fallback2D data={enrichedData} className={className} />}>
       <div className={`relative overflow-hidden rounded-xl ${className}`} style={{ height }}>
-        <Canvas
-          camera={{ position: [10, 8, 10], fov: 60 }}
-          gl={{
-            alpha: true,
-            antialias: quality !== 'low',
-            powerPreference: "high-performance"
-          }}
-          dpr={pixelRatio}
-          frameloop={interactive ? "always" : "demand"}
-          performance={{ min: 0.5 }}
-        >
-          <VisualizationScene data={enrichedData} theme={theme || 'dark'} />
-        </Canvas>
+        {error || !isLoaded ? (
+          <Fallback2D data={enrichedData} className={className} />
+        ) : (
+          <div ref={containerRef} className="w-full h-full" />
+        )}
         
-        {/* Controls overlay */}
-        <div className="absolute top-4 right-4 bg-black/20 backdrop-blur-sm rounded-lg p-2">
-          <div className="text-xs text-white/80 space-y-1">
-            <div>Click: Select point</div>
-            <div>Drag: Rotate view</div>
-            <div>Scroll: Zoom</div>
+        {/* Overlay with data info */}
+        <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-sm rounded-lg p-3 text-white">
+          <div className="flex items-center space-x-2">
+            <Activity className="h-4 w-4" />
+            <span className="text-sm font-medium">Live Data</span>
           </div>
-        </div>
-        
-        {/* Data info overlay */}
-        <div className="absolute bottom-4 left-4 bg-black/20 backdrop-blur-sm rounded-lg p-2">
-          <div className="text-xs text-white/80">
-            Data Points: {data.length}
+          <div className="text-xs text-gray-300 mt-1">
+            {enrichedData.length} data points
           </div>
         </div>
       </div>
