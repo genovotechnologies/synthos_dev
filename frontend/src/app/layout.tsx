@@ -3,6 +3,7 @@ import { Metadata } from 'next';
 import { Providers } from './providers';
 import React from 'react';
 import ThreeBackgroundClient from './ThreeBackgroundClient';
+import Floating3DElements from '@/components/ui/Floating3DElements';
 
 export const metadata: Metadata = {
   title: 'Synthos - AI Data Platform',
@@ -17,6 +18,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Providers>
           <ThreeBackgroundClient />
+          {/* Global Floating Elements */}
+          <Floating3DElements elementCount={30} className="fixed inset-0 pointer-events-none z-10" />
           <a href="#main-content" className="sr-only focus:not-sr-only absolute top-2 left-2 z-50 bg-primary text-primary-foreground px-4 py-2 rounded shadow-lg transition-all duration-200">Skip to main content</a>
           <main id="main-content">
             {children}

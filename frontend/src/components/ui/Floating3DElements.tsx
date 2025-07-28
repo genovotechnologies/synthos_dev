@@ -346,7 +346,7 @@ class FloatingElementsEngine {
   }
 
   private handleResize: (() => void) | null = null;
-  private handleMouseMove: (() => void) | null = null;
+  private handleMouseMove: ((event: MouseEvent) => void) | null = null;
 }
 
 export default function Floating3DElements({

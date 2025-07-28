@@ -12,7 +12,7 @@ import Floating3DElements from '@/components/ui/Floating3DElements';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
 import { SUBSCRIPTION_TIERS, AI_MODELS, FEATURES } from '@/lib/constants';
 import { apiClient } from '@/lib/api';
-import { ArrowRight, Check, Zap, Shield, BarChart3, Database, Globe, Star, TrendingUp, Cpu, Lock, Zap as ZapIcon, Target, Code, Building2, Activity, DollarSign } from 'lucide-react';
+import { ArrowRight, Check, Zap, Shield, BarChart3, Database, Globe, Star, TrendingUp, Cpu, Lock, Zap as ZapIcon, Target, Code, Building2, Activity, DollarSign, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Data visualization component that fetches real data
@@ -222,99 +222,85 @@ export default function LandingPage() {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="relative min-h-screen flex items-center py-20 px-4 sm:px-6 lg:px-8">
-          {/* Floating 3D Elements */}
-          <ErrorBoundary fallback={() => null}>
-            <Floating3DElements elementCount={50} className="absolute inset-0 pointer-events-none" />
-          </ErrorBoundary>
+        <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+          {/* Background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5" />
           
-          <div className="container mx-auto relative z-10">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-              {/* Hero Content */}
-              <motion.div
+          {/* Content */}
+          <div className="relative z-20 text-center px-4 max-w-6xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="space-y-8"
+            >
+              {/* Main Heading */}
+              <div className="space-y-6">
+                <motion.h1 
+                  className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-foreground via-primary to-blue-600 bg-clip-text text-transparent leading-tight"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.2 }}
+                >
+                  Generate Synthetic Data
+                  <br />
+                  <span className="text-4xl md:text-6xl">with AI</span>
+                </motion.h1>
+                
+                <motion.p 
+                  className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.4 }}
+                >
+                  Create high-quality, privacy-safe synthetic datasets for testing, 
+                  development, and AI training with our advanced platform.
+                </motion.p>
+              </div>
+
+              {/* CTA Buttons */}
+              <motion.div 
+                className="flex flex-col sm:flex-row gap-4 justify-center items-center"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="text-center lg:text-left space-y-6 lg:space-y-8"
+                transition={{ duration: 0.8, delay: 0.6 }}
               >
-                <div className="space-y-4">
-                  <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight">
-                    The Future of
-                    <span className="block text-gradient glow-white">
-                      Synthetic Data
-                    </span>
-                  </h1>
-                  <p className="text-lg sm:text-xl lg:text-2xl text-muted-foreground leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                    Generate high-quality synthetic data with AI-powered privacy protection.
-                    Perfect for ML training, testing, and analytics.
-                  </p>
-                </div>
-
-                {/* CTA Buttons */}
-                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                  <Button 
-                    size="lg" 
-                    asChild 
-                    className="glow-primary hover:glow-primary transition-all duration-300 transform hover:scale-105 touch-target text-base sm:text-lg px-8 py-4"
-                  >
-                    <Link href="/auth/signup" className="flex items-center">
-                      Get Started Free
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </Link>
-                  </Button>
-                  <Button 
-                    size="lg" 
-                    variant="outline" 
-                    asChild 
-                    className="glass hover:glass-strong transition-all duration-300 transform hover:scale-105 touch-target text-base sm:text-lg px-8 py-4"
-                  >
-                    <Link href="/contact" className="flex items-center">
-                      <Zap className="mr-2 h-5 w-5" />
-                      Request Demo
-                    </Link>
-                  </Button>
-                </div>
-
-                {/* Trust Indicators */}
-                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center">
-                    <Shield className="h-4 w-4 mr-1 text-green-500" aria-hidden="true" />
-                    SOC 2 Compliant
-                  </div>
-                  <div className="flex items-center">
-                    <Star className="h-4 w-4 mr-1 text-yellow-500" aria-hidden="true" />
-                    GDPR Ready
-                  </div>
-                  <div className="flex items-center">
-                    <Database className="h-4 w-4 mr-1 text-blue-500" aria-hidden="true" />
-                    99.9% Uptime
-                  </div>
-                </div>
+                <Button 
+                  size="lg" 
+                  className="text-lg px-8 py-6 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-white font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  Get Started Free
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="lg" 
+                  className="text-lg px-8 py-6 border-2 hover:bg-background/50 transition-all duration-300"
+                >
+                  Schedule Demo
+                </Button>
               </motion.div>
 
-              {/* Hero Visualization */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
-                className="relative"
+              {/* Trust Indicators */}
+              <motion.div 
+                className="flex flex-wrap justify-center items-center gap-8 text-muted-foreground"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.8 }}
               >
-                <div className="relative rounded-2xl overflow-hidden glass-strong">
-                  <ErrorBoundary 
-                    fallback={() => (
-                      <div className="h-96 bg-gradient-to-br from-primary/20 to-blue-600/20 flex items-center justify-center">
-                        <div className="text-center space-y-4">
-                          <BarChart3 className="h-16 w-16 mx-auto text-primary" />
-                          <p className="text-sm text-muted-foreground">Interactive Data Visualization</p>
-                        </div>
-                      </div>
-                    )}
-                  >
-                    <DataVisualizationWithData />
-                  </ErrorBoundary>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <span>No credit card required</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-blue-500" />
+                  <span>GDPR compliant</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-yellow-500" />
+                  <span>Setup in minutes</span>
                 </div>
               </motion.div>
-            </div>
+            </motion.div>
           </div>
         </section>
 
