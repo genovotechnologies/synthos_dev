@@ -9,11 +9,19 @@ terraform {
       version = "~> 5.0"
     }
   }
-  backend "s3" {
-    bucket = "synthos-terraform-state"
-    key    = "synthos/terraform.tfstate"
-    region = "us-east-1"
+  # --- Terraform Cloud backend (default) ---
+  backend "remote" {
+    organization = "YOUR_TERRAFORM_CLOUD_ORG"
+    workspaces {
+      name = "synthos-aws"
+    }
   }
+  # --- S3 backend (uncomment to use S3 instead of Terraform Cloud) ---
+  # backend "s3" {
+  #   bucket = "synthos-terraform-state"
+  #   key    = "synthos/terraform.tfstate"
+  #   region = "us-east-1"
+  # }
 }
 
 provider "aws" {

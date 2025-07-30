@@ -1,10 +1,11 @@
 """
-Synthos Redis Configuration
-High-performance caching and session management
+Synthos Redis/Valkey Configuration
+High-performance caching and session management with Valkey support
 """
 
 import json
 import pickle
+import os
 from typing import Any, Optional, Union
 import redis.asyncio as redis
 import structlog
@@ -13,21 +14,59 @@ from app.core.config import settings
 
 logger = structlog.get_logger(__name__)
 
-# Redis connection pool
+# Redis/Valkey connection pool
 redis_pool = None
 redis_client = None
 
 
 async def init_redis():
-    """Initialize Redis/Valkey connection pool"""
+    """Initialize Redis/Valkey connection pool with Valkey support"""
     global redis_pool, redis_client
     
-    # Check if Redis is disabled
+    # Check if Redis/Valkey is disabled
     if os.getenv('REDIS_DISABLED', 'false').lower() == 'true':
-        logger.warning("Redis is disabled - using in-memory fallback")
+        logger.warning("Cache is disabled - using in-memory fallback")
         return
     
     try:
+        # Determine which URL to use based on configuration
+        cache_url = settings.CACHE_URL
+        
+        # Log the cache configuration being used
+        cache_backend = settings.CACHE_BACKEND
+        logger.info(f"Initializing cache with backend: {cache_backend}", cache_url=cache_url)
+        
+        # Create Redis/Valkey client with connection pooling
+        redis_client = redis.from_url(
+            cache_url,
+            encoding="utf-8",
+            decode_responses=True,
+            socket_connect_timeout=10,
+            socket_timeout=30,
+            retry_on_timeout=True,
+            health_check_interval=30,
+            max_connections=20
+        )
+        
+        # Test the connection
+        await redis_client.ping()
+        
+        # Get server info to log what we're connected to
+        info = await redis_client.info()
+        server_type = info.get('redis_mode', 'unknown')
+        server_version = info.get('redis_version', 'unknown')
+        
+        logger.info(
+            f"Successfully connected to cache server",
+            server_type=server_type,
+            server_version=server_version,
+            cache_backend=cache_backend
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize cache client: {str(e)}")
+        redis_client = None
+        raise
 
 
 async def get_redis() -> redis.Redis:
