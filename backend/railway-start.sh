@@ -17,15 +17,6 @@ if [ -z "$DATABASE_URL" ]; then
     exit 1
 fi
 
-if [ -z "$REDIS_URL" ]; then
-    echo "❌ REDIS_URL not set. Make sure Redis service is added to Railway."
-    exit 1
-fi
-
-# Set Celery URLs if not explicitly provided
-export CELERY_BROKER_URL=${CELERY_BROKER_URL:-$REDIS_URL}
-export CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-$REDIS_URL}
-
 echo "✅ Environment variables configured"
 
 # Run database migrations

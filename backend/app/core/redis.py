@@ -22,40 +22,12 @@ async def init_redis():
     """Initialize Redis/Valkey connection pool"""
     global redis_pool, redis_client
     
+    # Check if Redis is disabled
+    if os.getenv('REDIS_DISABLED', 'false').lower() == 'true':
+        logger.warning("Redis is disabled - using in-memory fallback")
+        return
+    
     try:
-        cache_url = settings.CACHE_URL
-        cache_type = "Valkey" if "valkey://" in cache_url or settings.VALKEY_URL else "Redis"
-        
-        logger.info(f"Initializing {cache_type} connection...", url=cache_url.split('@')[-1] if '@' in cache_url else cache_url)
-        
-        redis_pool = redis.ConnectionPool.from_url(
-            cache_url,
-            max_connections=20,
-            retry_on_timeout=True,
-            decode_responses=True,
-            # Additional settings for AWS ElastiCache
-            socket_connect_timeout=5,
-            socket_timeout=5,
-            health_check_interval=30,
-        )
-        
-        redis_client = redis.Redis(connection_pool=redis_pool)
-        
-        # Test connection
-        await redis_client.ping()
-        
-        # Log cache backend info
-        info = await redis_client.info()
-        server_version = info.get('redis_version', 'unknown')
-        
-        logger.info(
-            f"{cache_type} connection initialized successfully",
-            server_version=server_version,
-            cache_backend=settings.CACHE_BACKEND
-        )
-    except Exception as e:
-        logger.error(f"Failed to initialize cache connection", error=str(e))
-        raise
 
 
 async def get_redis() -> redis.Redis:
