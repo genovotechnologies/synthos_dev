@@ -11,7 +11,7 @@ terraform {
   }
   # --- Terraform Cloud backend (default) ---
   backend "remote" {
-    organization = "YOUR_TERRAFORM_CLOUD_ORG"
+    organization = "genovo-technologies"
     workspaces {
       name = "synthos-aws"
     }
