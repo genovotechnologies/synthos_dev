@@ -83,7 +83,7 @@ jobs:
           python-version: '3.11'
 
       - name: Cache Python dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v3
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
@@ -99,7 +99,7 @@ jobs:
       - name: Set up environment
         run: |
           cd backend
-          cp backend.env .env
+          cp .env.example .env
           echo "DATABASE_URL=postgresql://synthos:testpass@localhost:5432/synthos_test" >> .env
           echo "REDIS_URL=redis://localhost:6379/0" >> .env
           echo "ANTHROPIC_API_KEY=test-key" >> .env
@@ -115,14 +115,14 @@ jobs:
           pytest tests/ -v --cov=app --cov-report=xml --cov-report=html
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v3
         with:
           file: ./backend/coverage.xml
           flags: backend
           name: backend-coverage
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: backend-test-results
@@ -165,7 +165,7 @@ jobs:
           npm run test:ci
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v3
         with:
           file: ./frontend/coverage/lcov.info
           flags: frontend
@@ -177,7 +177,7 @@ jobs:
           npm run build
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: frontend-build
           path: frontend/.next/
@@ -218,7 +218,7 @@ jobs:
         run: |
           cd backend
           pip install -r requirements.txt
-          cp backend.env .env
+          cp .env.example .env
           echo "DATABASE_URL=postgresql://synthos:password@localhost:5432/synthos" >> .env
           echo "REDIS_URL=redis://localhost:6379/0" >> .env
           echo "ANTHROPIC_API_KEY=test-key" >> .env
@@ -228,7 +228,7 @@ jobs:
       - name: Start frontend for E2E
         run: |
           cd frontend
-          cp frontend.env .env.local
+          cp .env.example .env.local
           echo "NEXT_PUBLIC_API_URL=http://localhost:8000" >> .env.local
           npm run build
           npm start &
@@ -244,7 +244,7 @@ jobs:
           npm run e2e
 
       - name: Upload E2E test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: e2e-test-results
@@ -279,7 +279,7 @@ jobs:
           k6 run tests/load/generation-test.js
 
       - name: Upload load test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: load-test-results
@@ -429,8 +429,7 @@ jobs:
         with:
           status: ${{ job.status }}
           channel: '#deployments'
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
         if: always()
 
   # Performance monitoring
