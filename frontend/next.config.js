@@ -3,9 +3,13 @@ const nextConfig = {
   // Enable React strict mode for better development experience
   reactStrictMode: true,
   
+  // Output configuration for Docker optimization
+  output: 'standalone',
+  
   // Experimental features
   experimental: {
     scrollRestoration: true,
+    outputFileTracingRoot: undefined,
   },
 
   // Environment variables
@@ -58,6 +62,14 @@ const nextConfig = {
             key: 'Referrer-Policy',
             value: 'origin-when-cross-origin'
           },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains'
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none';"
+          }
         ]
       }
     ];
@@ -70,6 +82,20 @@ const nextConfig = {
       ...config.resolve.alias,
       '@': require('path').join(__dirname, 'src'),
     };
+
+    // Optimize bundle size
+    if (!dev && !isServer) {
+      config.optimization.splitChunks = {
+        chunks: 'all',
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'all',
+          },
+        },
+      };
+    }
 
     return config;
   },
@@ -88,6 +114,15 @@ const nextConfig = {
     ignoreDuringBuilds: false,
     dirs: ['src', 'pages', 'components'],
   },
+
+  // Compression
+  compress: true,
+  
+  // Trailing slash for better SEO
+  trailingSlash: false,
+  
+  // Asset prefix for CDN (if needed)
+  assetPrefix: process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_ASSET_PREFIX : '',
 };
 
 module.exports = nextConfig;

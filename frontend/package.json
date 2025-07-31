@@ -12,8 +12,10 @@
     "start": "node .next/standalone/server.js",
     "lint": "next lint",
     "test": "jest",
+    "test:ci": "jest --ci --coverage --watchAll=false",
     "test:e2e": "playwright test",
     "test:watch": "jest --watch",
+    "type-check": "tsc --noEmit",
     "security:audit": "npm audit",
     "security:check": "npm audit --audit-level high"
   },
