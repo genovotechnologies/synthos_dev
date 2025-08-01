@@ -242,7 +242,7 @@ resource "aws_db_subnet_group" "main" {
 resource "aws_db_instance" "main" {
   identifier     = "synthos-db"
   engine         = "postgres"
-  engine_version = "15.4"
+  engine_version = "15.3"
   instance_class = "db.r6g.large"
   
   allocated_storage     = 100
@@ -354,58 +354,59 @@ resource "aws_s3_bucket_public_access_block" "data" {
 }
 
 # CloudFront Distribution
-resource "aws_cloudfront_distribution" "frontend" {
-  origin {
-    domain_name = aws_s3_bucket.frontend.bucket_regional_domain_name
-    origin_id   = "S3-${aws_s3_bucket.frontend.bucket}"
-    
-    s3_origin_config {
-      origin_access_identity = aws_cloudfront_origin_access_identity.frontend.cloudfront_access_identity_path
-    }
-  }
-  
-  enabled             = true
-  is_ipv6_enabled     = true
-  default_root_object = "index.html"
-  
-  aliases = [var.domain_name, "www.${var.domain_name}"]
-  
-  default_cache_behavior {
-    allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
-    cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = "S3-${aws_s3_bucket.frontend.bucket}"
-    compress               = true
-    viewer_protocol_policy = "redirect-to-https"
-    
-    forwarded_values {
-      query_string = false
-      cookies {
-        forward = "none"
-      }
-    }
-  }
-  
-  price_class = "PriceClass_100"
-  
-  restrictions {
-    geo_restriction {
-      restriction_type = "none"
-    }
-  }
-  
-  viewer_certificate {
-    acm_certificate_arn = aws_acm_certificate.main.arn
-    ssl_support_method  = "sni-only"
-  }
-  
-  tags = {
-    Name = "synthos-cloudfront"
-  }
-}
+# CloudFront Distribution (commented out - requires AWS account verification)
+# resource "aws_cloudfront_distribution" "frontend" {
+#   origin {
+#     domain_name = aws_s3_bucket.frontend.bucket_regional_domain_name
+#     origin_id   = "S3-${aws_s3_bucket.frontend.bucket}"
+#     
+#     s3_origin_config {
+#       origin_access_identity = aws_cloudfront_origin_access_identity.frontend.cloudfront_access_identity_path
+#     }
+#   }
+#   
+#   enabled             = true
+#   is_ipv6_enabled     = true
+#   default_root_object = "index.html"
+#   
+#   aliases = [var.domain_name, "www.${var.domain_name}"]
+#   
+#   default_cache_behavior {
+#     allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+#     cached_methods         = ["GET", "HEAD"]
+#     target_origin_id       = "S3-${aws_s3_bucket.frontend.bucket}"
+#     compress               = true
+#     viewer_protocol_policy = "redirect-to-https"
+#     
+#     forwarded_values {
+#       query_string = false
+#       cookies {
+#         forward = "none"
+#       }
+#     }
+#   }
+#   
+#   price_class = "PriceClass_100"
+#   
+#   restrictions {
+#     geo_restriction {
+#       restriction_type = "none"
+#     }
+#   }
+#   
+#   viewer_certificate {
+#     acm_certificate_arn = aws_acm_certificate.main.arn
+#     ssl_support_method  = "sni-only"
+#   }
+#   
+#   tags = {
+#     Name = "synthos-cloudfront"
+#   }
+# }
 
-resource "aws_cloudfront_origin_access_identity" "frontend" {
-  comment = "Synthos frontend OAI"
-}
+# resource "aws_cloudfront_origin_access_identity" "frontend" {
+#   comment = "Synthos frontend OAI"
+# }
 
 # ECS Cluster
 resource "aws_ecs_cluster" "main" {
@@ -429,7 +430,7 @@ resource "aws_ecs_cluster" "main" {
 
 # Application Load Balancer
 resource "aws_lb" "main" {
-  name               = "synthos-alb"
+  name               = "synthos-alb-${var.environment}"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
@@ -438,7 +439,7 @@ resource "aws_lb" "main" {
   enable_deletion_protection = true
   
   tags = {
-    Name = "synthos-alb"
+    Name = "synthos-alb-${var.environment}"
   }
 }
 
@@ -572,10 +573,10 @@ output "s3_data_bucket" {
   value       = aws_s3_bucket.data.bucket
 }
 
-output "cloudfront_domain" {
-  description = "CloudFront distribution domain"
-  value       = aws_cloudfront_distribution.frontend.domain_name
-}
+# output "cloudfront_domain" {
+#   description = "CloudFront distribution domain"
+#   value       = aws_cloudfront_distribution.frontend.domain_name
+# }
 
 output "load_balancer_dns" {
   description = "Application Load Balancer DNS name"
