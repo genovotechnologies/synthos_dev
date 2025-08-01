@@ -242,7 +242,7 @@ resource "aws_db_subnet_group" "main" {
 resource "aws_db_instance" "main" {
   identifier     = "synthos-db"
   engine         = "postgres"
-  engine_version = "14.10"
+  engine_version = "12.22"
   instance_class = "db.r6g.large"
   
   allocated_storage     = 100
