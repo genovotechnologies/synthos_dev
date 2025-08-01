@@ -101,7 +101,7 @@ jobs:
         run: |
           cd backend
           pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-ci.txt
 
       - name: Set up environment
         run: |
@@ -110,6 +110,7 @@ jobs:
           echo "DATABASE_URL=postgresql://synthos:testpass@localhost:5432/synthos_test" >> .env
           echo "REDIS_URL=redis://localhost:6379/0" >> .env
           echo "ANTHROPIC_API_KEY=test-key" >> .env
+          echo "SECRET_KEY=test-secret-key-for-ci" >> .env
 
       - name: Skip database migrations in CI
         run: |
@@ -119,7 +120,7 @@ jobs:
       - name: Run tests with coverage
         run: |
           cd backend
-          PYTHONPATH=$PYTHONPATH:. pytest tests/ -v --cov=app --cov-report=xml --cov-report=html
+          PYTHONPATH=$PYTHONPATH:. pytest tests/ -v --cov=app --cov-report=xml --cov-report=html --tb=short
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
