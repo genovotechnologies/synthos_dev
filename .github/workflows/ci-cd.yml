@@ -1,10 +1,16 @@
-name: Synthos CI/CD Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [ main, develop ]
   pull_request:
-    branches: [main, develop]
+    branches: [ main ]
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+  pull-requests: read
 
 env:
   REGISTRY: ghcr.io
@@ -32,6 +38,7 @@ jobs:
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         if: always()
+        continue-on-error: true
         with:
           sarif_file: 'trivy-results.sarif'
 
