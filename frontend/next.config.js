@@ -8,6 +8,9 @@ const nextConfig = {
     scrollRestoration: true,
   },
 
+  // Output configuration for Docker
+  output: 'standalone',
+
   // Environment variables
   env: {
     NEXT_PUBLIC_APP_NAME: 'Synthos',

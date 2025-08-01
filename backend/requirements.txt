@@ -1,6 +1,6 @@
 # =============================================================================
-# SYNTHOS BACKEND DEPENDENCIES - OPTIMIZED FOR AWS APP RUNNER
-# Python 3.8 Compatible - Production Ready
+# SYNTHOS BACKEND DEPENDENCIES - OPTIMIZED FOR CI/CD
+# Python 3.11 Compatible - Production Ready
 # =============================================================================
 
 # Core FastAPI Framework (ESSENTIAL - Install first)
@@ -52,7 +52,8 @@ stripe==7.12.0
 
 # Data Processing (CORE ONLY - LIGHTWEIGHT)
 pandas==2.1.4
-numpy==1.25.2
+# Updated numpy version for Python 3.12 compatibility
+numpy==1.26.4
 
 # File Handling (ESSENTIAL)
 aiofiles==24.1.0
@@ -79,25 +80,22 @@ marshmallow==3.20.2
 pytest==7.4.3
 pytest-cov==4.1.0
 pytest-asyncio==0.21.1
-httpx==0.26.0
 
 # =============================================================================
-# AI/ML DEPENDENCIES (OPTIONAL - INSTALL ONLY IF NEEDED)
-# These packages are large and may cause build timeouts
-# They will be installed with best effort, failures are acceptable
+# CI/CD OPTIMIZED DEPENDENCIES
+# These versions are tested and stable for CI/CD environments
 # =============================================================================
 
-# Uncomment these lines only if AI/ML features are required:
-# torch==2.1.2+cpu --find-links https://download.pytorch.org/whl/torch_stable.html
-# transformers==4.37.2
-# scikit-learn==1.3.2
+# Build tools for CI/CD
+setuptools>=68.0.0
+wheel>=0.41.0
 
 # =============================================================================
 # LIGHTWEIGHT ALTERNATIVES (OPTIONAL)
 # These provide similar functionality with smaller footprint
 # =============================================================================
 
-# For basic ML tasks without PyTorch:
+# For basic ML tasks without heavy dependencies:
 # scikit-learn==1.3.2
 
 # For text processing without transformers:
