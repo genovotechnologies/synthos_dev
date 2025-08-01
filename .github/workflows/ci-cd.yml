@@ -101,7 +101,7 @@ jobs:
         run: |
           cd backend
           pip install --upgrade pip
-          pip install -r requirements-ci.txt
+          pip install -r requirements-minimal.txt
 
       - name: Set up environment
         run: |
@@ -234,13 +234,7 @@ jobs:
       - name: Set up backend for E2E
         run: |
           cd backend
-          pip install -r requirements.txt
-          cp .env.example .env
-          echo "DATABASE_URL=postgresql://synthos:password@localhost:5432/synthos" >> .env
-          echo "REDIS_URL=redis://localhost:6379/0" >> .env
-          echo "ANTHROPIC_API_KEY=test-key" >> .env
-          alembic upgrade head
-          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          ./start_for_e2e.sh
 
       - name: Start frontend for E2E
         run: |
