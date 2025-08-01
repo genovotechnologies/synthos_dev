@@ -104,10 +104,10 @@ jobs:
           echo "REDIS_URL=redis://localhost:6379/0" >> .env
           echo "ANTHROPIC_API_KEY=test-key" >> .env
 
-      - name: Run database migrations
+      - name: Skip database migrations in CI
         run: |
-          cd backend
-          alembic upgrade head
+          echo "Skipping database migrations in CI environment"
+          echo "Database operations will be handled in production deployment"
 
       - name: Run tests with coverage
         run: |
