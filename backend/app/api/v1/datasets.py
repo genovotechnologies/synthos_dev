@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import update
 from typing import List, Optional
-import pandas as pd
+from app.utils.optional_imports import pd, PANDAS_AVAILABLE
 import boto3
 from io import BytesIO
 import json

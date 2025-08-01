@@ -76,6 +76,9 @@ pytest==7.4.3
 pytest-cov==4.1.0
 pytest-asyncio==0.21.1
 
+# Scientific Computing (ESSENTIAL for data analysis)
+scipy==1.11.4
+
 # =============================================================================
 # NOTE: This is a minimal version for CI/E2E testing
 # pandas and numpy are excluded to avoid build issues

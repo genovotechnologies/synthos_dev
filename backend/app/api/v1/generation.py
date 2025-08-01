@@ -342,7 +342,7 @@ async def run_generation_job(job_id: int, dataset_id: int, user_id: int):
         )
         
         # Save results
-        import pandas as pd
+        from app.utils.optional_imports import pd, PANDAS_AVAILABLE
         from io import StringIO
         
         output_key = f"generated/{user_id}/{job_id}/synthetic_data.csv"

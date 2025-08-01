@@ -18,7 +18,7 @@ from pathlib import Path
 
 # Conditional pandas import for Lambda compatibility
 try:
-    import pandas as pd
+    from app.utils.optional_imports import pd, PANDAS_AVAILABLE
     HAS_PANDAS = True
 except ImportError:
     HAS_PANDAS = False

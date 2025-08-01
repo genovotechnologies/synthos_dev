@@ -4,9 +4,10 @@ Advanced synthetic data generation using Anthropic's Claude API with cutting-edg
 """
 
 import json
-import pandas as pd
-import numpy as np
 from typing import Dict, List, Any, Optional, Tuple, AsyncGenerator, Union
+
+# Use optional imports for data processing
+from app.utils.optional_imports import pd, np, PANDAS_AVAILABLE, NUMPY_AVAILABLE
 from datetime import datetime, timedelta
 import asyncio
 import logging
@@ -30,7 +31,6 @@ from app.core.redis import get_redis_client
 # Import enhanced realism engine
 from app.agents.enhanced_realism_engine import EnhancedRealismEngine, RealismConfig, IndustryDomain
 
-import numpy as np
 from scipy.stats import ks_2samp, chi2_contingency
 from collections import defaultdict
 import re # Added for string pattern detection
