@@ -45,6 +45,7 @@ openai==1.12.0
 sentry-sdk[fastapi]==1.40.6
 structlog==23.2.0
 python-json-logger==3.1.0
+prometheus-client==0.19.0
 
 # Payment Processing (ESSENTIAL)
 stripe==7.12.0

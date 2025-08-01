@@ -39,7 +39,7 @@ class Settings:
     CORS_ORIGINS: List[str] = _cors_origins.split(",")
     
     # Database Configuration
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/synthos")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://synthos:securepassword123@localhost:5432/synthos_db")
     DATABASE_POOL_SIZE: int = int(os.getenv("DATABASE_POOL_SIZE", "20"))
     DATABASE_MAX_OVERFLOW: int = int(os.getenv("DATABASE_MAX_OVERFLOW", "30"))
     

@@ -38,7 +38,7 @@ def run_migrations_offline() -> None:
 
     """
     # Use environment variable for database URL
-    url = os.getenv("DATABASE_URL", "postgresql://username:password@localhost:5432/synthos")
+    url = os.getenv("DATABASE_URL", "postgresql://synthos:securepassword123@localhost:5432/synthos_db")
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -58,7 +58,7 @@ def run_migrations_online() -> None:
 
     """
     # Use environment variable for database URL
-    database_url = os.getenv("DATABASE_URL", "postgresql://username:password@localhost:5432/synthos")
+    database_url = os.getenv("DATABASE_URL", "postgresql://synthos:securepassword123@localhost:5432/synthos_db")
     
     # Override the sqlalchemy.url in config
     config.set_main_option("sqlalchemy.url", database_url)
