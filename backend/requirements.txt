@@ -60,7 +60,7 @@ openpyxl==3.1.2
 
 # HTTP Clients (ESSENTIAL)
 httpx==0.26.0
-requests==2.31.0
+requests==2.32.4
 
 # Environment & Configuration (ESSENTIAL)
 python-decouple==3.8
