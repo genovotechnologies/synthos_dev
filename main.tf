@@ -51,7 +51,7 @@ resource "aws_subnet" "public" {
   
   tags = {
     Name = "synthos-public-subnet-${count.index + 1}"
-    Type = "Public"'
+    Type = "Public"
   }
 }
 
