@@ -229,7 +229,12 @@ jobs:
         run: |
           # Start required services using available docker-compose
           docker-compose up -d postgres redis || docker compose up -d postgres redis
-          sleep 10
+          sleep 15
+
+      - name: Debug environment
+        run: |
+          cd backend
+          ./debug_ci_environment.sh
 
       - name: Set up backend for E2E
         run: |
