@@ -75,6 +75,12 @@ psutil==5.9.8
 # Data Validation (ESSENTIAL)
 marshmallow==3.20.2
 
+# Testing Dependencies (ESSENTIAL)
+pytest==7.4.3
+pytest-cov==4.1.0
+pytest-asyncio==0.21.1
+httpx==0.26.0
+
 # =============================================================================
 # AI/ML DEPENDENCIES (OPTIONAL - INSTALL ONLY IF NEEDED)
 # These packages are large and may cause build timeouts
