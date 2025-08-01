@@ -44,21 +44,11 @@ if [ "$SERVICE_EXISTS" = "ACTIVE" ]; then
 else
     echo "🆕 Creating new service..."
     
-    # Get subnet IDs
-    SUBNET_IDS=$(aws ecs describe-services \
-        --cluster $CLUSTER_NAME \
-        --services synthos-alb-service \
-        --region $REGION \
-        --query 'services[0].networkConfiguration.awsvpcConfiguration.subnets' \
-        --output text 2>/dev/null || echo "subnet-071e27a4c7f8dd864,subnet-01733fa3b18c6e182")
+    # Get subnet IDs from Terraform outputs
+    SUBNET_IDS="subnet-071e27a4c7f8dd864,subnet-01733fa3b18c6e182"
     
     # Get security group IDs
-    SECURITY_GROUPS=$(aws ecs describe-services \
-        --cluster $CLUSTER_NAME \
-        --services synthos-alb-service \
-        --region $REGION \
-        --query 'services[0].networkConfiguration.awsvpcConfiguration.securityGroups' \
-        --output text 2>/dev/null || echo "sg-04b76b8e3c4e78896")
+    SECURITY_GROUPS="sg-04b76b8e3c4e78896"
     
     aws ecs create-service \
         --cluster $CLUSTER_NAME \

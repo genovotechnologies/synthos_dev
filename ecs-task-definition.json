@@ -22,7 +22,6 @@
         { "name": "AWS_ELASTICACHE_USE_TLS", "value": "true" },
         { "name": "AWS_RDS_PORT", "value": "5432" },
         { "name": "AWS_RDS_DATABASE", "value": "synthos" },
-        { "name": "AWS_RDS_USERNAME", "value": "genovo" },
         { "name": "AWS_RDS_USE_SSL", "value": "true" },
         { "name": "PADDLE_ENVIRONMENT", "value": "production" },
         { "name": "PRIMARY_PAYMENT_PROVIDER", "value": "paddle" },
