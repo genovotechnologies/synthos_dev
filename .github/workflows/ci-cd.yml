@@ -216,9 +216,18 @@ jobs:
           cd frontend
           npx playwright install --with-deps
 
+      - name: Install Docker Compose (if needed)
+        run: |
+          if ! command -v docker-compose &> /dev/null; then
+            echo "Installing docker-compose..."
+            sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+          fi
+
       - name: Start services
         run: |
-          docker-compose up -d postgres redis
+          # Start required services using available docker-compose
+          docker-compose up -d postgres redis || docker compose up -d postgres redis
           sleep 10
 
       - name: Set up backend for E2E
@@ -278,7 +287,7 @@ jobs:
 
       - name: Start services for load testing
         run: |
-          docker-compose up -d
+          docker-compose up -d || docker compose up -d
           sleep 30
 
       - name: Run load tests
