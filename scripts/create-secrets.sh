@@ -13,37 +13,37 @@ REGION="us-east-1"
 aws secretsmanager create-secret \
     --name "synthos/database-url" \
     --description "Synthos database URL" \
-    --secret-string "postgresql://synthos:synthos2025@[RDS_ENDPOINT]:5432/synthos" \
+    --secret-string "postgresql://genovo:genovo2025@18.235.10.180:5432/synthos?sslmode=require" \
     --region $REGION
 
 aws secretsmanager create-secret \
     --name "synthos/redis-url" \
     --description "Synthos Redis URL" \
-    --secret-string "redis://[REDIS_ENDPOINT]:6379/0" \
+    --secret-string "rediss://synthos-33lvyw.serverless.use1.cache.amazonaws.com:6379/0" \
     --region $REGION
 
 aws secretsmanager create-secret \
     --name "synthos/cache-url" \
     --description "Synthos cache URL" \
-    --secret-string "redis://[REDIS_ENDPOINT]:6379/0" \
+    --secret-string "rediss://synthos-33lvyw.serverless.use1.cache.amazonaws.com:6379/0" \
     --region $REGION
 
 aws secretsmanager create-secret \
     --name "synthos/elasticache-endpoint" \
     --description "Synthos ElastiCache endpoint" \
-    --secret-string "[REDIS_ENDPOINT]" \
+    --secret-string "synthos-33lvyw.serverless.use1.cache.amazonaws.com" \
     --region $REGION
 
 aws secretsmanager create-secret \
     --name "synthos/rds-endpoint" \
     --description "Synthos RDS endpoint" \
-    --secret-string "[RDS_ENDPOINT]" \
+    --secret-string "18.235.10.180" \
     --region $REGION
 
 aws secretsmanager create-secret \
     --name "synthos/rds-username" \
     --description "Synthos RDS username" \
-    --secret-string "synthos" \
+    --secret-string "genovo" \
     --region $REGION
 
 aws secretsmanager create-secret \
