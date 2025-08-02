@@ -18,6 +18,9 @@ export default defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   
+  /* Global timeout for CI */
+  timeout: process.env.CI ? 30000 : 60000,
+  
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ['html'],
@@ -38,6 +41,10 @@ export default defineConfig({
     
     /* Record video on failure */
     video: 'retain-on-failure',
+    
+    /* Timeout settings for CI */
+    actionTimeout: 10000,
+    navigationTimeout: 15000,
   },
 
   /* Configure projects for major browsers */
