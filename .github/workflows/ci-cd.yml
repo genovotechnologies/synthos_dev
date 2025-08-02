@@ -123,7 +123,7 @@ jobs:
           PYTHONPATH=$PYTHONPATH:. pytest tests/ -v --cov=app --cov-report=xml --cov-report=html --tb=short
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           file: ./backend/coverage.xml
           flags: backend
@@ -173,7 +173,7 @@ jobs:
           npm run test:ci
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           file: ./frontend/coverage/lcov.info
           flags: frontend
@@ -200,6 +200,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          pip install --upgrade pip
+          pip install -r requirements-minimal.txt
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -207,10 +226,19 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
         run: |
           cd frontend
           npm ci
+
+      - name: Set up backend environment
+        run: |
+          cd backend
+          cp .env.example .env
+          echo "DATABASE_URL=postgresql://synthos:testpass@localhost:5432/synthos_test" >> .env
+          echo "REDIS_URL=redis://localhost:6379/0" >> .env
+          echo "ANTHROPIC_API_KEY=test-key" >> .env
+          echo "SECRET_KEY=test-secret-key-for-ci" >> .env
 
       - name: Install Playwright browsers
         run: |
@@ -290,6 +318,34 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          pip install --upgrade pip
+          pip install -r requirements-minimal.txt
+
+      - name: Set up backend environment
+        run: |
+          cd backend
+          cp .env.example .env
+          echo "DATABASE_URL=postgresql://synthos:testpass@localhost:5432/synthos_test" >> .env
+          echo "REDIS_URL=redis://localhost:6379/0" >> .env
+          echo "ANTHROPIC_API_KEY=test-key" >> .env
+          echo "SECRET_KEY=test-secret-key-for-ci" >> .env
+
       - name: Install k6
         run: |
           sudo gpg -k
@@ -310,6 +366,15 @@ jobs:
           # Start services using available docker-compose
           docker-compose up -d postgres redis || docker compose up -d postgres redis
           sleep 30
+
+      - name: Set up backend for load testing
+        run: |
+          cd backend
+          ./start_for_e2e.sh
+
+      - name: Wait for backend
+        run: |
+          timeout 60 bash -c 'until curl -f http://localhost:8000/health; do sleep 2; done'
 
       - name: Run load tests
         run: |

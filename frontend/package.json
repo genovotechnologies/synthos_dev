@@ -15,6 +15,7 @@
     "test": "jest",
     "test:ci": "jest --ci --coverage",
     "test:e2e": "playwright test",
+    "e2e": "playwright test",
     "test:watch": "jest --watch",
     "security:audit": "npm audit",
     "security:check": "npm audit --audit-level high"
