@@ -373,13 +373,13 @@ async def health_check(request: Request):
     }
 
 @app.get("/health/ready", tags=["health"])
-@limiter.limit("10/minute")
+@limiter.limit("100/minute")  # Increased for load testing
 async def readiness_check(request: Request):
     """Kubernetes readiness probe"""
     return {"status": "ready"}
 
 @app.get("/health/live", tags=["health"])
-@limiter.limit("10/minute") 
+@limiter.limit("100/minute")  # Increased for load testing
 async def liveness_check(request: Request):
     """Kubernetes liveness probe"""
     return {"status": "alive"}
