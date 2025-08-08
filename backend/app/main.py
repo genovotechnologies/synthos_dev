@@ -42,11 +42,16 @@ ACTIVE_CONNECTIONS = Gauge('active_connections', 'Active connections')
 AI_GENERATION_DURATION = Histogram('ai_generation_duration_seconds', 'AI generation duration')
 DATA_QUALITY_SCORE = Gauge('data_quality_score', 'Average data quality score')
 
-# Rate limiting with Redis backend
-limiter = Limiter(key_func=get_remote_address, storage_uri=settings.CACHE_URL)
+# Rate limiting with Redis backend (feature-flagged)
+limiter = None
+try:
+    if settings.ENABLE_RATE_LIMITING and settings.ENABLE_CACHING:
+        limiter = Limiter(key_func=get_remote_address, storage_uri=settings.CACHE_URL)
+except Exception:
+    limiter = None
 
-# Sentry integration for error tracking
-if settings.SENTRY_DSN:
+# Sentry integration for error tracking (feature-flagged)
+if settings.ENABLE_SENTRY and settings.SENTRY_DSN:
     sentry_sdk.init(
         dsn=settings.SENTRY_DSN,
         integrations=[FastApiIntegration(auto_enable=True)],
@@ -258,12 +263,14 @@ app.add_middleware(
 )
 
 # Rate limiting
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+if limiter is not None:
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Prometheus metrics endpoint
-metrics_app = make_asgi_app()
-app.mount("/metrics", metrics_app)
+# Prometheus metrics endpoint (feature-flagged)
+if settings.ENABLE_PROMETHEUS and settings.PROMETHEUS_ENABLED:
+    metrics_app = make_asgi_app()
+    app.mount("/metrics", metrics_app)
 
 # API routes
 app.include_router(api_router, prefix="/api/v1")
@@ -333,8 +340,9 @@ async def health_check(request: Request):
     try:
         # Database health check
         from app.core.database import get_db_session
+        from sqlalchemy import text
         async with get_db_session() as db:
-            await db.execute("SELECT 1")
+            await db.execute(text("SELECT 1"))
             checks["database"] = "healthy"
     except Exception:
         checks["database"] = "unhealthy"
@@ -371,13 +379,13 @@ async def health_check(request: Request):
     }
 
 @app.get("/health/ready", tags=["health"])
-@limiter.limit("10/minute")
+@limiter.limit("10/minute") if limiter is not None else (lambda f: f)
 async def readiness_check(request: Request):
     """Kubernetes readiness probe"""
     return {"status": "ready"}
 
 @app.get("/health/live", tags=["health"])
-@limiter.limit("10/minute") 
+@limiter.limit("10/minute") if limiter is not None else (lambda f: f)
 async def liveness_check(request: Request):
     """Kubernetes liveness probe"""
     return {"status": "alive"}

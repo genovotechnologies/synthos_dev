@@ -71,10 +71,26 @@ const ProfilePage: FC = () => {
     fetchProfile();
   }, []);
 
-  const handleSaveProfile = () => {
-    setIsEditing(false);
-    // TODO: Save to API
-    console.log('Saving profile:', profileData);
+  const handleSaveProfile = async () => {
+    try {
+      const updated = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/users/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: profileData?.full_name,
+          company: profileData?.company,
+          role: profileData?.role,
+          bio: profileData?.bio,
+        }),
+        credentials: 'include',
+      });
+      if (!updated.ok) throw new Error('Failed to update profile');
+      const data = await updated.json();
+      setProfileData((prev:any) => ({ ...prev, ...data }));
+      setIsEditing(false);
+    } catch (e) {
+      setError('Failed to save profile');
+    }
   };
 
   const getActivityIcon = (type: string) => {

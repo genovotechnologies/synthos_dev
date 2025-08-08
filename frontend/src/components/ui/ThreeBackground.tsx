@@ -376,7 +376,9 @@ export default function ThreeBackground({
         }
       };
     } catch (error) {
-      console.error('Three.js initialization error:', error);
+      if (process.env.NEXT_PUBLIC_ENABLE_API_DEBUG_LOGS === 'true') {
+        console.error('Three.js initialization error:', error);
+      }
       setError('Failed to initialize 3D background');
       setIsLoaded(false);
     }

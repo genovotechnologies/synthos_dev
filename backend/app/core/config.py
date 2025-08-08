@@ -39,7 +39,8 @@ class Settings:
     CORS_ORIGINS: List[str] = _cors_origins.split(",")
     
     # Database Configuration
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/synthos")
+    # Default to SQLite locally to simplify dev without Postgres
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./synthos.db")
     DATABASE_POOL_SIZE: int = int(os.getenv("DATABASE_POOL_SIZE", "20"))
     DATABASE_MAX_OVERFLOW: int = int(os.getenv("DATABASE_MAX_OVERFLOW", "30"))
     
@@ -74,6 +75,8 @@ class Settings:
     # AWS ElastiCache Valkey: rediss://your-cluster.cache.amazonaws.com:6379
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     REDIS_CACHE_TTL: int = int(os.getenv("REDIS_CACHE_TTL", "3600"))
+    # Feature flag to enable/disable caching entirely
+    ENABLE_CACHING: bool = os.getenv("ENABLE_CACHING", "false").lower() == "true"
     
     # Optional: Separate Valkey URL for enhanced performance
     # If VALKEY_URL is set, it takes precedence over REDIS_URL
@@ -82,6 +85,8 @@ class Settings:
     # Cache backend preference (redis, valkey, auto)
     # 'auto' will prefer Valkey if available, fallback to Redis
     CACHE_BACKEND: str = os.getenv("CACHE_BACKEND", "auto")
+    # Back-compat flag used by some modules
+    REDIS_ENABLED: bool = ENABLE_CACHING
     
     # Celery Configuration (supports both Redis and Valkey)
     CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/1")
@@ -146,10 +151,13 @@ class Settings:
     # Monitoring
     SENTRY_DSN: Optional[str] = os.getenv("SENTRY_DSN")
     PROMETHEUS_ENABLED: bool = os.getenv("PROMETHEUS_ENABLED", "true").lower() == "true"
+    ENABLE_PROMETHEUS: bool = os.getenv("ENABLE_PROMETHEUS", "true").lower() == "true"
+    ENABLE_SENTRY: bool = os.getenv("ENABLE_SENTRY", "true").lower() == "true"
     
     # Rate Limiting
     RATE_LIMIT_REQUESTS: int = int(os.getenv("RATE_LIMIT_REQUESTS", "100"))
     RATE_LIMIT_WINDOW: int = int(os.getenv("RATE_LIMIT_WINDOW", "60"))
+    ENABLE_RATE_LIMITING: bool = os.getenv("ENABLE_RATE_LIMITING", "true").lower() == "true"
     
     # File Upload
     MAX_FILE_SIZE: int = int(os.getenv("MAX_FILE_SIZE", str(100 * 1024 * 1024)))

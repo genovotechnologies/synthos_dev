@@ -3,8 +3,9 @@
 // npm i --save-dev @types/node
 import axios from 'axios';
 
-// Security configuration
+// Security & feature flags
 const FORCE_HTTPS = process.env.NEXT_PUBLIC_FORCE_HTTPS === 'true';
+const ENABLE_API_DEBUG_LOGS = process.env.NEXT_PUBLIC_ENABLE_API_DEBUG_LOGS === 'true';
 
 // Get API base URL with security validation
 const getSecureApiUrl = (): string => {
@@ -54,17 +55,21 @@ api.interceptors.request.use(
       }
     }
     
-    console.log('🔒 API Request:', {
-      url: config.url,
-      method: config.method,
-      secure: config.url?.startsWith('https://') || false,
-      correlationId: config.headers['X-Correlation-ID']
-    });
+    if (ENABLE_API_DEBUG_LOGS) {
+      console.log('🔒 API Request:', {
+        url: config.url,
+        method: config.method,
+        secure: config.url?.startsWith('https://') || false,
+        correlationId: config.headers['X-Correlation-ID']
+      });
+    }
     
     return config;
   },
   (error: any) => {
-    console.error('❌ Request interceptor error:', error);
+    if (ENABLE_API_DEBUG_LOGS) {
+      console.error('❌ Request interceptor error:', error);
+    }
     return Promise.reject(error);
   }
 );
@@ -80,7 +85,9 @@ api.interceptors.response.use(
       'content-security-policy': response.headers['content-security-policy']
     };
     
-    console.log('🔒 Security Headers:', securityHeaders);
+    if (ENABLE_API_DEBUG_LOGS) {
+      console.log('🔒 Security Headers:', securityHeaders);
+    }
     
     return response;
   },
@@ -89,7 +96,9 @@ api.interceptors.response.use(
     
     // Handle HTTPS upgrade required
     if (error.response?.status === 426) {
+    if (ENABLE_API_DEBUG_LOGS) {
       console.error('🚨 HTTPS Required - Redirecting to secure endpoint');
+    }
       
       // Redirect to HTTPS version
       const httpsUrl = error.response.data?.upgrade_to;
@@ -101,7 +110,9 @@ api.interceptors.response.use(
     
     // Handle unauthorized access
     if (error.response?.status === 401) {
+    if (ENABLE_API_DEBUG_LOGS) {
       console.warn('🔐 Unauthorized access - clearing credentials');
+    }
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       
@@ -113,14 +124,16 @@ api.interceptors.response.use(
     }
     
     // Enhanced error logging with correlation ID
-    console.error('❌ API Error:', {
-      correlationId,
-      status: error.response?.status,
-      message: error.message,
-      endpoint: error.config?.url,
-      secure: error.config?.url?.startsWith('https://') || false,
-      data: error.response?.data || {}
-    });
+    if (ENABLE_API_DEBUG_LOGS) {
+      console.error('❌ API Error:', {
+        correlationId,
+        status: error.response?.status,
+        message: error.message,
+        endpoint: error.config?.url,
+        secure: error.config?.url?.startsWith('https://') || false,
+        data: error.response?.data || {}
+      });
+    }
     
     return Promise.reject(error);
   }
@@ -298,7 +311,7 @@ const apiService = {
   // User API methods
   async getProfile() {
     try {
-      const response = await api.get('/api/v1/users/profile');
+      const response = await api.get('/api/v1/users/me');
       return response.data;
     } catch (error) {
       console.warn('Using fallback profile');

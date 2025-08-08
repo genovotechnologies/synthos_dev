@@ -28,6 +28,9 @@ def get_async_database_url(url: str) -> str:
         return url.replace("postgresql://", "postgresql+asyncpg://")
     elif url.startswith("postgresql+psycopg2://"):
         return url.replace("postgresql+psycopg2://", "postgresql+asyncpg://")
+    elif url.startswith("sqlite://"):
+        # Use aiosqlite driver for async SQLite connections
+        return url.replace("sqlite://", "sqlite+aiosqlite://")
     return url
 
 # SQLAlchemy engine with connection pooling - use psycopg2
