@@ -7,8 +7,10 @@ import asyncio
 import json
 import time
 import psutil
-import numpy as np
 from typing import Dict, List, Any, Optional, Tuple, Callable
+
+# Use optional imports for numpy
+from app.utils.optional_imports import np, NUMPY_AVAILABLE
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
 from enum import Enum
@@ -530,8 +532,19 @@ class IntelligentMonitoringService:
         if len(history) < 10:
             return False, 0.0
         
-        q1 = np.percentile(history, 25)
-        q3 = np.percentile(history, 75)
+        # Use numpy if available, otherwise fallback to simple statistics
+        if NUMPY_AVAILABLE:
+            q1 = np.percentile(history, 25)
+            q3 = np.percentile(history, 75)
+        else:
+            # Simple fallback using sorted list
+            sorted_history = sorted(history)
+            n = len(sorted_history)
+            q1_idx = int(0.25 * n)
+            q3_idx = int(0.75 * n)
+            q1 = sorted_history[q1_idx]
+            q3 = sorted_history[q3_idx]
+        
         iqr = q3 - q1
         
         if iqr == 0:

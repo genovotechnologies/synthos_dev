@@ -39,8 +39,7 @@ class Settings:
     CORS_ORIGINS: List[str] = _cors_origins.split(",")
     
     # Database Configuration
-    # Default to SQLite locally to simplify dev without Postgres
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./synthos.db")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/synthos")
     DATABASE_POOL_SIZE: int = int(os.getenv("DATABASE_POOL_SIZE", "20"))
     DATABASE_MAX_OVERFLOW: int = int(os.getenv("DATABASE_MAX_OVERFLOW", "30"))
     

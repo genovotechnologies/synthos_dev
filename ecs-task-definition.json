@@ -1,0 +1,68 @@
+{
+  "family": "synthos-backend-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "containerDefinitions": [
+    {
+      "name": "synthos-backend",
+      "image": "698777852781.dkr.ecr.us-east-1.amazonaws.com/synthos-backend:latest",
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "ENVIRONMENT", "value": "production" },
+        { "name": "DEBUG", "value": "true" },
+        { "name": "CACHE_BACKEND", "value": "redis" },
+        { "name": "AWS_ELASTICACHE_PORT", "value": "6379" },
+        { "name": "AWS_ELASTICACHE_USE_TLS", "value": "true" },
+        { "name": "AWS_RDS_PORT", "value": "5432" },
+        { "name": "AWS_RDS_DATABASE", "value": "synthos" },
+        { "name": "AWS_RDS_USE_SSL", "value": "true" },
+        { "name": "PADDLE_ENVIRONMENT", "value": "production" },
+        { "name": "PRIMARY_PAYMENT_PROVIDER", "value": "paddle" },
+        { "name": "ENABLE_MULTIPLE_PAYMENT_PROVIDERS", "value": "true" },
+        { "name": "UPLOAD_PATH", "value": "/app/uploads" },
+        { "name": "CORS_ORIGINS", "value": "https://synthos.dev,https://synthos-dev.vercel.app,http://localhost:3000" },
+        { "name": "ALLOWED_HOSTS", "value": "*" },
+        { "name": "PORT", "value": "8000" },
+        { "name": "HOST", "value": "0.0.0.0" },
+        { "name": "EXPORT_PATH", "value": "/app/exports" },
+        { "name": "API_V1_STR", "value": "/api/v1" },
+        { "name": "AWS_S3_BUCKET", "value": "synthos-dev" },
+        { "name": "FREE_TIER_MONTHLY_LIMIT", "value": "10000" },
+        { "name": "MAX_SYNTHETIC_ROWS", "value": "5000000" },
+        { "name": "PRICING_TIERS", "value": "{\"starter\": {\"price\": 99, \"stripe_price_id\": \"price_starter_monthly\", \"paddle_product_id\": \"pro_01jzp36tyrsdg91hprxx47zhwb\"}, \"professional\": {\"price\": 599, \"stripe_price_id\": \"price_professional_monthly\", \"paddle_product_id\": \"pro_01jzp3ds3cj4y0x9y53ftcmmkk\"}, \"growth\": {\"price\": 1299, \"stripe_price_id\": \"price_growth_monthly\", \"paddle_product_id\": \"pro_01jzp3gcsceh34w3jvyyn68rhr\"}}" },
+        { "name": "RDS_PROXY_ENDPOINT", "value": "synthos-rds-proxy.proxy-cqnoi6g24lpg.us-east-1.rds.amazonaws.com" },
+        { "name": "USE_RDS_PROXY", "value": "true" },
+        { "name": "USE_IAM_AUTH", "value": "false" }
+      ],
+      "secrets": [
+        { "name": "DATABASE_URL", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/database-url" },
+        { "name": "REDIS_URL", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/redis-url" },
+        { "name": "CACHE_URL", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/cache-url" },
+        { "name": "AWS_ELASTICACHE_ENDPOINT", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/elasticache-endpoint" },
+        { "name": "AWS_RDS_ENDPOINT", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/rds-endpoint" },
+        { "name": "AWS_RDS_USERNAME", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/rds-username" },
+        { "name": "SECRET_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/secret-key" },
+        { "name": "JWT_SECRET_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/jwt-secret-key" },
+        { "name": "PADDLE_VENDOR_ID", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/paddle-vendor-id" },
+        { "name": "PADDLE_VENDOR_AUTH_CODE", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/paddle-vendor-auth-code" },
+        { "name": "PADDLE_PUBLIC_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/paddle-public-key" },
+        { "name": "PADDLE_WEBHOOK_SECRET", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/paddle-webhook-secret" },
+        { "name": "ANTHROPIC_API_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/anthropic-api-key" },
+        { "name": "OPENAI_API_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/openai-api-key" },
+        { "name": "STRIPE_SECRET_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/stripe-secret-key" },
+        { "name": "AWS_ACCESS_KEY_ID", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/aws-access-key-id" },
+        { "name": "AWS_SECRET_ACCESS_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/aws-secret-access-key" }
+      ],
+      "essential": true
+    }
+  ],
+  "executionRoleArn": "arn:aws:iam::698777852781:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::698777852781:role/ecsTaskRole"
+} 

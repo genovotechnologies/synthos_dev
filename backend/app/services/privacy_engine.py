@@ -4,7 +4,7 @@ Implements differential privacy, GDPR compliance, and intelligent privacy protec
 """
 
 import numpy as np
-import pandas as pd
+from app.utils.optional_imports import pd, PANDAS_AVAILABLE
 from typing import Dict, List, Any, Optional, Tuple, Union
 import logging
 from dataclasses import dataclass

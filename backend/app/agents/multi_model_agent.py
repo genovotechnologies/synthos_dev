@@ -7,7 +7,7 @@ Leverages strengths of different AI providers and custom trained models
 import asyncio
 import json
 import numpy as np
-import pandas as pd
+from app.utils.optional_imports import pd, PANDAS_AVAILABLE
 from typing import Dict, List, Any, Optional, Tuple, Union
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
