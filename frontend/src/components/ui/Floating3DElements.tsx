@@ -402,119 +402,124 @@ export default function Floating3DElements({
     }
   }, [resolvedTheme]);
 
-  // Fallback for when Three.js fails or is not supported
-  if (error || !isLoaded) {
-    return (
-      <div className={`absolute inset-0 ${className}`}>
-        <div className="w-full h-full">
-          {/* Animated gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-indigo-500/5 animate-pulse" />
-          
-          {/* Enhanced floating CSS elements */}
-          <div className="absolute inset-0 overflow-hidden">
-            {Array.from({ length: 50 }).map((_, i) => (
-              <motion.div
-                key={i}
-                className={`absolute rounded-full ${
-                  i % 4 === 0 ? 'w-3 h-3' : i % 3 === 0 ? 'w-2 h-2' : 'w-1 h-1'
-                } ${
-                  i % 6 === 0 ? 'bg-gradient-to-r from-blue-400/50 to-cyan-400/50' :
-                  i % 6 === 1 ? 'bg-gradient-to-r from-purple-400/50 to-pink-400/50' :
-                  i % 6 === 2 ? 'bg-gradient-to-r from-green-400/50 to-emerald-400/50' :
-                  i % 6 === 3 ? 'bg-gradient-to-r from-orange-400/50 to-red-400/50' :
-                  i % 6 === 4 ? 'bg-gradient-to-r from-indigo-400/50 to-blue-400/50' :
-                  'bg-gradient-to-r from-teal-400/50 to-cyan-400/50'
-                }`}
-                style={{
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
-                }}
-                animate={{
-                  y: [0, -50, 0],
-                  x: [0, Math.random() * 40 - 20, 0],
-                  opacity: [0.3, 0.9, 0.3],
-                  scale: [1, 1.4, 1],
-                  rotate: [0, 360],
-                }}
-                transition={{
-                  duration: 6 + Math.random() * 4,
-                  repeat: Infinity,
-                  delay: Math.random() * 3,
-                  ease: "easeInOut"
-                }}
-              />
-            ))}
+  // Render the component
+  const renderComponent = (): JSX.Element => {
+    // Fallback for when Three.js fails or is not supported
+    if (error || !isLoaded) {
+      return (
+        <div className={`absolute inset-0 ${className}`}>
+          <div className="w-full h-full">
+            {/* Animated gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-indigo-500/5 animate-pulse" />
             
-            {/* Database-themed special elements */}
-            {Array.from({ length: 20 }).map((_, i) => (
-              <motion.div
-                key={`data-${i}`}
-                className={`absolute ${
-                  i % 5 === 0 ? 'w-4 h-2 bg-gradient-to-r from-blue-500/60 to-purple-500/60 rounded-sm' : // Table row
-                  i % 5 === 1 ? 'w-2 h-4 bg-gradient-to-r from-green-500/60 to-emerald-500/60 rounded-sm' : // Table column
-                  i % 5 === 2 ? 'w-3 h-3 bg-gradient-to-r from-orange-500/60 to-red-500/60 transform rotate-45' : // Data cube
-                  i % 5 === 3 ? 'w-2 h-6 bg-gradient-to-r from-indigo-500/60 to-blue-500/60 rounded-lg' : // Database column
-                  'w-6 h-2 bg-gradient-to-r from-teal-500/60 to-cyan-500/60 rounded-sm' // Data bar
-                }`}
-                style={{
-                  left: `${15 + (i * 5)}%`,
-                  top: `${20 + (i * 4)}%`,
-                }}
-                animate={{
-                  y: [0, -60, 0],
-                  x: [0, Math.random() * 50 - 25, 0],
-                  opacity: [0.4, 0.8, 0.4],
-                  scale: [1, 1.5, 1],
-                  rotate: [0, 180, 360],
-                }}
-                transition={{
-                  duration: 8 + Math.random() * 3,
-                  repeat: Infinity,
-                  delay: Math.random() * 4,
-                  ease: "easeInOut"
-                }}
-              />
-            ))}
-            
-            {/* Additional data schema elements */}
-            {Array.from({ length: 15 }).map((_, i) => (
-              <motion.div
-                key={`schema-${i}`}
-                className={`absolute ${
-                  i % 4 === 0 ? 'w-3 h-3 bg-gradient-to-r from-yellow-500/50 to-orange-500/50 rounded-full' : // Data node
-                  i % 4 === 1 ? 'w-4 h-1 bg-gradient-to-r from-pink-500/50 to-red-500/50 rounded-full' : // Data wire
-                  i % 4 === 2 ? 'w-1 h-4 bg-gradient-to-r from-cyan-500/50 to-blue-500/50 rounded-full' : // Data pillar
-                  'w-2 h-2 bg-gradient-to-r from-lime-500/50 to-green-500/50 rounded-sm' // Data point
-                }`}
-                style={{
-                  left: `${25 + (i * 6)}%`,
-                  top: `${35 + (i * 5)}%`,
-                }}
-                animate={{
-                  y: [0, -40, 0],
-                  x: [0, Math.random() * 30 - 15, 0],
-                  opacity: [0.3, 0.7, 0.3],
-                  scale: [1, 1.3, 1],
-                  rotate: [0, 90, 180, 270, 360],
-                }}
-                transition={{
-                  duration: 7 + Math.random() * 2,
-                  repeat: Infinity,
-                  delay: Math.random() * 5,
-                  ease: "easeInOut"
-                }}
-              />
-            ))}
+            {/* Enhanced floating CSS elements */}
+            <div className="absolute inset-0 overflow-hidden">
+              {Array.from({ length: 50 }).map((_, i) => (
+                <motion.div
+                  key={i}
+                  className={`absolute rounded-full ${
+                    i % 4 === 0 ? 'w-3 h-3' : i % 3 === 0 ? 'w-2 h-2' : 'w-1 h-1'
+                  } ${
+                    i % 6 === 0 ? 'bg-gradient-to-r from-blue-400/50 to-cyan-400/50' :
+                    i % 6 === 1 ? 'bg-gradient-to-r from-purple-400/50 to-pink-400/50' :
+                    i % 6 === 2 ? 'bg-gradient-to-r from-green-400/50 to-emerald-400/50' :
+                    i % 6 === 3 ? 'bg-gradient-to-r from-orange-400/50 to-red-400/50' :
+                    i % 6 === 4 ? 'bg-gradient-to-r from-indigo-400/50 to-blue-400/50' :
+                    'bg-gradient-to-r from-teal-400/50 to-cyan-400/50'
+                  }`}
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                  }}
+                  animate={{
+                    y: [0, -50, 0],
+                    x: [0, Math.random() * 40 - 20, 0],
+                    opacity: [0.3, 0.9, 0.3],
+                    scale: [1, 1.4, 1],
+                    rotate: [0, 360],
+                  }}
+                  transition={{
+                    duration: 6 + Math.random() * 4,
+                    repeat: Infinity,
+                    delay: Math.random() * 3,
+                    ease: "easeInOut"
+                  }}
+                />
+              ))}
+              
+              {/* Database-themed special elements */}
+              {Array.from({ length: 20 }).map((_, i) => (
+                <motion.div
+                  key={`data-${i}`}
+                  className={`absolute ${
+                    i % 5 === 0 ? 'w-4 h-2 bg-gradient-to-r from-blue-500/60 to-purple-500/60 rounded-sm' : // Table row
+                    i % 5 === 1 ? 'w-2 h-4 bg-gradient-to-r from-green-500/60 to-emerald-500/60 rounded-sm' : // Table column
+                    i % 5 === 2 ? 'w-3 h-3 bg-gradient-to-r from-orange-500/60 to-red-500/60 transform rotate-45' : // Data cube
+                    i % 5 === 3 ? 'w-2 h-6 bg-gradient-to-r from-indigo-500/60 to-blue-500/60 rounded-lg' : // Database column
+                    'w-6 h-2 bg-gradient-to-r from-teal-500/60 to-cyan-500/60 rounded-sm' // Data bar
+                  }`}
+                  style={{
+                    left: `${15 + (i * 5)}%`,
+                    top: `${20 + (i * 4)}%`,
+                  }}
+                  animate={{
+                    y: [0, -60, 0],
+                    x: [0, Math.random() * 50 - 25, 0],
+                    opacity: [0.4, 0.8, 0.4],
+                    scale: [1, 1.5, 1],
+                    rotate: [0, 180, 360],
+                  }}
+                  transition={{
+                    duration: 8 + Math.random() * 3,
+                    repeat: Infinity,
+                    delay: Math.random() * 4,
+                    ease: "easeInOut"
+                  }}
+                />
+              ))}
+              
+              {/* Additional data schema elements */}
+              {Array.from({ length: 15 }).map((_, i) => (
+                <motion.div
+                  key={`schema-${i}`}
+                  className={`absolute ${
+                    i % 4 === 0 ? 'w-3 h-3 bg-gradient-to-r from-yellow-500/50 to-orange-500/50 rounded-full' : // Data node
+                    i % 4 === 1 ? 'w-4 h-1 bg-gradient-to-r from-pink-500/50 to-red-500/50 rounded-full' : // Data wire
+                    i % 4 === 2 ? 'w-1 h-4 bg-gradient-to-r from-cyan-500/50 to-blue-500/50 rounded-full' : // Data pillar
+                    'w-2 h-2 bg-gradient-to-r from-lime-500/50 to-green-500/50 rounded-sm' // Data point
+                  }`}
+                  style={{
+                    left: `${25 + (i * 6)}%`,
+                    top: `${35 + (i * 5)}%`,
+                  }}
+                  animate={{
+                    y: [0, -40, 0],
+                    x: [0, Math.random() * 30 - 15, 0],
+                    opacity: [0.3, 0.7, 0.3],
+                    scale: [1, 1.3, 1],
+                    rotate: [0, 90, 180, 270, 360],
+                  }}
+                  transition={{
+                    duration: 7 + Math.random() * 2,
+                    repeat: Infinity,
+                    delay: Math.random() * 5,
+                    ease: "easeInOut"
+                  }}
+                />
+              ))}
+            </div>
           </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  return (
-    <div 
-      ref={containerRef} 
-      className={`absolute inset-0 ${className}`}
-    />
-  );
-} 
+    return (
+      <div 
+        ref={containerRef} 
+        className={`absolute inset-0 ${className}`}
+      />
+    );
+  };
+
+  return renderComponent();
+}
