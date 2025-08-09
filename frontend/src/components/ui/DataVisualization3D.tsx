@@ -339,7 +339,9 @@ export default function DataVisualization3D({
   }, [data]);
 
   useEffect(() => {
-    if (!containerRef.current || enrichedData.length === 0) return;
+    if (!containerRef.current || enrichedData.length === 0) {
+      return () => {};
+    }
 
     try {
       // Create 3D visualization engine
@@ -369,47 +371,44 @@ export default function DataVisualization3D({
       console.error('3D visualization initialization error:', error);
       setError('Failed to initialize 3D visualization');
       setIsLoaded(false);
+      return () => {};
     }
   }, [enrichedData]);
 
   // Render the component
-  const renderComponent = (): JSX.Element => {
-    if (enrichedData.length === 0) {
-      return (
-        <div className={`relative overflow-hidden rounded-xl ${className}`} style={{ height }}>
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center space-y-4">
-              <Database className="h-16 w-16 mx-auto text-primary" />
-              <p className="text-sm text-muted-foreground">No data available for visualization.</p>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
+  if (enrichedData.length === 0) {
     return (
-      <ErrorBoundary fallback={() => <Fallback2D data={enrichedData} className={className} />}>
-        <div className={`relative overflow-hidden rounded-xl ${className}`} style={{ height }}>
-          {error || !isLoaded ? (
-            <Fallback2D data={enrichedData} className={className} />
-          ) : (
-            <div ref={containerRef} className="w-full h-full" />
-          )}
-          
-          {/* Overlay with data info */}
-          <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-sm rounded-lg p-3 text-white">
-            <div className="flex items-center space-x-2">
-              <Activity className="h-4 w-4" />
-              <span className="text-sm font-medium">Live Data</span>
-            </div>
-            <div className="text-xs text-gray-300 mt-1">
-              {enrichedData.length} data points
-            </div>
+      <div className={`relative overflow-hidden rounded-xl ${className}`} style={{ height }}>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center space-y-4">
+            <Database className="h-16 w-16 mx-auto text-primary" />
+            <p className="text-sm text-muted-foreground">No data available for visualization.</p>
           </div>
         </div>
-      </ErrorBoundary>
+      </div>
     );
-  };
+  }
 
-  return renderComponent();
+  return (
+    <ErrorBoundary fallback={() => <Fallback2D data={enrichedData} className={className} />}>
+      <div className={`relative overflow-hidden rounded-xl ${className}`} style={{ height }}>
+        {error || !isLoaded ? (
+          <Fallback2D data={enrichedData} className={className} />
+        ) : (
+          <div ref={containerRef} className="w-full h-full" />
+        )}
+        
+        {/* Overlay with data info */}
+        <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-sm rounded-lg p-3 text-white">
+          <div className="flex items-center space-x-2">
+            <Activity className="h-4 w-4" />
+            <span className="text-sm font-medium">Live Data</span>
+          </div>
+          <div className="text-xs text-gray-300 mt-1">
+            {enrichedData.length} data points
+          </div>
+        </div>
+      </div>
+    </ErrorBoundary>
+  );
 }
