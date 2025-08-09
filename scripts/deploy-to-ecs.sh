@@ -214,6 +214,8 @@ aws ecs create-service \
     --launch-type FARGATE \
     --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_IDS],securityGroups=[$(aws ec2 describe-security-groups --filters \"Name=group-name,Values=default\" --query 'SecurityGroups[0].GroupId' --output text)],assignPublicIp=ENABLED}" \
     --load-balancers "targetGroupArn=$TARGET_GROUP_ARN,containerName=synthos-backend,containerPort=8000" \
+    --deployment-configuration "maximumPercent=200,minimumHealthyPercent=50,alarms={rollback=false},deploymentCircuitBreaker={enable=true,rollback=true}" \
+    --health-check-grace-period-seconds 120 \
     --region $AWS_REGION || echo "Service already exists"
 
 echo "✅ ECS service created/updated"
