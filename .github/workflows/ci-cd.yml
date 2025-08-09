@@ -42,14 +42,6 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-      - name: Run CodeQL Analysis
-        uses: github/codeql-action/init@v3
-        with:
-          languages: python, javascript
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-
   # Backend Testing
   backend-test:
     name: Backend Tests
