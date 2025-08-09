@@ -521,3 +521,4 @@ export default function Floating3DElements({
       className={`absolute inset-0 ${className}`}
     />
   );
+}

@@ -452,3 +452,4 @@ export default function ThreeBackground({
       className={`fixed inset-0 -z-10 ${className}`}
     />
   );
+}
