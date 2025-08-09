@@ -129,7 +129,7 @@ if [ "$ALB_ARN" == "None" ] || [ -z "$ALB_ARN" ]; then
     
     # Get default VPC and subnets
     VPC_ID=$(aws ec2 describe-vpcs --filters "Name=is-default,Values=true" --query 'Vpcs[0].VpcId' --output text)
-    SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" --query 'Subnets[0:2].SubnetId' --output text | tr '\t' ',' | sed 's/,/,/g')
+    SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" --query 'Subnets[0:2].SubnetId' --output text | tr '\t' ',')
     
     # Create ALB
     ALB_ARN=$(aws elbv2 create-load-balancer \
@@ -143,6 +143,9 @@ if [ "$ALB_ARN" == "None" ] || [ -z "$ALB_ARN" ]; then
     echo "✅ ALB created: $ALB_ARN"
 else
     echo "✅ ALB already exists: $ALB_ARN"
+    # Retrieve VPC and SUBNET_IDS for later use
+    VPC_ID=$(aws elbv2 describe-load-balancers --load-balancer-arns $ALB_ARN --query 'LoadBalancers[0].VpcId' --output text)
+    SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" --query 'Subnets[0:2].SubnetId' --output text | tr '\t' ',')
 fi
 
 # Get ALB DNS name
@@ -160,9 +163,9 @@ TARGET_GROUP_ARN=$(aws elbv2 create-target-group \
     --name synthos-targets \
     --protocol HTTP \
     --port 8000 \
-    --vpc-id $(aws ec2 describe-vpcs --filters "Name=is-default,Values=true" --query 'Vpcs[0].VpcId' --output text) \
+    --vpc-id $VPC_ID \
     --target-type ip \
-    --health-check-path /api/v1/health \
+    --health-check-path /health \
     --health-check-interval-seconds 30 \
     --healthy-threshold-count 2 \
     --unhealthy-threshold-count 3 \
@@ -176,6 +179,12 @@ TARGET_GROUP_ARN=$(aws elbv2 create-target-group \
         --output text)
 
 echo "✅ Target group: $TARGET_GROUP_ARN"
+
+# Ensure target group health check path is correct
+aws elbv2 modify-target-group \
+    --target-group-arn $TARGET_GROUP_ARN \
+    --health-check-path /health \
+    --region $AWS_REGION >/dev/null
 
 # Create listener
 echo "🔊 Creating listener..."
@@ -203,7 +212,7 @@ aws ecs create-service \
     --task-definition $TASK_DEFINITION_ARN \
     --desired-count 1 \
     --launch-type FARGATE \
-    --network-configuration "awsvpcConfiguration={subnets=[$(echo $SUBNET_IDS | cut -d',' -f1)],securityGroups=[$(aws ec2 describe-security-groups --filters "Name=group-name,Values=default" --query 'SecurityGroups[0].GroupId' --output text)],assignPublicIp=ENABLED}" \
+    --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_IDS],securityGroups=[$(aws ec2 describe-security-groups --filters \"Name=group-name,Values=default\" --query 'SecurityGroups[0].GroupId' --output text)],assignPublicIp=ENABLED}" \
     --load-balancers "targetGroupArn=$TARGET_GROUP_ARN,containerName=synthos-backend,containerPort=8000" \
     --region $AWS_REGION || echo "Service already exists"
 
@@ -223,7 +232,7 @@ echo "   Cluster: $CLUSTER_NAME"
 echo "   Service: $SERVICE_NAME"
 echo "   Task Definition: $TASK_DEFINITION_ARN"
 echo "   Load Balancer: $ALB_DNS"
-echo "   Health Check: http://$ALB_DNS/api/v1/health"
+echo "   Health Check: http://$ALB_DNS/health"
 echo ""
 echo "🔗 Your API is now available at: http://$ALB_DNS"
 echo "📊 Monitor your service at: https://console.aws.amazon.com/ecs/home?region=$AWS_REGION#/clusters/$CLUSTER_NAME/services/$SERVICE_NAME" 
