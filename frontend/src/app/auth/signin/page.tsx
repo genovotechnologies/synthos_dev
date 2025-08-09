@@ -63,15 +63,15 @@ const SignInPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-blue-500/10 flex items-center justify-center p-4">
       {/* Back to Home Button */}
-      <a 
-        href="/" 
+      <button 
+        onClick={() => window.location.href = '/'}
         className="absolute top-8 left-8 z-50 flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground/70 hover:text-foreground transition-colors duration-200 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-lg border border-white/20"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
         Back to Home
-      </a>
+      </button>
       
       <div className="w-full max-w-md relative z-10">
         {/* Logo and Header */}
