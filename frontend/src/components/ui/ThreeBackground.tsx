@@ -341,7 +341,7 @@ export default function ThreeBackground({
   quality = 'high',
   theme = 'dark',
   particleCount = 8000
-}: ThreeBackgroundProps) {
+}: ThreeBackgroundProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const particleSystemRef = useRef<ParticleSystem | null>(null);
   const animationFrameRef = useRef<number>();

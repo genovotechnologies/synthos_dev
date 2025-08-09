@@ -306,7 +306,7 @@ export default function DataVisualization3D({
   height = "400px",
   interactive = true,
   quality = 'medium'
-}: DataVisualization3DProps) {
+}: DataVisualization3DProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<DataVisualization3DEngine | null>(null);
   const animationFrameRef = useRef<number>();

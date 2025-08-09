@@ -353,7 +353,7 @@ export default function Floating3DElements({
   className = "",
   elementCount = 50,
   theme = 'dark'
-}: Floating3DElementsProps) {
+}: Floating3DElementsProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<FloatingElementsEngine | null>(null);
   const animationFrameRef = useRef<number>();
