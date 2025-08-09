@@ -45,7 +45,12 @@
     "types": [
       "node"
     ],
-    "target": "ES2017"
+    "target": "ES2017",
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": false,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "allowSyntheticDefaultImports": true
   },
   "include": [
     "next-env.d.ts",
