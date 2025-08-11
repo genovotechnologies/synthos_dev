@@ -12,6 +12,7 @@ CLUSTER_NAME="synthos-cluster"
 SERVICE_NAME="synthos-backend-service"
 TASK_DEFINITION_FILE="infrastructure/aws/ecs-task-definition.json"
 ECR_REPOSITORY="synthos-backend"
+LOG_GROUP="/ecs/synthos-backend"
 
 echo "🚀 Deploying Synthos Backend to AWS ECS Fargate..."
 
@@ -29,6 +30,15 @@ fi
 
 echo "✅ AWS CLI configured and authenticated"
 
+# Ensure CloudWatch log group exists for awslogs
+if ! aws logs describe-log-groups --log-group-name-prefix "$LOG_GROUP" --region "$AWS_REGION" --query 'logGroups[?logGroupName==`'$LOG_GROUP'`].logGroupName' --output text | grep -q "$LOG_GROUP"; then
+  echo "🪵 Creating CloudWatch Logs group: $LOG_GROUP"
+  aws logs create-log-group --log-group-name "$LOG_GROUP" --region "$AWS_REGION" || true
+  aws logs put-retention-policy --log-group-name "$LOG_GROUP" --retention-in-days 14 --region "$AWS_REGION" || true
+else
+  echo "🪵 CloudWatch Logs group exists: $LOG_GROUP"
+fi
+
 # Create ECS Cluster if it doesn't exist
 echo "📦 Creating ECS cluster..."
 aws ecs create-cluster \
@@ -36,7 +46,7 @@ aws ecs create-cluster \
     --region $AWS_REGION \
     --capacity-providers FARGATE \
     --default-capacity-provider-strategy capacityProvider=FARGATE,weight=1 \
-    --tags key=Project,value=Synthos key=Environment,value=Production
+    --tags key=Project,value=Synthos key=Environment,value=Production || true
 
 echo "✅ ECS cluster created/verified"
 
@@ -62,7 +72,7 @@ aws iam create-role \
 
 aws iam attach-role-policy \
     --role-name $EXECUTION_ROLE_NAME \
-    --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+    --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy || true
 
 # Task Role (for application permissions)
 TASK_ROLE_NAME="ecsTaskRole"
@@ -84,11 +94,11 @@ aws iam create-role \
 # Attach policies for S3, RDS, ElastiCache, Secrets Manager
 aws iam attach-role-policy \
     --role-name $TASK_ROLE_NAME \
-    --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
+    --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess || true
 
 aws iam attach-role-policy \
     --role-name $TASK_ROLE_NAME \
-    --policy-arn arn:aws:iam::aws:policy/SecretsManagerReadWrite
+    --policy-arn arn:aws:iam::aws:policy/SecretsManagerReadWrite || true
 
 echo "✅ IAM roles created/verified"
 
@@ -158,14 +168,14 @@ ALB_DNS=$(aws elbv2 describe-load-balancers \
 echo "🌐 ALB DNS: $ALB_DNS"
 
 # Create target group
-echo "🎯 Creating target group..."
+echo "🎯 Creating/Updating target group..."
 TARGET_GROUP_ARN=$(aws elbv2 create-target-group \
     --name synthos-targets \
     --protocol HTTP \
     --port 8000 \
     --vpc-id $VPC_ID \
     --target-type ip \
-    --health-check-path /health \
+    --health-check-path /health/live \
     --health-check-interval-seconds 30 \
     --healthy-threshold-count 2 \
     --unhealthy-threshold-count 3 \
@@ -183,7 +193,7 @@ echo "✅ Target group: $TARGET_GROUP_ARN"
 # Ensure target group health check path is correct
 aws elbv2 modify-target-group \
     --target-group-arn $TARGET_GROUP_ARN \
-    --health-check-path /health \
+    --health-check-path /health/live \
     --region $AWS_REGION >/dev/null
 
 # Create listener
@@ -204,19 +214,34 @@ LISTENER_ARN=$(aws elbv2 create-listener \
 
 echo "✅ Listener created: $LISTENER_ARN"
 
-# Create ECS Service
-echo "🚀 Creating ECS service..."
-aws ecs create-service \
+# Create/Update ECS Service
+echo "🚀 Creating/Updating ECS service..."
+SERVICE_STATUS=$(aws ecs describe-services --cluster $CLUSTER_NAME --services $SERVICE_NAME --region $AWS_REGION --query 'services[0].status' --output text 2>/dev/null || echo "None")
+
+if [ "$SERVICE_STATUS" = "ACTIVE" ] || [ "$SERVICE_STATUS" = "DRAINING" ]; then
+  echo "🔄 Updating existing service..."
+  aws ecs update-service \
     --cluster $CLUSTER_NAME \
-    --service-name $SERVICE_NAME \
+    --service $SERVICE_NAME \
     --task-definition $TASK_DEFINITION_ARN \
     --desired-count 1 \
-    --launch-type FARGATE \
-    --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_IDS],securityGroups=[$(aws ec2 describe-security-groups --filters \"Name=group-name,Values=default\" --query 'SecurityGroups[0].GroupId' --output text)],assignPublicIp=ENABLED}" \
-    --load-balancers "targetGroupArn=$TARGET_GROUP_ARN,containerName=synthos-backend,containerPort=8000" \
-    --deployment-configuration "maximumPercent=200,minimumHealthyPercent=50,alarms={rollback=false},deploymentCircuitBreaker={enable=true,rollback=true}" \
     --health-check-grace-period-seconds 120 \
-    --region $AWS_REGION || echo "Service already exists"
+    --force-new-deployment \
+    --region $AWS_REGION >/dev/null
+else
+  echo "🆕 Creating service..."
+  aws ecs create-service \
+      --cluster $CLUSTER_NAME \
+      --service-name $SERVICE_NAME \
+      --task-definition $TASK_DEFINITION_ARN \
+      --desired-count 1 \
+      --launch-type FARGATE \
+      --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_IDS],securityGroups=[$(aws ec2 describe-security-groups --filters \"Name=group-name,Values=default\" --query 'SecurityGroups[0].GroupId' --output text)],assignPublicIp=ENABLED}" \
+      --load-balancers "targetGroupArn=$TARGET_GROUP_ARN,containerName=synthos-backend,containerPort=8000" \
+      --deployment-configuration "maximumPercent=200,minimumHealthyPercent=50,alarms={rollback=false},deploymentCircuitBreaker={enable=true,rollback=true}" \
+      --health-check-grace-period-seconds 120 \
+      --region $AWS_REGION >/dev/null
+fi
 
 echo "✅ ECS service created/updated"
 
@@ -227,6 +252,7 @@ aws ecs wait services-stable \
     --services $SERVICE_NAME \
     --region $AWS_REGION
 
+# Summary
 echo "🎉 Deployment completed successfully!"
 echo ""
 echo "📋 Deployment Summary:"
