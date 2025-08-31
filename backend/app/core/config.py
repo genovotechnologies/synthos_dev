@@ -21,6 +21,9 @@ class Settings:
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     
+    # MVP Mode - Disable advanced features for simpler deployment
+    MVP_MODE: bool = os.getenv("MVP_MODE", "false").lower() == "true"
+    
     # Security Configuration
     FORCE_HTTPS: bool = os.getenv("FORCE_HTTPS", "false").lower() == "true"
     SESSION_DOMAIN: Optional[str] = os.getenv("SESSION_DOMAIN")  # e.g., ".synthos.ai"
@@ -86,6 +89,13 @@ class Settings:
     CACHE_BACKEND: str = os.getenv("CACHE_BACKEND", "auto")
     # Back-compat flag used by some modules
     REDIS_ENABLED: bool = ENABLE_CACHING
+    
+    @property
+    def CACHING_ENABLED(self) -> bool:
+        """MVP-aware caching check"""
+        if self.MVP_MODE:
+            return os.getenv("ENABLE_CACHING", "true").lower() == "true"
+        return self.ENABLE_CACHING
     
     # Celery Configuration (supports both Redis and Valkey)
     CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/1")
