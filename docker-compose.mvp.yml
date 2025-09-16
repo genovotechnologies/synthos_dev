@@ -1,0 +1,132 @@
+# Synthos MVP - Simplified Docker Compose
+# Only essential services for basic functionality
+
+# Note: version field is now optional in newer Docker Compose
+
+networks:
+  synthos-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads:
+  exports:
+
+services:
+  # =============================================================================
+  # DATABASE SERVICES
+  # =============================================================================
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: synthos_db
+      POSTGRES_USER: synthos
+      POSTGRES_PASSWORD: securepassword123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - synthos-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synthos -d synthos_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - synthos-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =============================================================================
+  # BACKEND SERVICE
+  # =============================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    environment:
+      - ENVIRONMENT=development
+      - MVP_MODE=true
+      - DEBUG=true
+      - DATABASE_URL=postgresql://synthos:securepassword123@postgres:5432/synthos_db
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - JWT_SECRET_KEY=dev-jwt-secret-change-in-production
+      - ENABLE_CACHING=true
+      - ENABLE_PROMETHEUS=false
+      - ENABLE_SENTRY=false
+      - ENABLE_RATE_LIMITING=false
+      - FORCE_HTTPS=false
+      - CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+      # Add your API keys here
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-your-anthropic-key-here}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-your-openai-key-here}
+    volumes:
+      - uploads:/app/uploads
+      - exports:/app/exports
+    ports:
+      - "8000:8000"
+    networks:
+      - synthos-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # =============================================================================
+  # FRONTEND SERVICE
+  # =============================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runner
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_ENVIRONMENT=development
+    ports:
+      - "3000:3000"
+    networks:
+      - synthos-network
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # =============================================================================
+  # DEVELOPMENT TOOLS
+  # =============================================================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@synthos.dev
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    networks:
+      - synthos-network
+    depends_on:
+      - postgres
+    profiles:
+      - dev-tools

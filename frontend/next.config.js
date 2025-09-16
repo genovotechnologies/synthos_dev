@@ -15,6 +15,7 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_APP_NAME: 'Synthos',
     NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version,
+    NEXT_PUBLIC_ENABLE_API_DEBUG_LOGS: process.env.NEXT_PUBLIC_ENABLE_API_DEBUG_LOGS || 'false',
   },
 
   // Optimized image configuration

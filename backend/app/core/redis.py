@@ -23,8 +23,8 @@ async def init_redis():
     """Initialize Redis/Valkey connection pool with Valkey support"""
     global redis_pool, redis_client
     
-    # Check if Redis/Valkey is disabled
-    if os.getenv('REDIS_DISABLED', 'false').lower() == 'true':
+    # Respect feature flag to disable caching
+    if not settings.ENABLE_CACHING or os.getenv('REDIS_DISABLED', 'false').lower() == 'true':
         logger.warning("Cache is disabled - using in-memory fallback")
         return
     
@@ -66,16 +66,20 @@ async def init_redis():
     except Exception as e:
         logger.error(f"Failed to initialize cache client: {str(e)}")
         redis_client = None
-        raise
+        # Do not raise to allow app to continue without cache
+        return
 
 
-async def get_redis() -> redis.Redis:
+async def get_redis() -> Optional[redis.Redis]:
     """Get Redis/Valkey client instance"""
+    # If caching disabled, return None gracefully
+    if not settings.ENABLE_CACHING:
+        return None
     if redis_client is None:
         await init_redis()
     
     if redis_client is None:
-        raise RuntimeError("Failed to initialize cache client")
+        return None
     
     return redis_client
 
@@ -93,6 +97,8 @@ class CacheManager:
     
     async def _get_client(self) -> redis.Redis:
         """Get Redis client with lazy initialization"""
+        if not settings.ENABLE_CACHING:
+            return None  # Signal to use in-memory
         if self.client is None:
             self.client = await get_redis()
         return self.client
@@ -101,6 +107,8 @@ class CacheManager:
         """Get value from cache"""
         try:
             client = await self._get_client()
+            if client is None:
+                return None
             value = await client.get(key)
             
             if value is None:
@@ -128,6 +136,9 @@ class CacheManager:
         """Set value in cache"""
         try:
             client = await self._get_client()
+            if client is None:
+                # No-op when disabled
+                return True
             
             # Serialize value
             if isinstance(value, (dict, list, tuple)):
@@ -150,6 +161,8 @@ class CacheManager:
         """Delete key from cache"""
         try:
             client = await self._get_client()
+            if client is None:
+                return True
             result = await client.delete(key)
             return bool(result)
         except Exception as e:
@@ -160,6 +173,8 @@ class CacheManager:
         """Check if key exists in cache"""
         try:
             client = await self._get_client()
+            if client is None:
+                return False
             result = await client.exists(key)
             return bool(result)
         except Exception as e:
@@ -170,6 +185,8 @@ class CacheManager:
         """Increment counter in cache"""
         try:
             client = await self._get_client()
+            if client is None:
+                return None
             result = await client.incrby(key, amount)
             return result
         except Exception as e:
@@ -180,6 +197,8 @@ class CacheManager:
         """Set expiration time for key"""
         try:
             client = await self._get_client()
+            if client is None:
+                return True
             result = await client.expire(key, ttl)
             return bool(result)
         except Exception as e:
@@ -190,6 +209,8 @@ class CacheManager:
         """Get all keys matching pattern"""
         try:
             client = await self._get_client()
+            if client is None:
+                return []
             keys = await client.keys(pattern)
             return keys
         except Exception as e:
@@ -200,6 +221,8 @@ class CacheManager:
         """Delete all keys matching pattern"""
         try:
             client = await self._get_client()
+            if client is None:
+                return 0
             keys = await client.keys(pattern)
             if keys:
                 result = await client.delete(*keys)

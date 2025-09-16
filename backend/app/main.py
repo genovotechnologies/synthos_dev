@@ -14,9 +14,15 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer
-from prometheus_client import make_asgi_app, Counter, Histogram, Gauge
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
+
+# Conditional imports for monitoring
+try:
+    from prometheus_client import make_asgi_app, Counter, Histogram, Gauge
+    PROMETHEUS_AVAILABLE = True
+except ImportError:
+    PROMETHEUS_AVAILABLE = False
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 import redis.asyncio as redis
@@ -35,18 +41,38 @@ from app.services.auth import AuthService
 setup_logging()
 logger = structlog.get_logger()
 
-# Prometheus metrics
-REQUEST_COUNT = Counter('http_requests_total', 'Total HTTP requests', ['method', 'endpoint', 'status'])
-REQUEST_DURATION = Histogram('http_request_duration_seconds', 'HTTP request duration')
-ACTIVE_CONNECTIONS = Gauge('active_connections', 'Active connections')
-AI_GENERATION_DURATION = Histogram('ai_generation_duration_seconds', 'AI generation duration')
-DATA_QUALITY_SCORE = Gauge('data_quality_score', 'Average data quality score')
+# Prometheus metrics (conditional)
+if PROMETHEUS_AVAILABLE:
+    REQUEST_COUNT = Counter('http_requests_total', 'Total HTTP requests', ['method', 'endpoint', 'status'])
+    REQUEST_DURATION = Histogram('http_request_duration_seconds', 'HTTP request duration')
+    ACTIVE_CONNECTIONS = Gauge('active_connections', 'Active connections')
+else:
+    # Mock metrics for when Prometheus is not available
+    class MockMetric:
+        def inc(self): pass
+        def observe(self, value): pass
+        def labels(self, **kwargs): return self
+    
+    REQUEST_COUNT = MockMetric()
+    REQUEST_DURATION = MockMetric()
+    ACTIVE_CONNECTIONS = MockMetric()
+if PROMETHEUS_AVAILABLE:
+    AI_GENERATION_DURATION = Histogram('ai_generation_duration_seconds', 'AI generation duration')
+    DATA_QUALITY_SCORE = Gauge('data_quality_score', 'Average data quality score')
+else:
+    AI_GENERATION_DURATION = MockMetric()
+    DATA_QUALITY_SCORE = MockMetric()
 
-# Rate limiting with Redis backend
-limiter = Limiter(key_func=get_remote_address, storage_uri=settings.CACHE_URL)
+# Rate limiting with Redis backend (feature-flagged, disabled in MVP mode)
+limiter = None
+try:
+    if not settings.MVP_MODE and settings.ENABLE_RATE_LIMITING and settings.ENABLE_CACHING:
+        limiter = Limiter(key_func=get_remote_address, storage_uri=settings.CACHE_URL)
+except Exception:
+    limiter = None
 
-# Sentry integration for error tracking
-if settings.SENTRY_DSN:
+# Sentry integration for error tracking (feature-flagged, disabled in MVP mode)
+if not settings.MVP_MODE and settings.ENABLE_SENTRY and settings.SENTRY_DSN:
     sentry_sdk.init(
         dsn=settings.SENTRY_DSN,
         integrations=[FastApiIntegration(auto_enable=True)],
@@ -190,6 +216,12 @@ async def lifespan(app: FastAPI):
                 logger.warning(f"Database connection attempt {attempt + 1} failed, retrying...", error=str(e))
                 await asyncio.sleep(2)
         
+
+        # Initialize Redis with connection pooling (only if caching is enabled)
+        if settings.ENABLE_CACHING:
+            from app.core.redis import init_redis
+            await init_redis()
+
         # Initialize Redis with connection pooling (best-effort)
         try:
             from app.core.redis import init_redis
@@ -197,6 +229,7 @@ async def lifespan(app: FastAPI):
             redis_initialized = True
         except Exception as e:
             logger.warning("Redis initialization failed; continuing in degraded mode", error=str(e))
+
         
         # Warm up critical services (best-effort)
         try:
@@ -280,12 +313,14 @@ app.add_middleware(
 )
 
 # Rate limiting
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+if limiter is not None:
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Prometheus metrics endpoint
-metrics_app = make_asgi_app()
-app.mount("/metrics", metrics_app)
+# Prometheus metrics endpoint (feature-flagged, disabled in MVP mode)
+if not settings.MVP_MODE and getattr(settings, 'ENABLE_PROMETHEUS', False) and PROMETHEUS_AVAILABLE:
+    metrics_app = make_asgi_app()
+    app.mount("/metrics", metrics_app)
 
 # API routes
 app.include_router(api_router, prefix="/api/v1")
@@ -355,17 +390,21 @@ async def health_check(request: Request):
     try:
         # Database health check
         from app.core.database import get_db_session
+        from sqlalchemy import text
         async with get_db_session() as db:
-            await db.execute("SELECT 1")
+            await db.execute(text("SELECT 1"))
             checks["database"] = "healthy"
     except Exception:
         checks["database"] = "unhealthy"
     
     try:
-        # Redis health check
-        redis_client = await get_redis_client()
-        await redis_client.ping()
-        checks["redis"] = "healthy"
+        # Redis health check (only if caching is enabled)
+        if settings.ENABLE_CACHING:
+            redis_client = await get_redis_client()
+            await redis_client.ping()
+            checks["redis"] = "healthy"
+        else:
+            checks["redis"] = "disabled"
     except Exception:
         checks["redis"] = "unhealthy"
     
@@ -393,15 +432,17 @@ async def health_check(request: Request):
     }
 
 @app.get("/health/ready", tags=["health"])
-@limiter.limit("100/minute")  # Increased for load testing
 async def readiness_check(request: Request):
     """Kubernetes readiness probe"""
+    if limiter and not settings.MVP_MODE:
+        limiter.limit("10/minute")(readiness_check)
     return {"status": "ready"}
 
 @app.get("/health/live", tags=["health"])
-@limiter.limit("100/minute")  # Increased for load testing
 async def liveness_check(request: Request):
     """Kubernetes liveness probe"""
+    if limiter and not settings.MVP_MODE:
+        limiter.limit("10/minute")(liveness_check)
     return {"status": "alive"}
 
 @app.get("/", tags=["health"])

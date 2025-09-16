@@ -1070,7 +1070,6 @@ class AdvancedClaudeAgent:
             "quality_metrics": asdict(quality_metrics),
             "generation_config": asdict(config),
             "dataset_id": dataset.id,
-            "generation_job_id": job.id,
             "generation_date": datetime.now().isoformat()
         }
         await self._set_cache(cache_key, cache_value, ttl=3600) # Cache for 1 hour
@@ -1080,7 +1079,7 @@ class AdvancedClaudeAgent:
         Retrieves an item from the cache.
         """
         if settings.REDIS_ENABLED:
-            redis_client = get_redis_client()
+            redis_client = await get_redis_client()
             if redis_client:
                 cached_data = await redis_client.get(key)
                 if cached_data:
@@ -1092,7 +1091,7 @@ class AdvancedClaudeAgent:
         Sets an item in the cache.
         """
         if settings.REDIS_ENABLED:
-            redis_client = get_redis_client()
+            redis_client = await get_redis_client()
             if redis_client:
                 await redis_client.set(key, pickle.dumps(value), ex=ttl)
         else:

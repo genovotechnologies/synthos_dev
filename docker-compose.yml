@@ -59,19 +59,17 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: ${BUILD_TARGET:-production}
+    env_file:
+      - .env.docker
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-development}
       - DATABASE_URL=postgresql://synthos:${POSTGRES_PASSWORD:-securepassword123}@postgres:5432/synthos_db
       - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-jwt-secret-change-in-production}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_S3_BUCKET=${AWS_S3_BUCKET:-synthos-dev}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MVP_MODE=true
     volumes:
       - uploads:/app/uploads
       - exports:/app/exports
@@ -93,70 +91,67 @@ services:
     restart: unless-stopped
 
   # =============================================================================
-  # CELERY WORKERS
+  # CELERY WORKERS (DISABLED IN MVP MODE)
+  # Uncomment these services when you need background task processing
   # =============================================================================
-  celery-worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      target: production
-    command: celery -A app.core.celery worker --loglevel=info --concurrency=4
-    environment:
-      - ENVIRONMENT=${ENVIRONMENT:-development}
-      - DATABASE_URL=postgresql://synthos:${POSTGRES_PASSWORD:-securepassword123}@postgres:5432/synthos_db
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-    volumes:
-      - uploads:/app/uploads
-      - exports:/app/exports
-    networks:
-      - synthos-network
-    depends_on:
-      - postgres
-      - redis
-    restart: unless-stopped
-    deploy:
-      replicas: 2
+  # celery-worker:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #     target: production
+  #   command: celery -A app.core.celery worker --loglevel=info --concurrency=4
+  #   environment:
+  #     - ENVIRONMENT=${ENVIRONMENT:-development}
+  #     - DATABASE_URL=postgresql://synthos:${POSTGRES_PASSWORD:-securepassword123}@postgres:5432/synthos_db
+  #     - REDIS_URL=redis://redis:6379/0
+  #     - CELERY_BROKER_URL=redis://redis:6379/1
+  #     - CELERY_RESULT_BACKEND=redis://redis:6379/2
+  #     - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+  #   volumes:
+  #     - uploads:/app/uploads
+  #     - exports:/app/exports
+  #   networks:
+  #     - synthos-network
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #   restart: unless-stopped
 
-  celery-beat:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      target: production
-    command: celery -A app.core.celery beat --loglevel=info
-    environment:
-      - ENVIRONMENT=${ENVIRONMENT:-development}
-      - DATABASE_URL=postgresql://synthos:${POSTGRES_PASSWORD:-securepassword123}@postgres:5432/synthos_db
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
-    networks:
-      - synthos-network
-    depends_on:
-      - postgres
-      - redis
-    restart: unless-stopped
+  # celery-beat:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #     target: production
+  #   command: celery -A app.core.celery beat --loglevel=info
+  #   environment:
+  #     - ENVIRONMENT=${ENVIRONMENT:-development}
+  #     - DATABASE_URL=postgresql://synthos:${POSTGRES_PASSWORD:-securepassword123}@postgres:5432/synthos_db
+  #     - REDIS_URL=redis://redis:6379/0
+  #     - CELERY_BROKER_URL=redis://redis:6379/1
+  #     - CELERY_RESULT_BACKEND=redis://redis:6379/2
+  #   networks:
+  #     - synthos-network
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #   restart: unless-stopped
 
-  flower:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      target: production
-    command: celery -A app.core.celery flower --port=5555
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
-    ports:
-      - "5555:5555"
-    networks:
-      - synthos-network
-    depends_on:
-      - redis
-    restart: unless-stopped
+  # flower:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #     target: production
+  #   command: celery -A app.core.celery flower --port=5555
+  #   environment:
+  #     - CELERY_BROKER_URL=redis://redis:6379/1
+  #     - CELERY_RESULT_BACKEND=redis://redis:6379/2
+  #   ports:
+  #     - "5555:5555"
+  #   networks:
+  #     - synthos-network
+  #   depends_on:
+  #     - redis
+  #   restart: unless-stopped
 
   # =============================================================================
   # FRONTEND SERVICE
@@ -179,47 +174,54 @@ services:
     restart: unless-stopped
 
   # =============================================================================
-  # MONITORING SERVICES
+  # MONITORING SERVICES (DISABLED IN MVP MODE)
+  # Uncomment these when you need monitoring
   # =============================================================================
-  prometheus:
-    image: prom/prometheus:latest
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-    networks:
-      - synthos-network
-    restart: unless-stopped
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+  #   networks:
+  #     - synthos-network
+  #   restart: unless-stopped
+  #   profiles:
+  #     - monitoring
 
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "3001:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
-    volumes:
-      - ./monitoring/grafana:/etc/grafana/provisioning
-    networks:
-      - synthos-network
-    restart: unless-stopped
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   ports:
+  #     - "3001:3000"
+  #   environment:
+  #     - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+  #   volumes:
+  #     - ./monitoring/grafana:/etc/grafana/provisioning
+  #   networks:
+  #     - synthos-network
+  #   restart: unless-stopped
+  #   profiles:
+  #     - monitoring
 
   # =============================================================================
-  # LOAD BALANCER (NGINX)
+  # LOAD BALANCER (NGINX) - DISABLED IN MVP MODE
   # =============================================================================
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/ssl:/etc/nginx/ssl
-    networks:
-      - synthos-network
-    depends_on:
-      - frontend
-      - backend
-    restart: unless-stopped
+  # nginx:
+  #   image: nginx:alpine
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+  #     - ./nginx/ssl:/etc/nginx/ssl
+  #   networks:
+  #     - synthos-network
+  #   depends_on:
+  #     - frontend
+  #     - backend
+  #   restart: unless-stopped
+  #   profiles:
+  #     - production
 
   # =============================================================================
   # DEVELOPMENT SERVICES (only in development)
