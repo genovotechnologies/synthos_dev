@@ -341,7 +341,7 @@ export default function ThreeBackground({
   quality = 'high',
   theme = 'dark',
   particleCount = 8000
-}: ThreeBackgroundProps) {
+}: ThreeBackgroundProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const particleSystemRef = useRef<ParticleSystem | null>(null);
   const animationFrameRef = useRef<number>();
@@ -349,7 +349,9 @@ export default function ThreeBackground({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current) {
+      return () => {};
+    }
 
     try {
       // Create particle system
@@ -381,6 +383,7 @@ export default function ThreeBackground({
       }
       setError('Failed to initialize 3D background');
       setIsLoaded(false);
+      return () => {};
     }
   }, [particleCount]);
 
@@ -451,4 +454,4 @@ export default function ThreeBackground({
       className={`fixed inset-0 -z-10 ${className}`}
     />
   );
-} 
+}

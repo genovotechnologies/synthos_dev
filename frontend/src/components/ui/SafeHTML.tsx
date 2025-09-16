@@ -200,7 +200,7 @@ export const SafeMarkdown: React.FC<{
     
     try {
       // Basic markdown to HTML conversion (very limited for security)
-      let html = markdown
+      const html = markdown
         // Headers
         .replace(/^### (.*$)/gim, '<h3>$1</h3>')
         .replace(/^## (.*$)/gim, '<h2>$1</h2>')

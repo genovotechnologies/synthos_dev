@@ -60,7 +60,15 @@
         { "name": "AWS_ACCESS_KEY_ID", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/aws-access-key-id" },
         { "name": "AWS_SECRET_ACCESS_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:698777852781:secret:synthos/aws-secret-access-key" }
       ],
-      "essential": true
+      "essential": true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/synthos-backend",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
     }
   ],
   "executionRoleArn": "arn:aws:iam::698777852781:role/ecsTaskExecutionRole",

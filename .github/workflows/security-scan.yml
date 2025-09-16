@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
         
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
@@ -40,6 +42,14 @@ jobs:
         run: |
           pip install safety
           safety check --json --output safety-results.json || true
+          
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python, javascript
+          
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
           
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3

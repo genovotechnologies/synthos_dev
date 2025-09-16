@@ -306,7 +306,7 @@ export default function DataVisualization3D({
   height = "400px",
   interactive = true,
   quality = 'medium'
-}: DataVisualization3DProps) {
+}: DataVisualization3DProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<DataVisualization3DEngine | null>(null);
   const animationFrameRef = useRef<number>();
@@ -339,7 +339,9 @@ export default function DataVisualization3D({
   }, [data]);
 
   useEffect(() => {
-    if (!containerRef.current || enrichedData.length === 0) return;
+    if (!containerRef.current || enrichedData.length === 0) {
+      return () => {};
+    }
 
     try {
       // Create 3D visualization engine
@@ -369,9 +371,11 @@ export default function DataVisualization3D({
       console.error('3D visualization initialization error:', error);
       setError('Failed to initialize 3D visualization');
       setIsLoaded(false);
+      return () => {};
     }
   }, [enrichedData]);
 
+  // Render the component
   if (enrichedData.length === 0) {
     return (
       <div className={`relative overflow-hidden rounded-xl ${className}`} style={{ height }}>

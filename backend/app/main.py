@@ -201,32 +201,58 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Synthos platform...")
     
+    db_initialized: bool = False
+    redis_initialized: bool = False
+    ai_warmup_ok: bool = False
+    
     try:
         # Initialize database with retry logic
         for attempt in range(3):
             try:
                 await create_tables()
+                db_initialized = True
                 break
             except Exception as e:
-                if attempt == 2:
-                    raise
-                logger.warning(f"Database connection attempt {attempt + 1} failed, retrying...")
+                logger.warning(f"Database connection attempt {attempt + 1} failed, retrying...", error=str(e))
                 await asyncio.sleep(2)
         
+
         # Initialize Redis with connection pooling (only if caching is enabled)
         if settings.ENABLE_CACHING:
             from app.core.redis import init_redis
             await init_redis()
+
+        # Initialize Redis with connection pooling (best-effort)
+        try:
+            from app.core.redis import init_redis
+            await init_redis()
+            redis_initialized = True
+        except Exception as e:
+            logger.warning("Redis initialization failed; continuing in degraded mode", error=str(e))
+
         
-        # Warm up critical services
-        auth_service = AuthService()
-        await auth_service.warm_up()
+        # Warm up critical services (best-effort)
+        try:
+            auth_service = AuthService()
+            await auth_service.warm_up()
+            ai_warmup_ok = True
+        except Exception as e:
+            logger.warning("Auth/AI warm-up failed; continuing in degraded mode", error=str(e))
         
-        logger.info("Synthos platform started successfully")
+        logger.info(
+            "Synthos platform startup completed",
+            db_initialized=db_initialized,
+            redis_initialized=redis_initialized,
+            ai_warmup_ok=ai_warmup_ok,
+        )
         
     except Exception as e:
-        logger.error("Failed to start Synthos platform", error=str(e), exc_info=True)
-        raise
+        # In production/staging, do not crash the service; continue in degraded mode
+        if settings.ENVIRONMENT in ["production", "staging"]:
+            logger.error("Failed to fully start Synthos platform; continuing in degraded mode", error=str(e), exc_info=True)
+        else:
+            logger.error("Failed to start Synthos platform", error=str(e), exc_info=True)
+            raise
     
     yield
     
