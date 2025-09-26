@@ -53,26 +53,50 @@ from app.core.config import settings
 from app.core.logging import get_logger
 from app.models.dataset import CustomModel, CustomModelStatus, CustomModelType
 
+try:
+    from google.cloud import storage as gcs_storage
+except Exception:  # pragma: no cover
+    gcs_storage = None
+
+try:
+    import boto3  # legacy support
+except Exception:  # pragma: no cover
+    boto3 = None
+
 logger = get_logger(__name__)
 
 
 class CustomModelService:
-    """Service for managing custom model lifecycle"""
+    """Service for managing custom model files in object storage."""
     
     def __init__(self):
-        if settings.AWS_ACCESS_KEY_ID:
-            self.s3_client = boto3.client(
-                's3',
-                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-                region_name=settings.AWS_REGION
-            )
+        # Determine storage provider; prefer GCS
+        self.storage_provider = settings.STORAGE_PROVIDER.lower()
+        self.gcs_client = None
+        self.s3_client = None
+        
+        if self.storage_provider == "gcs":
+            if not gcs_storage:
+                logger.warning("google-cloud-storage not available; falling back to AWS if configured")
+            else:
+                self.gcs_client = gcs_storage.Client(project=settings.GCP_PROJECT_ID)  # uses ADC
+                if not settings.GCS_BUCKET:
+                    logger.warning("GCS bucket not configured (GCS_BUCKET)")
         else:
-            self.s3_client = None
-            logger.warning("AWS S3 not configured for custom models")
+            if boto3 and settings.AWS_ACCESS_KEY_ID:
+                self.s3_client = boto3.client(
+                    's3',
+                    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                    region_name=settings.AWS_REGION
+                )
+            elif boto3:
+                self.s3_client = boto3.client('s3')
+            else:
+                logger.warning("boto3 not available; S3 disabled")
         
         # Model runtime registries
-        self.loaded_models = {}  # Cache for loaded models
+        self.loaded_models: Dict[str, Any] = {}
         self.model_validators = {
             CustomModelType.TENSORFLOW: self._validate_tensorflow_model,
             CustomModelType.PYTORCH: self._validate_pytorch_model,
@@ -83,54 +107,44 @@ class CustomModelService:
     
     async def upload_model_files(
         self,
-        custom_model: CustomModel,
+        custom_model,
         model_file,
         config_file=None,
         requirements_file=None
     ) -> Dict[str, str]:
-        """Upload model files to S3 and update model record"""
-        
+        """Upload model artifacts to object storage and update model record."""
         try:
             logger.info(f"Uploading files for model {custom_model.id}")
-            
-            # Generate S3 keys
+
             base_key = f"custom-models/{custom_model.owner_id}/{custom_model.id}"
             model_key = f"{base_key}/model.{self._get_file_extension(model_file.filename)}"
-            
+
             # Upload main model file
             model_content = await model_file.read()
-            await self._upload_to_s3(model_key, model_content, model_file.content_type)
-            custom_model.model_s3_key = model_key
-            
+            await self._upload_object(model_key, model_content, model_file.content_type)
+            custom_model.model_s3_key = model_key  # keep field name for backward-compat
+
             # Upload config file if provided
             if config_file:
                 config_key = f"{base_key}/config.{self._get_file_extension(config_file.filename)}"
                 config_content = await config_file.read()
-                await self._upload_to_s3(config_key, config_content, config_file.content_type)
+                await self._upload_object(config_key, config_content, config_file.content_type)
                 custom_model.config_s3_key = config_key
-            
+
             # Upload requirements file if provided
             if requirements_file:
                 req_key = f"{base_key}/requirements.txt"
                 req_content = await requirements_file.read()
-                await self._upload_to_s3(req_key, req_content, "text/plain")
+                await self._upload_object(req_key, req_content, "text/plain")
                 custom_model.requirements_s3_key = req_key
-            
-            # Update model status
-            custom_model.status = CustomModelStatus.VALIDATING
-            
-            # Start validation process
-            asyncio.create_task(self._validate_uploaded_model(custom_model))
-            
+
             return {
                 "model_key": model_key,
-                "config_key": custom_model.config_s3_key,
-                "requirements_key": custom_model.requirements_s3_key
+                "config_key": getattr(custom_model, 'config_s3_key', None),
+                "requirements_key": getattr(custom_model, 'requirements_s3_key', None)
             }
-            
         except Exception as e:
-            logger.error(f"Model upload failed: {e}")
-            custom_model.status = CustomModelStatus.ERROR
+            logger.exception("Failed to upload custom model files")
             raise
     
     async def _validate_uploaded_model(self, custom_model: CustomModel):
@@ -142,14 +156,14 @@ class CustomModelService:
             # Download model files to temporary directory
             temp_dir = tempfile.mkdtemp()
             
-            model_path = await self._download_from_s3(
+            model_path = await self._download_object(
                 custom_model.model_s3_key, 
                 os.path.join(temp_dir, "model")
             )
             
             config_path = None
             if custom_model.config_s3_key:
-                config_path = await self._download_from_s3(
+                config_path = await self._download_object(
                     custom_model.config_s3_key,
                     os.path.join(temp_dir, "config")
                 )
@@ -402,54 +416,15 @@ class CustomModelService:
             logger.error(f"Model inference failed: {e}")
             raise Exception(f"Inference failed: {e}")
     
-    async def _load_model_to_cache(self, custom_model: CustomModel):
-        """Load model from S3 to cache"""
-        
+    async def _load_model_to_cache(self, custom_model):
+        """Load model from object storage to local cache directory."""
         temp_dir = tempfile.mkdtemp()
-        
-        try:
-            # Download model file
-            model_path = await self._download_from_s3(
-                custom_model.model_s3_key,
-                os.path.join(temp_dir, "model")
-            )
-            
-            # Load model based on type
-            if custom_model.model_type == CustomModelType.TENSORFLOW:
-                try:
-                    import tensorflow as tf
-                    model = tf.keras.models.load_model(model_path)
-                except ImportError:
-                    raise Exception("TensorFlow not installed - cannot load TensorFlow models")
-            elif custom_model.model_type == CustomModelType.PYTORCH:
-                try:
-                    import torch
-                    model = torch.load(model_path, map_location='cpu')
-                except ImportError:
-                    raise Exception("PyTorch not installed - cannot load PyTorch models")
-            elif custom_model.model_type == CustomModelType.SCIKIT_LEARN:
-                try:
-                    import joblib
-                    model = joblib.load(model_path)
-                except ImportError:
-                    raise Exception("Joblib not installed - cannot load Scikit-Learn models")
-            else:
-                raise Exception(f"Loading not implemented for {custom_model.model_type}")
-            
-            # Cache the model
-            model_key = f"{custom_model.id}_{custom_model.model_type.value}"
-            self.loaded_models[model_key] = {
-                "model": model,
-                "loaded_at": datetime.utcnow(),
-                "custom_model": custom_model
-            }
-            
-        finally:
-            # Cleanup
-            import shutil
-            if os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir)
-    
+        model_path = await self._download_object(custom_model.model_s3_key, os.path.join(temp_dir, "model"))
+        config_path = None
+        if getattr(custom_model, 'config_s3_key', None):
+            config_path = await self._download_object(custom_model.config_s3_key, os.path.join(temp_dir, "config"))
+        return model_path, config_path
+
     async def _run_tensorflow_inference(self, model, input_data: pd.DataFrame) -> pd.DataFrame:
         """Run TensorFlow model inference"""
         
@@ -678,60 +653,57 @@ class CustomModelService:
             }
         }
     
-    async def delete_model_files(self, custom_model: CustomModel):
-        """Delete model files from S3"""
-        
-        if not self.s3_client:
-            return
-        
-        # Delete all associated files
-        files_to_delete = [
-            custom_model.model_s3_key,
-            custom_model.config_s3_key,
-            custom_model.requirements_s3_key
-        ]
-        
-        for file_key in files_to_delete:
-            if file_key:
+    async def delete_model_files(self, custom_model):
+        """Delete all model artifacts from object storage."""
+        keys = [getattr(custom_model, 'model_s3_key', None), getattr(custom_model, 'config_s3_key', None), getattr(custom_model, 'requirements_s3_key', None)]
+        for key in keys:
+            if key:
                 try:
-                    self.s3_client.delete_object(
-                        Bucket=settings.AWS_S3_BUCKET,
-                        Key=file_key
-                    )
-                    logger.info(f"Deleted S3 file: {file_key}")
+                    await self._delete_object(key)
+                    logger.info(f"Deleted object: {key}")
                 except Exception as e:
-                    logger.warning(f"Failed to delete S3 file {file_key}: {e}")
-    
-    async def _upload_to_s3(self, key: str, content: bytes, content_type: str):
-        """Upload content to S3"""
-        
-        if not self.s3_client:
-            raise Exception("S3 not configured")
-        
-        self.s3_client.put_object(
-            Bucket=settings.AWS_S3_BUCKET,
-            Key=key,
-            Body=content,
-            ContentType=content_type,
-            ServerSideEncryption='AES256'
-        )
-    
-    async def _download_from_s3(self, key: str, local_path: str) -> str:
-        """Download file from S3 to local path"""
-        
-        if not self.s3_client:
-            raise Exception("S3 not configured")
-        
-        response = self.s3_client.get_object(
-            Bucket=settings.AWS_S3_BUCKET,
-            Key=key
-        )
-        
-        with open(local_path, 'wb') as f:
-            f.write(response['Body'].read())
-        
-        return local_path
-    
+                    logger.warning(f"Failed to delete object {key}: {e}")
+
+    # ---------- Storage backends ----------
+    async def _upload_object(self, key: str, content: bytes, content_type: str):
+        if self.storage_provider == "gcs" and self.gcs_client and settings.GCS_BUCKET:
+            bucket = self.gcs_client.bucket(settings.GCS_BUCKET)
+            blob = bucket.blob(key)
+            blob.upload_from_string(content, content_type=content_type)
+            return
+        if self.s3_client and settings.AWS_S3_BUCKET:
+            self.s3_client.put_object(Bucket=settings.AWS_S3_BUCKET, Key=key, Body=content, ContentType=content_type)
+            return
+        raise Exception("No storage backend configured")
+
+    async def _download_object(self, key: str, local_path: str) -> str:
+        if self.storage_provider == "gcs" and self.gcs_client and settings.GCS_BUCKET:
+            bucket = self.gcs_client.bucket(settings.GCS_BUCKET)
+            blob = bucket.blob(key)
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            blob.download_to_filename(local_path)
+            return local_path
+        if self.s3_client and settings.AWS_S3_BUCKET:
+            response = self.s3_client.get_object(Bucket=settings.AWS_S3_BUCKET, Key=key)
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            with open(local_path, 'wb') as f:
+                f.write(response['Body'].read())
+            return local_path
+        raise Exception("No storage backend configured")
+
+    async def _delete_object(self, key: str):
+        if self.storage_provider == "gcs" and self.gcs_client and settings.GCS_BUCKET:
+            bucket = self.gcs_client.bucket(settings.GCS_BUCKET)
+            blob = bucket.blob(key)
+            blob.delete(if_exists=True)
+            return
+        if self.s3_client and settings.AWS_S3_BUCKET:
+            self.s3_client.delete_object(Bucket=settings.AWS_S3_BUCKET, Key=key)
+            return
+        raise Exception("No storage backend configured")
+
+    # ---------- Helpers ----------
     def _get_file_extension(self, filename: str) -> str:
-        """Get file extension from filename"""
-        return Path(filename).suffix.lstrip('.') 
+        if not filename or '.' not in filename:
+            return 'bin'
+        return filename.split('.')[-1].lower() 

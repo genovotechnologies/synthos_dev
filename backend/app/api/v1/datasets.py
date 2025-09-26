@@ -238,21 +238,40 @@ async def preview_dataset(
     # Check if dataset has S3 key using proper null check
     s3_key_value = getattr(dataset, 's3_key', None)
     if not s3_key_value:
-        raise HTTPException(404, "Dataset file not found")
+        raise HTTPException(404, "Dataset not found in storage")
     
     try:
-        # Load from S3
-        s3_client = boto3.client('s3')
-        obj = s3_client.get_object(Bucket=settings.AWS_S3_BUCKET, Key=s3_key_value)
-        
+        # Try GCS first
+        from google.cloud import storage as gcs_storage
+        gcs_client = gcs_storage.Client(project=settings.GCP_PROJECT_ID)
+        bucket = gcs_client.bucket(settings.GCS_BUCKET)
+        blob = bucket.blob(s3_key_value)
+        data_bytes = blob.download_as_bytes()
         file_type = getattr(dataset, 'file_type', None)
         if file_type == 'csv':
-            df = pd.read_csv(BytesIO(obj['Body'].read()))
+            df = pd.read_csv(BytesIO(data_bytes))
         elif file_type == 'json':
-            data = json.loads(obj['Body'].read().decode('utf-8'))
-            df = pd.json_normalize(data if isinstance(data, list) else [data])
-        elif file_type in ['xlsx', 'xls']:
-            df = pd.read_excel(BytesIO(obj['Body'].read()))
+            df = pd.read_json(BytesIO(data_bytes))
+        elif file_type == 'xlsx':
+            df = pd.read_excel(BytesIO(data_bytes))
+        elif file_type == 'parquet':
+            df = pd.read_parquet(BytesIO(data_bytes))
+        else:
+            raise HTTPException(400, f"Unsupported file type: {file_type}")
+    except Exception:
+        # Fallback to S3
+        s3_client = boto3.client('s3')
+        obj = s3_client.get_object(Bucket=settings.AWS_S3_BUCKET, Key=s3_key_value)
+        data_bytes = obj['Body'].read()
+        file_type = getattr(dataset, 'file_type', None)
+        if file_type == 'csv':
+            df = pd.read_csv(BytesIO(data_bytes))
+        elif file_type == 'json':
+            df = pd.read_json(BytesIO(data_bytes))
+        elif file_type == 'xlsx':
+            df = pd.read_excel(BytesIO(data_bytes))
+        elif file_type == 'parquet':
+            df = pd.read_parquet(BytesIO(data_bytes))
         else:
             raise HTTPException(400, f"Unsupported file type: {file_type}")
         
@@ -286,11 +305,22 @@ async def delete_dataset(
         raise HTTPException(404, "Dataset not found")
     
     try:
-        # Delete from S3 if exists
+        # Delete from storage if exists
         s3_key_value = getattr(dataset, 's3_key', None)
         if s3_key_value:
-            s3_client = boto3.client('s3')
-            s3_client.delete_object(Bucket=settings.AWS_S3_BUCKET, Key=s3_key_value)
+            deleted = False
+            try:
+                from google.cloud import storage as gcs_storage
+                gcs_client = gcs_storage.Client(project=settings.GCP_PROJECT_ID)
+                bucket = gcs_client.bucket(settings.GCS_BUCKET)
+                blob = bucket.blob(s3_key_value)
+                blob.delete(if_exists=True)
+                deleted = True
+            except Exception:
+                pass
+            if not deleted:
+                s3_client = boto3.client('s3')
+                s3_client.delete_object(Bucket=settings.AWS_S3_BUCKET, Key=s3_key_value)
         
         # Mark as archived (for audit trail) using update statement
         db.execute(

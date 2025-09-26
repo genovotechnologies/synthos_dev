@@ -226,46 +226,33 @@ async def download_generated_data(
             raise HTTPException(status_code=404, detail="Generation job not found")
 
         # Ensure job.status is a value, not a SQLAlchemy column expression
-        if str(getattr(job, "status", None)) != GenerationStatus.COMPLETED.value:
+        if job.status != GenerationStatus.COMPLETED:
             raise HTTPException(status_code=400, detail="Generation not completed")
 
         output_key = getattr(job, 'output_s3_key', None)
         if not output_key:
             raise HTTPException(status_code=404, detail="Generated data not found")
 
+        # Try to generate GCS signed URL
+        try:
+            from google.cloud import storage as gcs_storage
+            gcs_client = gcs_storage.Client(project=settings.GCP_PROJECT_ID)
+            bucket = gcs_client.bucket(settings.GCS_BUCKET)
+            blob = bucket.blob(output_key)
+            url = blob.generate_signed_url(expiration=settings.GCS_SIGNED_URL_TTL)
+            return {"download_url": url}
+        except Exception:
+            pass
+
         if not boto3:
-            raise HTTPException(status_code=500, detail="AWS SDK not available")
-    try:
-        if not boto3:
-            raise HTTPException(status_code=500, detail="AWS SDK not available")
+            raise HTTPException(status_code=500, detail="Download URL unavailable")
         s3_client = boto3.client('s3')
-        if s3_client is None:
-            raise HTTPException(status_code=500, detail="Failed to initialize S3 client")
         download_url = s3_client.generate_presigned_url(
             'get_object',
-            Params={
-                'Bucket': settings.AWS_S3_BUCKET,
-                'Key': output_key
-            },
-            ExpiresIn=3600  # 1 hour
+            Params={'Bucket': settings.AWS_S3_BUCKET, 'Key': output_key},
+            ExpiresIn=3600,
         )
-        
-        # Log download
-        audit_logger.log_user_action(
-            user_id=str(current_user.id),
-            action="data_downloaded",
-            resource="generation_job",
-            resource_id=str(job.id),
-            metadata={
-                "dataset_id": job.dataset_id,
-                "rows_generated": job.rows_generated
-            }
-        )
-        
         return {"download_url": download_url}
-        
-    except Exception as e:
-        raise HTTPException(500, f"Download failed: {str(e)}")
 
 @router.delete("/jobs/{job_id}")
 async def cancel_generation_job(
@@ -349,14 +336,22 @@ async def run_generation_job(job_id: int, dataset_id: int, user_id: int):
         csv_buffer = StringIO()
         synthetic_data.to_csv(csv_buffer, index=False)
         
-        s3_client = boto3.client('s3')
-        s3_client.put_object(
-            Bucket=settings.AWS_S3_BUCKET,
-            Key=output_key,
-            Body=csv_buffer.getvalue(),
-            ContentType='text/csv',
-            ServerSideEncryption='AES256'
-        )
+        # Save to object storage (GCS preferred)
+        output_key = f"outputs/{user_id}/{job_id}/synthetic.csv"
+        try:
+            from google.cloud import storage as gcs_storage
+            gcs_client = gcs_storage.Client(project=settings.GCP_PROJECT_ID)
+            bucket = gcs_client.bucket(settings.GCS_BUCKET)
+            blob = bucket.blob(output_key)
+            blob.upload_from_string(csv_buffer.getvalue(), content_type="text/csv")
+        except Exception:
+            s3_client = boto3.client('s3')
+            s3_client.put_object(Bucket=settings.AWS_S3_BUCKET, Key=output_key, Body=csv_buffer.getvalue())
+
+        # Persist key
+        job.output_s3_key = output_key
+        db.commit()
+        db.refresh(job)
         
         # Complete job
         if hasattr(job, 'complete_job'):

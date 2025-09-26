@@ -15,12 +15,20 @@ from app.core.config import settings
 
 logger = structlog.get_logger(__name__)
 
+# Cloud SQL Connector (optional)
+try:
+    from google.cloud.sql.connector import Connector, IPTypes
+except Exception:  # pragma: no cover
+    Connector = None
+    IPTypes = None
+
 # Update the database URL to use psycopg2 sync dialect
 def get_sync_database_url(url: str) -> str:
     """Convert database URL to use psycopg2 sync dialect"""
     if url.startswith("postgresql://"):
         return url.replace("postgresql://", "postgresql+psycopg2://")
     return url
+
 
 def get_async_database_url(url: str) -> str:
     """Convert database URL to use asyncpg dialect"""
@@ -33,24 +41,90 @@ def get_async_database_url(url: str) -> str:
         return url.replace("sqlite://", "sqlite+aiosqlite://")
     return url
 
-# SQLAlchemy engine with connection pooling - use psycopg2
-engine = create_engine(
-    get_sync_database_url(settings.DATABASE_CONNECTION_URL),
-    poolclass=QueuePool,
-    pool_size=settings.DATABASE_POOL_SIZE,
-    max_overflow=settings.DATABASE_MAX_OVERFLOW,
-    pool_pre_ping=True,  # Validates connections before use
-    echo=settings.DEBUG,  # Log SQL queries in debug mode
-)
 
-# Async engine for health checks
-async_engine = create_async_engine(
-    get_async_database_url(settings.DATABASE_CONNECTION_URL),
-    pool_size=settings.DATABASE_POOL_SIZE,
-    max_overflow=settings.DATABASE_MAX_OVERFLOW,
-    pool_pre_ping=True,
-    echo=settings.DEBUG,
-)
+def _make_connector_sync_creator():
+    """Returns a connection creator for SQLAlchemy using Cloud SQL Connector (pg8000)."""
+    if not Connector or not settings.CLOUDSQL_INSTANCE:
+        return None
+
+    connector = Connector()
+
+    def getconn():
+        return connector.connect(
+            settings.CLOUDSQL_INSTANCE,
+            "pg8000",
+            user=settings.DB_USER,
+            password=settings.DB_PASSWORD,
+            db=settings.DB_NAME,
+            ip_type=IPTypes.PUBLIC,
+        )
+
+    return getconn
+
+
+def _make_connector_async_creator():
+    """Return SQLAlchemy async creator using Cloud SQL Connector (asyncpg)."""
+    if not Connector or not settings.CLOUDSQL_INSTANCE:
+        return None
+
+    connector = Connector()
+
+    async def getconn():
+        return await connector.connect_async(
+            settings.CLOUDSQL_INSTANCE,
+            "asyncpg",
+            user=settings.DB_USER,
+            password=settings.DB_PASSWORD,
+            db=settings.DB_NAME,
+            ip_type=IPTypes.PUBLIC,
+        )
+
+    return getconn
+
+
+# Decide engine strategy
+use_connector = bool(settings.USE_CLOUD_SQL_CONNECTOR and settings.CLOUDSQL_INSTANCE and settings.DB_USER and settings.DB_PASSWORD and settings.DB_NAME)
+
+if use_connector and Connector:
+    # Sync engine via connector (pg8000)
+    engine = create_engine(
+        "postgresql+pg8000://",  # empty URL; use creator
+        creator=_make_connector_sync_creator(),
+        poolclass=QueuePool,
+        pool_size=settings.DATABASE_POOL_SIZE,
+        max_overflow=settings.DATABASE_MAX_OVERFLOW,
+        pool_pre_ping=True,
+        echo=settings.DEBUG,
+    )
+
+    # Async engine via connector (asyncpg)
+    async_engine = create_async_engine(
+        "postgresql+asyncpg://",
+        creator=_make_connector_async_creator(),
+        pool_size=settings.DATABASE_POOL_SIZE,
+        max_overflow=settings.DATABASE_MAX_OVERFLOW,
+        pool_pre_ping=True,
+        echo=settings.DEBUG,
+    )
+else:
+    # Fallback to raw DATABASE_URL
+    engine = create_engine(
+        get_sync_database_url(settings.DATABASE_CONNECTION_URL),
+        poolclass=QueuePool,
+        pool_size=settings.DATABASE_POOL_SIZE,
+        max_overflow=settings.DATABASE_MAX_OVERFLOW,
+        pool_pre_ping=True,  # Validates connections before use
+        echo=settings.DEBUG,  # Log SQL queries in debug mode
+    )
+
+    # Async engine for health checks
+    async_engine = create_async_engine(
+        get_async_database_url(settings.DATABASE_CONNECTION_URL),
+        pool_size=settings.DATABASE_POOL_SIZE,
+        max_overflow=settings.DATABASE_MAX_OVERFLOW,
+        pool_pre_ping=True,
+        echo=settings.DEBUG,
+    )
 
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
