@@ -19,7 +19,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   
   /* Global timeout for CI */
-  timeout: process.env.CI ? 30000 : 60000,
+  timeout: process.env.CI ? 30000 : 30000,
   
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [

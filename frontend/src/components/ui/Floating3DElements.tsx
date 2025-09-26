@@ -353,7 +353,7 @@ export default function Floating3DElements({
   className = "",
   elementCount = 50,
   theme = 'dark'
-}: Floating3DElementsProps) {
+}: Floating3DElementsProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<FloatingElementsEngine | null>(null);
   const animationFrameRef = useRef<number>();
@@ -362,7 +362,9 @@ export default function Floating3DElements({
   const { resolvedTheme } = useTheme();
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current) {
+      return () => {};
+    }
 
     try {
       // Create floating elements engine
@@ -392,6 +394,7 @@ export default function Floating3DElements({
       console.error('Floating elements initialization error:', error);
       setError('Failed to initialize floating elements');
       setIsLoaded(false);
+      return () => {};
     }
   }, [elementCount, resolvedTheme, theme]);
 
@@ -402,6 +405,7 @@ export default function Floating3DElements({
     }
   }, [resolvedTheme]);
 
+  // Render the component
   // Fallback for when Three.js fails or is not supported
   if (error || !isLoaded) {
     return (
@@ -487,7 +491,7 @@ export default function Floating3DElements({
                   'w-2 h-2 bg-gradient-to-r from-lime-500/50 to-green-500/50 rounded-sm' // Data point
                 }`}
                 style={{
-                  left: `${25 + (i * 6)}%`,
+                  left: `${25 + (i * 5)}%`,
                   top: `${35 + (i * 5)}%`,
                 }}
                 animate={{
@@ -517,4 +521,4 @@ export default function Floating3DElements({
       className={`absolute inset-0 ${className}`}
     />
   );
-} 
+}
