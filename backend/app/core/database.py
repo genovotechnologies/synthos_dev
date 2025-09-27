@@ -50,11 +50,18 @@ def _make_connector_sync_creator():
     connector = Connector()
 
     def getconn():
+        # Ensure password is properly encoded for Cloud SQL Connector
+        password = settings.DB_PASSWORD
+        if password:
+            # Handle special characters in password
+            import urllib.parse
+            password = urllib.parse.quote_plus(password)
+        
         return connector.connect(
             settings.CLOUDSQL_INSTANCE,
             "pg8000",
             user=settings.DB_USER,
-            password=settings.DB_PASSWORD,
+            password=password,
             db=settings.DB_NAME,
             ip_type=IPTypes.PUBLIC,
         )
@@ -70,11 +77,18 @@ def _make_connector_async_creator():
     connector = Connector()
 
     async def getconn():
+        # Ensure password is properly encoded for Cloud SQL Connector
+        password = settings.DB_PASSWORD
+        if password:
+            # Handle special characters in password
+            import urllib.parse
+            password = urllib.parse.quote_plus(password)
+        
         return await connector.connect_async(
             settings.CLOUDSQL_INSTANCE,
             "asyncpg",
             user=settings.DB_USER,
-            password=settings.DB_PASSWORD,
+            password=password,
             db=settings.DB_NAME,
             ip_type=IPTypes.PUBLIC,
         )

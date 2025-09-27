@@ -85,6 +85,9 @@ class User(Base):
     custom_models = relationship("CustomModel", back_populates="owner", cascade="all, delete-orphan")
     usage = relationship("UserUsage", back_populates="user", uselist=False, cascade="all, delete-orphan")
     subscription = relationship("UserSubscription", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    audit_logs = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan")
+    stripe_customer = relationship("StripeCustomer", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    paddle_customer = relationship("PaddleCustomer", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User(email={self.email}, role={self.role})>"

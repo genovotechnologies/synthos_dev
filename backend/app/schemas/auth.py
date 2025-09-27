@@ -11,9 +11,9 @@ from datetime import datetime
 class Token(BaseModel):
     """JWT token response schema"""
     access_token: str
-    refresh_token: str
     token_type: str = "bearer"
     expires_in: int
+    user: Optional[dict] = None
 
 
 class TokenPayload(BaseModel):

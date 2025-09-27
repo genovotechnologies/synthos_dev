@@ -1,0 +1,35 @@
+# Cloud Build configuration for Synthos Backend
+# Builds and deploys to Cloud Run automatically
+
+steps:
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/synthos-backend:$BUILD_ID', './backend']
+    dir: '.'
+
+  # Push the image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/synthos-backend:$BUILD_ID']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'synthos-backend'
+      - '--image=gcr.io/$PROJECT_ID/synthos-backend:$BUILD_ID'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--set-secrets=SECRET_KEY=synthos-secret-key:latest,JWT_SECRET_KEY=synthos-jwt-secret:latest,DB_PASSWORD=synthos-db-password:latest,VERTEX_API_KEY=synthos-vertex-api-key:latest'
+      - '--set-env-vars=ENVIRONMENT=production,USE_CLOUD_SQL_CONNECTOR=true,CLOUDSQL_INSTANCE=genovo-technologies001:europe-north2:synthos,DB_USER=postgres,DB_NAME=postgres,GCP_PROJECT_ID=genovo-technologies001,GCP_LOCATION=us-central1,VERTEX_PROJECT_ID=genovo-technologies001,VERTEX_LOCATION=us-central1,STORAGE_PROVIDER=gcs,GCS_BUCKET=synthos,GCS_SIGNED_URL_TTL=3600,ENABLE_CACHING=false,CACHE_URL=memory://,ALLOWED_HOSTS=synthos-backend-147548045822.us-central1.run.app,CORS_ORIGINS=https://synthos-dev.vercel.app'
+
+# Store images in Container Registry
+images:
+  - 'gcr.io/$PROJECT_ID/synthos-backend:$BUILD_ID'
+
+# Build options
+options:
+  machineType: 'E2_HIGHCPU_8'
+  diskSizeGb: 100

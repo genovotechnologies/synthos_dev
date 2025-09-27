@@ -320,7 +320,6 @@ class PaymentEvent(Base):
     
     # Relationships
     stripe_customer = relationship("StripeCustomer", back_populates="payment_events", foreign_keys=[stripe_customer_id])
-    paddle_customer = relationship("PaddleCustomer", back_populates="payment_events", foreign_keys=[paddle_customer_id])
 
     def __repr__(self):
         return f"<PaymentEvent(type={self.payment_type}, status={self.status}, amount={self.amount})>"

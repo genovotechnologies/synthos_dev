@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api';
 
 interface FormData {
@@ -19,34 +20,60 @@ const SignInPage = () => {
   });
 
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-    setError(null);
     
     try {
       const result = await apiClient.signIn(formData.email, formData.password);
       
       // Check if we got a valid response
-      if (result && (result as any).token) {
+      if (result && (result as any).access_token) {
         // Store the token if remember me is checked
         if (formData.rememberMe) {
-          localStorage.setItem('token', (result as any).token);
+          localStorage.setItem('token', (result as any).access_token);
           if ((result as any).user) {
             localStorage.setItem('user', JSON.stringify((result as any).user));
           }
         }
         
-        // Redirect to dashboard
-        window.location.href = '/dashboard';
+        toast({
+          title: "Success!",
+          description: "You have been signed in successfully.",
+          variant: "success",
+        });
+        
+        // Redirect to dashboard after a short delay
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 1000);
       } else {
-        setError('Sign in failed. Please check your credentials.');
+        toast({
+          title: "Sign in failed",
+          description: "Invalid credentials. Please check your email and password.",
+          variant: "destructive",
+        });
       }
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error('Sign in error:', err);
-      setError('Sign in failed. Please check your credentials.');
+      
+      let errorMessage = "Sign in failed. Please try again.";
+      
+      if (err?.response?.status === 401) {
+        errorMessage = "Invalid email or password. Please check your credentials.";
+      } else if (err?.response?.status === 422) {
+        errorMessage = "Please check your email and password format.";
+      } else if (err?.response?.status >= 500) {
+        errorMessage = "Server error. Please try again later.";
+      }
+      
+      toast({
+        title: "Sign in failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -98,11 +125,6 @@ const SignInPage = () => {
           
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <div className="text-red-600 text-center mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  {error}
-                </div>
-              )}
               
               {/* Email Field */}
               <div className="space-y-2">

@@ -115,29 +115,29 @@ class CustomModelService:
         """Upload model artifacts to object storage and update model record."""
         try:
             logger.info(f"Uploading files for model {custom_model.id}")
-
+            
             base_key = f"custom-models/{custom_model.owner_id}/{custom_model.id}"
             model_key = f"{base_key}/model.{self._get_file_extension(model_file.filename)}"
-
+            
             # Upload main model file
             model_content = await model_file.read()
             await self._upload_object(model_key, model_content, model_file.content_type)
             custom_model.model_s3_key = model_key  # keep field name for backward-compat
-
+            
             # Upload config file if provided
             if config_file:
                 config_key = f"{base_key}/config.{self._get_file_extension(config_file.filename)}"
                 config_content = await config_file.read()
                 await self._upload_object(config_key, config_content, config_file.content_type)
                 custom_model.config_s3_key = config_key
-
+            
             # Upload requirements file if provided
             if requirements_file:
                 req_key = f"{base_key}/requirements.txt"
                 req_content = await requirements_file.read()
                 await self._upload_object(req_key, req_content, "text/plain")
                 custom_model.requirements_s3_key = req_key
-
+            
             return {
                 "model_key": model_key,
                 "config_key": getattr(custom_model, 'config_s3_key', None),
@@ -424,7 +424,7 @@ class CustomModelService:
         if getattr(custom_model, 'config_s3_key', None):
             config_path = await self._download_object(custom_model.config_s3_key, os.path.join(temp_dir, "config"))
         return model_path, config_path
-
+    
     async def _run_tensorflow_inference(self, model, input_data: pd.DataFrame) -> pd.DataFrame:
         """Run TensorFlow model inference"""
         
@@ -686,8 +686,8 @@ class CustomModelService:
         if self.s3_client and settings.AWS_S3_BUCKET:
             response = self.s3_client.get_object(Bucket=settings.AWS_S3_BUCKET, Key=key)
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
-            with open(local_path, 'wb') as f:
-                f.write(response['Body'].read())
+        with open(local_path, 'wb') as f:
+            f.write(response['Body'].read())
             return local_path
         raise Exception("No storage backend configured")
 

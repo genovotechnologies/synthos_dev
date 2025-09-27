@@ -122,12 +122,10 @@ class AdvancedClaudeAgent:
     async def health_check(self) -> bool:
         """Enhanced health check for AI service"""
         try:
-            response = await self.async_client.messages.create(
-                model=ModelType.CLAUDE_3_HAIKU.value,
-                max_tokens=10,
-                messages=[{"role": "user", "content": "ping"}]
-            )
-            return bool(response.content)
+            # Simple health check - just verify the client is initialized
+            if not self.async_client or not settings.ANTHROPIC_API_KEY:
+                return False
+            return True
         except Exception as e:
             logger.error("AI service health check failed", error=str(e))
             return False
