@@ -208,7 +208,6 @@ const SignUpPage = () => {
               
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {error && <div className="text-red-600 text-center mb-4">{error}</div>}
                   {/* Name Fields */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
