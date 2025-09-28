@@ -5,7 +5,7 @@ Main router for all API endpoints
 
 from fastapi import APIRouter
 
-from app.api.v1 import auth, users, datasets, generation, payment, admin, privacy
+from app.api.v1 import auth, users, datasets, generation, payment, admin, privacy, analytics
 from app.api.v1 import custom_models
 from app.api.v1 import marketing
 
@@ -19,6 +19,7 @@ api_router.include_router(datasets.router, prefix="/datasets", tags=["datasets"]
 api_router.include_router(generation.router, prefix="/generation", tags=["generation"])
 api_router.include_router(payment.router, prefix="/payment", tags=["payment"])
 api_router.include_router(privacy.router, prefix="/privacy", tags=["privacy"])
+api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
 
 # Include custom models router

@@ -75,6 +75,11 @@ class User(Base):
     last_login_at = Column(DateTime, nullable=True)
     login_count = Column(Integer, default=0, nullable=False)
     
+    # Password reset fields
+    reset_token = Column(String(255), nullable=True)
+    reset_token_expires = Column(DateTime, nullable=True)
+    verification_token = Column(String(255), nullable=True)
+    
     # User metadata
     user_metadata = Column(JSON, nullable=True)  # Additional user metadata
     created_at = Column(DateTime, default=func.now(), nullable=False)
