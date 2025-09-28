@@ -43,7 +43,7 @@ async def register_user(
         email=user_data.email,
         hashed_password=hashed_password,
         full_name=user_data.full_name,
-        company_name=user_data.company_name,
+        company=user_data.company_name,
         role=UserRole.USER,
         is_active=True,
         is_verified=False
@@ -75,7 +75,7 @@ async def register_user(
         user_agent=user_agent,
         metadata={
             "email": db_user.email,
-            "company": db_user.company_name,
+            "company": db_user.company,
         }
     )
     
@@ -125,7 +125,7 @@ async def login_user(
     
     # Update last login using proper SQLAlchemy update
     db.query(User).filter(User.id == user.id).update({
-        User.last_login: datetime.utcnow()
+        User.last_login_at: datetime.utcnow()
     })
     db.commit()
     db.refresh(user)
