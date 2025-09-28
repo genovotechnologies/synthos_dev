@@ -9,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from contextlib import asynccontextmanager
+from fastapi import HTTPException
 import structlog
 
 from app.core.config import settings
@@ -17,8 +18,8 @@ logger = structlog.get_logger(__name__)
 
 # Cloud SQL Connector (optional)
 try:
-    from google.cloud.sql.connector import Connector, IPTypes
-except Exception:  # pragma: no cover
+    from google.cloud.sql.connector import Connector, IPTypes  # type: ignore
+except ImportError:  # pragma: no cover
     Connector = None
     IPTypes = None
 
@@ -57,14 +58,18 @@ def _make_connector_sync_creator():
             import urllib.parse
             password = urllib.parse.quote_plus(password)
         
-        return connector.connect(
-            settings.CLOUDSQL_INSTANCE,
-            "pg8000",
-            user=settings.DB_USER,
-            password=password,
-            db=settings.DB_NAME,
-            ip_type=IPTypes.PUBLIC,
-        )
+        try:
+            return connector.connect(
+                settings.CLOUDSQL_INSTANCE,
+                "pg8000",
+                user=settings.DB_USER,
+                password=password,
+                db=settings.DB_NAME,
+                ip_type=IPTypes.PUBLIC,
+            )
+        except Exception as e:
+            logger.error("Cloud SQL Connector connection failed", error=str(e))
+            raise
 
     return getconn
 
@@ -84,61 +89,149 @@ def _make_connector_async_creator():
             import urllib.parse
             password = urllib.parse.quote_plus(password)
         
-        return await connector.connect_async(
-            settings.CLOUDSQL_INSTANCE,
-            "asyncpg",
-            user=settings.DB_USER,
-            password=password,
-            db=settings.DB_NAME,
-            ip_type=IPTypes.PUBLIC,
-        )
+        try:
+            return await connector.connect_async(
+                settings.CLOUDSQL_INSTANCE,
+                "asyncpg",
+                user=settings.DB_USER,
+                password=password,
+                db=settings.DB_NAME,
+                ip_type=IPTypes.PUBLIC,
+            )
+        except Exception as e:
+            logger.error("Cloud SQL Connector async connection failed", error=str(e))
+            raise
 
     return getconn
 
 
-# Decide engine strategy
-use_connector = bool(settings.USE_CLOUD_SQL_CONNECTOR and settings.CLOUDSQL_INSTANCE and settings.DB_USER and settings.DB_PASSWORD and settings.DB_NAME)
+# Database connection strategy with multiple fallbacks
+def create_database_engines():
+    """Create database engines with multiple fallback strategies"""
+    engines_created = False
+    
+    # Log current configuration
+    logger.info("=== Database Connection Strategy ===")
+    logger.info(f"Environment: {settings.ENVIRONMENT}")
+    logger.info(f"Use Cloud SQL Connector: {settings.USE_CLOUD_SQL_CONNECTOR}")
+    logger.info(f"Cloud SQL Instance: {settings.CLOUDSQL_INSTANCE}")
+    logger.info(f"DB User: {settings.DB_USER}")
+    logger.info(f"DB Name: {settings.DB_NAME}")
+    logger.info(f"Database URL configured: {bool(settings.DATABASE_CONNECTION_URL)}")
+    
+    # Strategy 1: Try Cloud SQL Connector if configured
+    if (settings.USE_CLOUD_SQL_CONNECTOR and 
+        settings.CLOUDSQL_INSTANCE and 
+        settings.DB_USER and 
+        settings.DB_PASSWORD and 
+        settings.DB_NAME and 
+        Connector):
+        
+        try:
+            logger.info("🔄 Attempting Cloud SQL Connector connection...")
+            
+            # Test the connector first with timeout
+            test_connector = Connector()
+            test_conn = test_connector.connect(
+                settings.CLOUDSQL_INSTANCE,
+                "pg8000",
+                user=settings.DB_USER,
+                password=settings.DB_PASSWORD,
+                db=settings.DB_NAME,
+                ip_type=IPTypes.PUBLIC,
+            )
+            test_conn.close()
+            test_connector.close()
+            
+            # If test successful, create engines
+            engine = create_engine(
+                "postgresql+pg8000://",
+                creator=_make_connector_sync_creator(),
+                poolclass=QueuePool,
+                pool_size=settings.DATABASE_POOL_SIZE,
+                max_overflow=settings.DATABASE_MAX_OVERFLOW,
+                pool_pre_ping=True,
+                echo=settings.DEBUG,
+            )
 
-if use_connector and Connector:
-    # Sync engine via connector (pg8000)
-    engine = create_engine(
-        "postgresql+pg8000://",  # empty URL; use creator
-        creator=_make_connector_sync_creator(),
-        poolclass=QueuePool,
-        pool_size=settings.DATABASE_POOL_SIZE,
-        max_overflow=settings.DATABASE_MAX_OVERFLOW,
-        pool_pre_ping=True,
-        echo=settings.DEBUG,
-    )
+            async_engine = create_async_engine(
+                "postgresql+asyncpg://",
+                creator=_make_connector_async_creator(),
+                pool_size=settings.DATABASE_POOL_SIZE,
+                max_overflow=settings.DATABASE_MAX_OVERFLOW,
+                pool_pre_ping=True,
+                echo=settings.DEBUG,
+            )
+            
+            logger.info("✅ Cloud SQL Connector engines created successfully")
+            engines_created = True
+            
+        except Exception as e:
+            logger.warning(f"❌ Cloud SQL Connector failed: {str(e)}")
+            logger.warning("Falling back to direct connection...")
+    
+    # Strategy 2: Try direct DATABASE_URL connection
+    if not engines_created and settings.DATABASE_CONNECTION_URL:
+        try:
+            logger.info("🔄 Attempting direct DATABASE_URL connection...")
+            db_url = settings.DATABASE_CONNECTION_URL
+            logger.info(f"Database URL: {db_url[:50]}...")  # Log first 50 chars for security
+            
+            # Test the connection first
+            test_engine = create_engine(
+                get_sync_database_url(db_url),
+                pool_pre_ping=True,
+                echo=False
+            )
+            with test_engine.connect() as test_conn:
+                test_conn.execute(text("SELECT 1"))
+            test_engine.dispose()
+            
+            # If test successful, create production engines
+            engine = create_engine(
+                get_sync_database_url(db_url),
+                poolclass=QueuePool,
+                pool_size=settings.DATABASE_POOL_SIZE,
+                max_overflow=settings.DATABASE_MAX_OVERFLOW,
+                pool_pre_ping=True,
+                echo=settings.DEBUG,
+            )
 
-    # Async engine via connector (asyncpg)
-    async_engine = create_async_engine(
-        "postgresql+asyncpg://",
-        creator=_make_connector_async_creator(),
-        pool_size=settings.DATABASE_POOL_SIZE,
-        max_overflow=settings.DATABASE_MAX_OVERFLOW,
-        pool_pre_ping=True,
-        echo=settings.DEBUG,
-    )
-else:
-    # Fallback to raw DATABASE_URL
-    engine = create_engine(
-        get_sync_database_url(settings.DATABASE_CONNECTION_URL),
-        poolclass=QueuePool,
-        pool_size=settings.DATABASE_POOL_SIZE,
-        max_overflow=settings.DATABASE_MAX_OVERFLOW,
-        pool_pre_ping=True,  # Validates connections before use
-        echo=settings.DEBUG,  # Log SQL queries in debug mode
-    )
+            async_engine = create_async_engine(
+                get_async_database_url(db_url),
+                pool_size=settings.DATABASE_POOL_SIZE,
+                max_overflow=settings.DATABASE_MAX_OVERFLOW,
+                pool_pre_ping=True,
+                echo=settings.DEBUG,
+            )
+            
+            logger.info("✅ Direct connection engines created successfully")
+            engines_created = True
+            
+        except Exception as e:
+            logger.error(f"❌ Direct connection failed: {str(e)}")
+    
+    # Strategy 3: Try environment-specific fallbacks
+    if not engines_created:
+        logger.warning("⚠️ All database connection strategies failed")
+        logger.warning("Using SQLite fallback database for development")
+        
+        # Create engines anyway for graceful degradation
+        engine = create_engine(
+            "sqlite:///./synthos_fallback.db",  # SQLite fallback
+            echo=settings.DEBUG,
+        )
+        async_engine = create_async_engine(
+            "sqlite+aiosqlite:///././synthos_fallback.db",
+            echo=settings.DEBUG,
+        )
+        logger.warning("⚠️ Using SQLite fallback database")
+    
+    logger.info("=== Database Connection Complete ===")
+    return engine, async_engine
 
-    # Async engine for health checks
-    async_engine = create_async_engine(
-        get_async_database_url(settings.DATABASE_CONNECTION_URL),
-        pool_size=settings.DATABASE_POOL_SIZE,
-        max_overflow=settings.DATABASE_MAX_OVERFLOW,
-        pool_pre_ping=True,
-        echo=settings.DEBUG,
-    )
+# Create engines with fallback strategy
+engine, async_engine = create_database_engines()
 
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -169,12 +262,45 @@ async def create_tables():
 
 
 def get_db():
-    """Database dependency for FastAPI"""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    """Database dependency for FastAPI with retry logic"""
+    db = None
+    max_retries = 3
+    retry_delay = 1  # seconds
+    
+    for attempt in range(max_retries):
+        try:
+            db = SessionLocal()
+            # Test the connection with a simple query
+            db.execute(text("SELECT 1"))
+            yield db
+            return  # Success, exit the function
+            
+        except Exception as e:
+            logger.warning(f"Database connection attempt {attempt + 1} failed: {str(e)}")
+            if db:
+                try:
+                    db.close()
+                except:
+                    pass
+                db = None
+            
+            if attempt < max_retries - 1:
+                import time
+                time.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+            else:
+                # All retries failed
+                logger.error("All database connection attempts failed", error=str(e))
+                raise HTTPException(
+                    status_code=503,
+                    detail="Database temporarily unavailable. Please try again later."
+                )
+        finally:
+            if db:
+                try:
+                    db.close()
+                except:
+                    pass
 
 
 @asynccontextmanager

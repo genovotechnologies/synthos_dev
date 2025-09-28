@@ -71,7 +71,7 @@ class StripeCustomer(Base):
     # Relationships
     user = relationship("User", back_populates="stripe_customer")
     subscriptions = relationship("StripeSubscription", back_populates="customer")
-    payment_events = relationship("PaymentEvent", back_populates="customer")
+    payment_events = relationship("PaymentEvent", back_populates="stripe_customer")
 
     def __repr__(self):
         return f"<StripeCustomer(user_id={self.user_id}, stripe_id={self.stripe_customer_id})>"

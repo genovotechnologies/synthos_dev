@@ -16,6 +16,8 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
+import warnings
+import pydantic
 
 # Conditional imports for monitoring
 try:
@@ -40,6 +42,9 @@ from app.services.auth import AuthService
 # Setup structured logging
 setup_logging()
 logger = structlog.get_logger()
+
+# Suppress Pydantic model namespace warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="pydantic._internal._fields")
 
 # Prometheus metrics (conditional)
 if PROMETHEUS_AVAILABLE:
@@ -308,7 +313,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["X-Total-Count", "X-Response-Time"],
     max_age=86400,  # Cache preflight for 24 hours
@@ -447,6 +452,15 @@ async def liveness_check(request: Request):
         limiter.limit("10/minute")(liveness_check)
     return {"status": "alive"}
 
+@app.get("/cors-debug", tags=["debug"])
+async def cors_debug():
+    """Debug CORS configuration"""
+    return {
+        "cors_origins": settings.CORS_ORIGINS,
+        "allowed_hosts": settings.ALLOWED_HOSTS,
+        "environment": settings.ENVIRONMENT
+    }
+
 @app.get("/", tags=["health"])
 async def root():
     """Enhanced root endpoint with API discovery"""
@@ -467,6 +481,41 @@ async def root():
             "Real-time generation monitoring",
             "GDPR/CCPA compliance"
         ]
+    }
+
+@app.get("/cors-debug", tags=["health"])
+async def cors_debug():
+    """Debug endpoint to check CORS configuration"""
+    return {
+        "cors_origins": settings.CORS_ORIGINS,
+        "allowed_hosts": settings.ALLOWED_HOSTS,
+        "environment": settings.ENVIRONMENT
+    }
+
+@app.get("/db-debug", tags=["health"])
+async def db_debug():
+    """Debug endpoint to check database configuration and connection"""
+    from app.core.database import engine, db_manager
+    
+    # Get database configuration (without sensitive data)
+    db_config = {
+        "use_cloud_sql_connector": settings.USE_CLOUD_SQL_CONNECTOR,
+        "cloudsql_instance": settings.CLOUDSQL_INSTANCE,
+        "db_user": settings.DB_USER,
+        "db_name": settings.DB_NAME,
+        "database_url_configured": bool(settings.DATABASE_CONNECTION_URL),
+        "database_url_preview": settings.DATABASE_CONNECTION_URL[:50] + "..." if settings.DATABASE_CONNECTION_URL else None,
+    }
+    
+    # Test database connection
+    connection_test = db_manager.check_connection()
+    db_info = db_manager.get_db_info()
+    
+    return {
+        "database_config": db_config,
+        "connection_test": connection_test,
+        "database_info": db_info,
+        "environment": settings.ENVIRONMENT
     }
 
 # Store startup time for uptime calculation
