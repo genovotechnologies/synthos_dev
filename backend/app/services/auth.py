@@ -4,7 +4,7 @@ Enterprise-grade authentication with JWT, rate limiting, and security features
 """
 
 import jwt
-import bcrypt
+from passlib.hash import bcrypt
 import secrets
 import asyncio
 from datetime import datetime, timedelta
@@ -104,7 +104,7 @@ class AuthService:
             return None
         
         # Verify password
-        if not self._verify_password(password, user.password_hash):
+        if not self._verify_password(password, user.hashed_password):
             await self._record_failed_attempt(email, ip_address)
             logger.warning("Authentication failed - invalid password", email=email)
             return None
@@ -324,16 +324,12 @@ class AuthService:
     
     def _hash_password(self, password: str) -> str:
         """Hash password using bcrypt"""
-        salt = bcrypt.gensalt(rounds=self.password_salt_rounds)
-        return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+        return bcrypt.hash(password)
     
     def _verify_password(self, password: str, password_hash: str) -> bool:
         """Verify password against hash"""
         try:
-            return bcrypt.checkpw(
-                password.encode('utf-8'), 
-                password_hash.encode('utf-8')
-            )
+            return bcrypt.verify(password, password_hash)
         except Exception:
             return False
     
@@ -576,30 +572,54 @@ class AuthService:
             logger.error(f"Failed to generate password reset token: {e}")
             return None
 
-    # Database interaction methods (these would use your ORM)
+    # Database interaction methods
     async def _get_user_by_email(self, email: str) -> Optional[User]:
         """Get user by email from database"""
-        # Implementation depends on your database setup
-        # This is a placeholder
-        pass
+        try:
+            from app.core.database import get_db
+            db = next(get_db())
+            return db.query(User).filter(User.email == email).first()
+        except Exception as e:
+            logger.error(f"Failed to get user by email: {e}")
+            return None
     
     async def _get_user_by_id(self, user_id: int) -> Optional[User]:
         """Get user by ID from database"""
-        # Implementation depends on your database setup
-        # This is a placeholder
-        pass
+        try:
+            from app.core.database import get_db
+            db = next(get_db())
+            return db.query(User).filter(User.id == user_id).first()
+        except Exception as e:
+            logger.error(f"Failed to get user by ID: {e}")
+            return None
     
     async def _update_last_login(self, user_id: int, ip_address: str = None):
         """Update user's last login timestamp"""
-        # Implementation depends on your database setup
-        # This is a placeholder
-        pass
+        try:
+            from app.core.database import get_db
+            from datetime import datetime
+            db = next(get_db())
+            db.query(User).filter(User.id == user_id).update({
+                User.last_login_at: datetime.utcnow(),
+                User.last_login: datetime.utcnow()
+            })
+            db.commit()
+        except Exception as e:
+            logger.error(f"Failed to update last login: {e}")
     
     async def _update_user_password(self, user_id: int, password_hash: str) -> bool:
         """Update user password in database"""
-        # Implementation depends on your database setup
-        # This is a placeholder
-        return True
+        try:
+            from app.core.database import get_db
+            db = next(get_db())
+            db.query(User).filter(User.id == user_id).update({
+                User.hashed_password: password_hash
+            })
+            db.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Failed to update user password: {e}")
+            return False
 
 # FastAPI Dependencies
 async def get_current_user(

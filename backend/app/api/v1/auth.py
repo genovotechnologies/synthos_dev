@@ -79,7 +79,7 @@ async def register_user(
         }
     )
     
-    return UserResponse.from_orm(db_user)
+    return UserResponse.model_validate(db_user)
 
 
 @router.post("/login", response_model=Token)
@@ -147,7 +147,7 @@ async def login_user(
         "access_token": access_token,
         "token_type": "bearer",
         "expires_in": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        "user": UserResponse.from_orm(user)
+        "user": UserResponse.model_validate(user)
     }
 
 
@@ -319,7 +319,7 @@ async def refresh_token(
         "access_token": access_token,
         "token_type": "bearer",
         "expires_in": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        "user": UserResponse.from_orm(current_user)
+        "user": UserResponse.model_validate(current_user)
     }
 
 

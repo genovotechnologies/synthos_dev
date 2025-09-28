@@ -187,6 +187,9 @@ class Settings:
     ENABLE_AUDIT_LOGS: bool = os.getenv("ENABLE_AUDIT_LOGS", "true").lower() == "true"
     ENABLE_DATA_RETENTION: bool = os.getenv("ENABLE_DATA_RETENTION", "true").lower() == "true"
     ENABLE_GDPR_COMPLIANCE: bool = os.getenv("ENABLE_GDPR_COMPLIANCE", "true").lower() == "true"
+    
+    # Admin Configuration
+    ADMIN_CREATION_SECRET: Optional[str] = os.getenv("ADMIN_CREATION_SECRET")
 
     # Enhanced Realism Settings
     ENABLE_ENHANCED_REALISM: bool = os.getenv("ENABLE_ENHANCED_REALISM", "true").lower() == "true"
