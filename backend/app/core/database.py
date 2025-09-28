@@ -105,91 +105,34 @@ def _make_connector_async_creator():
     return getconn
 
 
-# Database connection strategy with multiple fallbacks
+# Database connection strategy - simplified for production
 def create_database_engines():
-    """Create database engines with multiple fallback strategies"""
+    """Create database engines with direct connection only"""
     engines_created = False
     
     # Log current configuration
     logger.info("=== Database Connection Strategy ===")
     logger.info(f"Environment: {settings.ENVIRONMENT}")
-    logger.info(f"Use Cloud SQL Connector: {settings.USE_CLOUD_SQL_CONNECTOR}")
-    logger.info(f"Cloud SQL Instance: {settings.CLOUDSQL_INSTANCE}")
-    logger.info(f"DB User: {settings.DB_USER}")
-    logger.info(f"DB Name: {settings.DB_NAME}")
     logger.info(f"Database URL configured: {bool(settings.DATABASE_CONNECTION_URL)}")
     
-    # Strategy 1: Try Cloud SQL Connector if configured
-    if (settings.USE_CLOUD_SQL_CONNECTOR and 
-        settings.CLOUDSQL_INSTANCE and 
-        settings.DB_USER and 
-        settings.DB_PASSWORD and 
-        settings.DB_NAME and 
-        Connector):
-        
-        try:
-            logger.info("🔄 Attempting Cloud SQL Connector connection...")
-            
-            # Test the connector first with timeout
-            test_connector = Connector()
-            test_conn = test_connector.connect(
-                settings.CLOUDSQL_INSTANCE,
-                "pg8000",
-                user=settings.DB_USER,
-                password=settings.DB_PASSWORD,
-                db=settings.DB_NAME,
-                ip_type=IPTypes.PUBLIC,
-            )
-            test_conn.close()
-            test_connector.close()
-            
-            # If test successful, create engines
-            engine = create_engine(
-                "postgresql+pg8000://",
-                creator=_make_connector_sync_creator(),
-                poolclass=QueuePool,
-                pool_size=settings.DATABASE_POOL_SIZE,
-                max_overflow=settings.DATABASE_MAX_OVERFLOW,
-                pool_pre_ping=True,
-                echo=settings.DEBUG,
-            )
-
-            async_engine = create_async_engine(
-                "postgresql+asyncpg://",
-                creator=_make_connector_async_creator(),
-                pool_size=settings.DATABASE_POOL_SIZE,
-                max_overflow=settings.DATABASE_MAX_OVERFLOW,
-                pool_pre_ping=True,
-                echo=settings.DEBUG,
-            )
-            
-            logger.info("✅ Cloud SQL Connector engines created successfully")
-            engines_created = True
-            
-        except Exception as e:
-            logger.warning(f"❌ Cloud SQL Connector failed: {str(e)}")
-            logger.warning("Falling back to direct connection...")
-    
-    # Strategy 2: Try direct DATABASE_URL connection
-    if not engines_created and settings.DATABASE_CONNECTION_URL:
+    # Use direct DATABASE_URL connection only
+    if settings.DATABASE_CONNECTION_URL:
         try:
             logger.info("🔄 Attempting direct DATABASE_URL connection...")
-            db_url = settings.DATABASE_CONNECTION_URL
-            logger.info(f"Database URL: {db_url[:50]}...")  # Log first 50 chars for security
             
-            # Test the connection first
-            test_engine = create_engine(
-                get_sync_database_url(db_url),
-                pool_pre_ping=True,
-                echo=False
-            )
-            with test_engine.connect() as test_conn:
-                test_conn.execute(text("SELECT 1"))
+            # Use direct connection with psycopg2
+            sync_url = get_sync_database_url(settings.DATABASE_CONNECTION_URL)
+            async_url = get_async_database_url(settings.DATABASE_CONNECTION_URL)
+            
+            # Test connection first
+            test_engine = create_engine(sync_url, pool_pre_ping=True, echo=False)
+            with test_engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
             test_engine.dispose()
             
-            # If test successful, create production engines
+            # Create production engines
             engine = create_engine(
-                get_sync_database_url(db_url),
+                sync_url,
                 poolclass=QueuePool,
                 pool_size=settings.DATABASE_POOL_SIZE,
                 max_overflow=settings.DATABASE_MAX_OVERFLOW,
@@ -198,7 +141,7 @@ def create_database_engines():
             )
 
             async_engine = create_async_engine(
-                get_async_database_url(db_url),
+                async_url,
                 pool_size=settings.DATABASE_POOL_SIZE,
                 max_overflow=settings.DATABASE_MAX_OVERFLOW,
                 pool_pre_ping=True,
@@ -210,22 +153,11 @@ def create_database_engines():
             
         except Exception as e:
             logger.error(f"❌ Direct connection failed: {str(e)}")
+            raise Exception(f"Database connection failed: {str(e)}")
     
-    # Strategy 3: Try environment-specific fallbacks
+    # If no engines created, raise error
     if not engines_created:
-        logger.warning("⚠️ All database connection strategies failed")
-        logger.warning("Using SQLite fallback database for development")
-        
-        # Create engines anyway for graceful degradation
-        engine = create_engine(
-            "sqlite:///./synthos_fallback.db",  # SQLite fallback
-            echo=settings.DEBUG,
-        )
-        async_engine = create_async_engine(
-            "sqlite+aiosqlite:///././synthos_fallback.db",
-            echo=settings.DEBUG,
-        )
-        logger.warning("⚠️ Using SQLite fallback database")
+        raise Exception("No database connection could be established")
     
     logger.info("=== Database Connection Complete ===")
     return engine, async_engine

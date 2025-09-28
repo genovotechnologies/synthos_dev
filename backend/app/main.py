@@ -88,38 +88,7 @@ if not settings.MVP_MODE and settings.ENABLE_SENTRY and settings.SENTRY_DSN:
         send_default_pii=False,  # Privacy compliance
     )
 
-# Custom CORS middleware for better control
-class CustomCORSMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        # Handle preflight requests
-        if request.method == "OPTIONS":
-            response = Response()
-            origin = request.headers.get("origin")
-            
-            # Check if origin is allowed
-            if origin in settings.CORS_ORIGINS or "*" in settings.CORS_ORIGINS:
-                response.headers["Access-Control-Allow-Origin"] = origin
-                response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD"
-                response.headers["Access-Control-Allow-Headers"] = "Accept, Accept-Language, Content-Language, Content-Type, Authorization, X-Requested-With, X-Correlation-ID, X-Forwarded-For, X-Real-IP, User-Agent, Origin, Referer, Cache-Control, Pragma"
-                response.headers["Access-Control-Allow-Credentials"] = "true"
-                response.headers["Access-Control-Max-Age"] = "86400"
-                response.headers["Access-Control-Expose-Headers"] = "X-Total-Count, X-Response-Time, X-Correlation-ID"
-            else:
-                response.headers["Access-Control-Allow-Origin"] = "null"
-            
-            return response
-        
-        # Process the request
-        response = await call_next(request)
-        
-        # Add CORS headers to all responses
-        origin = request.headers.get("origin")
-        if origin in settings.CORS_ORIGINS or "*" in settings.CORS_ORIGINS:
-            response.headers["Access-Control-Allow-Origin"] = origin
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-            response.headers["Access-Control-Expose-Headers"] = "X-Total-Count, X-Response-Time, X-Correlation-ID"
-        
-        return response
+# Custom CORS middleware removed - using standard CORSMiddleware only
 
 # Enhanced Security headers middleware with MITM protection
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -334,8 +303,7 @@ app.add_middleware(
     max_age=86400,  # Cache preflight for 24 hours
 )
 
-# Add custom CORS middleware for additional control
-app.add_middleware(CustomCORSMiddleware)
+# Custom CORS middleware removed to avoid conflicts with standard CORSMiddleware
 
 # Session middleware
 app.add_middleware(
