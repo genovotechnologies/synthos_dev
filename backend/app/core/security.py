@@ -18,13 +18,27 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 # Password hashing context with explicit backend configuration
-pwd_context = CryptContext(
-    schemes=["bcrypt"], 
-    deprecated="auto",
-    bcrypt__default_rounds=12,
-    bcrypt__min_rounds=10,
-    bcrypt__max_rounds=15
-)
+try:
+    pwd_context = CryptContext(
+        schemes=["bcrypt"], 
+        deprecated="auto",
+        bcrypt__default_rounds=12,
+        bcrypt__min_rounds=10,
+        bcrypt__max_rounds=15
+    )
+    # Test bcrypt initialization
+    pwd_context.hash("test")
+    logger.info("Bcrypt initialized successfully")
+except Exception as e:
+    logger.warning(f"Bcrypt initialization failed: {e}, using fallback")
+    # Fallback to a simpler context
+    pwd_context = CryptContext(
+        schemes=["pbkdf2_sha256"], 
+        deprecated="auto",
+        pbkdf2_sha256__default_rounds=29000,
+        pbkdf2_sha256__min_rounds=20000,
+        pbkdf2_sha256__max_rounds=40000
+    )
 
 # Token serializer for secure tokens
 token_serializer = URLSafeTimedSerializer(settings.SECRET_KEY)

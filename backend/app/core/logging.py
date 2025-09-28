@@ -108,6 +108,22 @@ class AuditLogger:
     def __init__(self):
         self.logger = structlog.get_logger("synthos.audit")
     
+    def info(self, message: str, **kwargs) -> None:
+        """Log info level audit event"""
+        self.logger.info(message, **kwargs)
+    
+    def warning(self, message: str, **kwargs) -> None:
+        """Log warning level audit event"""
+        self.logger.warning(message, **kwargs)
+    
+    def error(self, message: str, **kwargs) -> None:
+        """Log error level audit event"""
+        self.logger.error(message, **kwargs)
+    
+    def debug(self, message: str, **kwargs) -> None:
+        """Log debug level audit event"""
+        self.logger.debug(message, **kwargs)
+    
     def log_user_action(
         self,
         user_id: str,

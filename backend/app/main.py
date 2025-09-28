@@ -323,7 +323,18 @@ app = FastAPI(
 )
 
 # Security middleware (order matters!)
-# Add custom CORS middleware first
+# Add standard CORS middleware for comprehensive coverage
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
+    allow_headers=["*"],
+    expose_headers=["X-Total-Count", "X-Response-Time", "X-Correlation-ID"],
+    max_age=86400,  # Cache preflight for 24 hours
+)
+
+# Add custom CORS middleware for additional control
 app.add_middleware(CustomCORSMiddleware)
 
 # Session middleware
