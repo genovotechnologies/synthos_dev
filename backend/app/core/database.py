@@ -118,7 +118,7 @@ def create_database_engines():
     # Use direct DATABASE_URL connection only
     if settings.DATABASE_CONNECTION_URL:
         try:
-            logger.info("🔄 Attempting direct DATABASE_URL connection...")
+            logger.info("Attempting direct DATABASE_URL connection...")
             
             # Use direct connection with psycopg2
             sync_url = get_sync_database_url(settings.DATABASE_CONNECTION_URL)
@@ -148,11 +148,11 @@ def create_database_engines():
                 echo=settings.DEBUG,
             )
             
-            logger.info("✅ Direct connection engines created successfully")
+            logger.info("Direct connection engines created successfully")
             engines_created = True
             
         except Exception as e:
-            logger.error(f"❌ Direct connection failed: {str(e)}")
+            logger.error(f"Direct connection failed: {str(e)}")
             raise Exception(f"Database connection failed: {str(e)}")
     
     # If no engines created, raise error
