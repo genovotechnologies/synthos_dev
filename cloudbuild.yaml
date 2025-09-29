@@ -23,7 +23,7 @@ steps:
       - '--platform=managed'
       - '--allow-unauthenticated'
       - '--set-secrets=SECRET_KEY=synthos-secret-key:latest,JWT_SECRET_KEY=synthos-jwt-secret:latest,DB_PASSWORD=synthos-db-password:latest,VERTEX_API_KEY=synthos-vertex-api-key:latest'
-      - '--set-env-vars=ENVIRONMENT=production,USE_CLOUD_SQL_CONNECTOR=false,CLOUDSQL_INSTANCE=genovo-technologies001:europe-north2:synthos,DB_USER=postgres,DB_NAME=synthos,GCP_PROJECT_ID=genovo-technologies001,GCP_LOCATION=us-central1,VERTEX_PROJECT_ID=genovo-technologies001,VERTEX_LOCATION=us-central1,STORAGE_PROVIDER=gcs,GCS_BUCKET=synthos,GCS_SIGNED_URL_TTL=3600,ENABLE_CACHING=false,CACHE_URL=memory://,ALLOWED_HOSTS=synthos-backend-147548045822.us-central1.run.app,CORS_ORIGINS=https://synthos.dev\\,https://www.synthos.dev\\,https://synthos-dev.vercel.app,DATABASE_URL=postgresql://postgres:Genovo-2025@34.51.200.158:5432/synthos?sslmode=require'
+      - '--env-vars-file=cloudrun.env'
 
   # Post-deploy: ensure service has public egress and no VPC connector
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
