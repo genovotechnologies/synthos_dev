@@ -77,10 +77,17 @@ class User(Base):
     last_login = Column(DateTime, nullable=True)  # Alias for compatibility
     login_count = Column(Integer, default=0, nullable=False)
     
+
     # Email verification
     verification_token = Column(String(255), nullable=True)
     reset_token = Column(String(255), nullable=True)
     reset_token_expires = Column(DateTime, nullable=True)
+
+    # Password reset fields
+    reset_token = Column(String(255), nullable=True)
+    reset_token_expires = Column(DateTime, nullable=True)
+    verification_token = Column(String(255), nullable=True)
+
     
     # User metadata
     user_metadata = Column(JSON, nullable=True)  # Additional user metadata

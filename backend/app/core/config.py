@@ -39,7 +39,7 @@ class Settings:
     # Only allow HTTP origins in development mode
     if ENVIRONMENT == "development":
         _cors_origins += ",http://localhost:3000,http://127.0.0.1:3000"
-    CORS_ORIGINS: List[str] = _cors_origins.split(",")
+    CORS_ORIGINS: List[str] = [origin.strip() for origin in _cors_origins.split(",") if origin.strip()]
     
     # Database Configuration
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/synthos")
