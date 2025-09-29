@@ -45,6 +45,7 @@ fastapi-cors==0.0.6
 
 # Monitoring & Logging (ESSENTIAL)
 structlog==23.2.0
+sentry-sdk[fastapi]==1.40.0
 
 # Development & Testing (OPTIONAL - Remove in production)
 pytest==7.4.3
