@@ -189,7 +189,9 @@ class AuthService:
                 algorithms=[settings.JWT_ALGORITHM]
             )
             
-            if payload.get("type") != TokenType.ACCESS.value:
+            # Accept tokens with either explicit type=access or no type claim
+            token_type = payload.get("type")
+            if token_type is not None and token_type != TokenType.ACCESS.value:
                 return None
             
             # Check if token is blacklisted (skip silently if Redis unavailable)
@@ -655,7 +657,11 @@ async def get_current_user(
         )
     
     # Get user from database
-    user_id = payload.get("user_id")
+    user_id = payload.get("user_id") or payload.get("sub")
+    try:
+        user_id = int(user_id) if user_id is not None else None
+    except Exception:
+        user_id = None
     user = db.query(User).filter(User.id == user_id).first()
     
     if not user or not user.is_active:
