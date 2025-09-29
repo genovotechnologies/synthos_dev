@@ -15,7 +15,7 @@ import redis.asyncio as redis
 from email_validator import validate_email, EmailNotValidError
 import logging
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
@@ -27,8 +27,8 @@ from app.models.user import User, UserRole, UserStatus, UserUsage, UserSubscript
 
 logger = get_logger(__name__)
 
-# OAuth2 scheme for FastAPI
-security = HTTPBearer()
+# OAuth2 scheme for FastAPI (do not auto-error so we can fall back to cookie)
+security = HTTPBearer(auto_error=False)
 
 
 class TokenType(Enum):
@@ -603,6 +603,7 @@ class AuthService:
 
 # FastAPI Dependencies
 async def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ) -> User:
@@ -610,8 +611,22 @@ async def get_current_user(
     
     auth_service = AuthService()
     
+    # Extract token from Authorization bearer or fallback to HttpOnly cookie
+    token: Optional[str] = None
+    if credentials and credentials.scheme.lower() == "bearer":
+        token = credentials.credentials
+    if not token:
+        token = request.cookies.get("synthos_token")
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     # Verify token
-    payload = await auth_service.verify_access_token(credentials.credentials)
+    payload = await auth_service.verify_access_token(token)
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
