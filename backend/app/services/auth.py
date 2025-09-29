@@ -177,6 +177,12 @@ class AuthService:
         """Verify and decode access token"""
         
         try:
+            # Ensure Redis client is available if possible, but don't fail auth if not
+            if self.redis_client is None:
+                try:
+                    self.redis_client = await get_redis_client()
+                except Exception:
+                    self.redis_client = None
             payload = jwt.decode(
                 access_token,
                 settings.JWT_SECRET_KEY,
@@ -186,8 +192,13 @@ class AuthService:
             if payload.get("type") != TokenType.ACCESS.value:
                 return None
             
-            # Check if token is blacklisted
-            if await self._is_token_blacklisted(access_token):
+            # Check if token is blacklisted (skip silently if Redis unavailable)
+            is_blacklisted = False
+            try:
+                is_blacklisted = await self._is_token_blacklisted(access_token)
+            except Exception:
+                is_blacklisted = False
+            if is_blacklisted:
                 return None
             
             return payload
@@ -446,6 +457,9 @@ class AuthService:
     
     async def _blacklist_token(self, token: str):
         """Add token to blacklist"""
+        # If Redis is unavailable, skip blacklisting gracefully
+        if not self.redis_client:
+            return
         try:
             # Decode to get expiration
             payload = jwt.decode(
@@ -462,17 +476,23 @@ class AuthService:
                     # Only blacklist if not expired
                     ttl = int((exp_datetime - datetime.utcnow()).total_seconds())
                     key = f"blacklisted_token:{token}"
-                    await self.redis_client.setex(key, ttl, "blacklisted")
+                    if self.redis_client:
+                        await self.redis_client.setex(key, ttl, "blacklisted")
                     
         except jwt.InvalidTokenError:
             # Still blacklist invalid tokens with default TTL
             key = f"blacklisted_token:{token}"
-            await self.redis_client.setex(key, 86400, "blacklisted")  # 24 hours
+            if self.redis_client:
+                await self.redis_client.setex(key, 86400, "blacklisted")  # 24 hours
     
     async def _is_token_blacklisted(self, token: str) -> bool:
         """Check if token is blacklisted"""
+        # If Redis is unavailable, treat as not blacklisted
+        if not self.redis_client:
+            return False
         key = f"blacklisted_token:{token}"
-        return bool(await self.redis_client.get(key))
+        value = await self.redis_client.get(key)
+        return bool(value)
     
     async def _invalidate_user_sessions(self, user_id: int):
         """Invalidate all sessions for a user"""

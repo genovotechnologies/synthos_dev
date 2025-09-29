@@ -42,11 +42,8 @@ api.interceptors.request.use(
     // Add correlation ID for tracking
     config.headers['X-Correlation-ID'] = generateCorrelationId();
     
-    // Add auth token if available
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    // Cookie-based auth: do not attach stale Bearer tokens from localStorage
+    // Backend will read HttpOnly cookie `synthos_token`
     
     // Security: Ensure HTTPS in production
     if (config.url && (process.env.NODE_ENV === 'production' || FORCE_HTTPS)) {
