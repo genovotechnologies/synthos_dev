@@ -4,6 +4,9 @@ Enterprise-grade authentication with JWT, rate limiting, and security features
 """
 
 import jwt
+
+from passlib.hash import bcrypt
+
 import secrets
 import asyncio
 from datetime import datetime, timedelta
@@ -325,12 +328,20 @@ class AuthService:
     
     def _hash_password(self, password: str) -> str:
         """Hash password using bcrypt"""
+
+        return bcrypt.hash(password)
+
         return self.pwd_context.hash(password)
+
     
     def _verify_password(self, password: str, password_hash: str) -> bool:
         """Verify password against hash"""
         try:
+
+            return bcrypt.verify(password, password_hash)
+
             return self.pwd_context.verify(password, password_hash)
+
         except Exception:
             return False
     
@@ -601,7 +612,12 @@ class AuthService:
             from datetime import datetime
             db = next(get_db())
             db.query(User).filter(User.id == user_id).update({
+
+                User.last_login_at: datetime.utcnow(),
+                User.last_login: datetime.utcnow()
+
                 User.last_login_at: datetime.utcnow()
+
             })
             db.commit()
         except Exception as e:

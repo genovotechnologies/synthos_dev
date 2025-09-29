@@ -68,7 +68,8 @@ limiter = None
 try:
     if not settings.MVP_MODE and settings.ENABLE_RATE_LIMITING and settings.ENABLE_CACHING:
         limiter = Limiter(key_func=get_remote_address, storage_uri=settings.CACHE_URL)
-except Exception:
+except Exception as e:
+    logger.warning("Rate limiting disabled due to configuration error", error=str(e))
     limiter = None
 
 # Sentry integration for error tracking (feature-flagged, disabled in MVP mode)
@@ -217,8 +218,12 @@ async def lifespan(app: FastAPI):
                 await asyncio.sleep(2)
         
 
+
+        # Initialize Redis with connection pooling (best-effort)
+
     # Initialize Redis with connection pooling (only if caching is enabled)
     if settings.ENABLE_CACHING:
+
         try:
             await init_redis()
             redis_initialized = True
