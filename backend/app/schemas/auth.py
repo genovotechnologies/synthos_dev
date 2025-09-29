@@ -35,7 +35,9 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8)
     full_name: str = Field(..., min_length=1, max_length=100)
+    # Accept both "company" and "company_name" from clients
     company: Optional[str] = Field(None, max_length=100)
+    company_name: Optional[str] = Field(None, max_length=100)
 
 
 class UserResponse(BaseModel):

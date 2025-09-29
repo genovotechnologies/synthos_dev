@@ -365,11 +365,13 @@ async def signup_user(
         
         # Create new user
         hashed_password = get_password_hash(user_data.password)
+        # Normalize company/company_name from request
+        company_value = getattr(user_data, "company_name", None) or getattr(user_data, "company", None)
         db_user = User(
             email=user_data.email,
             hashed_password=hashed_password,
             full_name=user_data.full_name,
-            company=user_data.company,
+            company=company_value,
             role=UserRole.USER,
             is_active=True,
             is_verified=False
@@ -391,12 +393,12 @@ async def signup_user(
             id=db_user.id,
             email=db_user.email,
             full_name=db_user.full_name,
-            company_name=db_user.company_name,
+            company_name=getattr(db_user, "company", None),
             is_active=db_user.is_active,
             is_verified=db_user.is_verified,
             subscription_tier=db_user.subscription_tier.value,
             created_at=db_user.created_at,
-            last_login=db_user.last_login
+            last_login=getattr(db_user, "last_login_at", None)
         )
         
     except HTTPException:

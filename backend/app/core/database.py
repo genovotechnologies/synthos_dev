@@ -194,45 +194,31 @@ async def create_tables():
 
 
 def get_db():
-    """Database dependency for FastAPI with retry logic"""
-    db = None
-    max_retries = 3
-    retry_delay = 1  # seconds
-    
-    for attempt in range(max_retries):
+    """Database dependency for FastAPI using a safe generator pattern.
+
+    Only converts initial connection failures to 503. It does NOT
+    intercept exceptions thrown by route handlers during teardown,
+    preventing valid HTTP errors (e.g., 400/401) from being masked as 503.
+    """
+    db = SessionLocal()
+    # Validate connection once, and convert failures to 503
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as e:
         try:
-            db = SessionLocal()
-            # Test the connection with a simple query
-            db.execute(text("SELECT 1"))
-            yield db
-            return  # Success, exit the function
-            
-        except Exception as e:
-            logger.warning(f"Database connection attempt {attempt + 1} failed: {str(e)}")
-            if db:
-                try:
-                    db.close()
-                except:
-                    pass
-                db = None
-            
-            if attempt < max_retries - 1:
-                import time
-                time.sleep(retry_delay)
-                retry_delay *= 2  # Exponential backoff
-            else:
-                # All retries failed
-                logger.error("All database connection attempts failed", error=str(e))
-                raise HTTPException(
-                    status_code=503,
-                    detail="Database temporarily unavailable. Please try again later."
-                )
-        finally:
-            if db:
-                try:
-                    db.close()
-                except:
-                    pass
+            db.close()
+        except Exception:
+            pass
+        logger.error("Database liveness check failed", error=str(e))
+        raise HTTPException(status_code=503, detail="Database temporarily unavailable. Please try again later.")
+
+    try:
+        yield db
+    finally:
+        try:
+            db.close()
+        except Exception:
+            pass
 
 
 @asynccontextmanager
