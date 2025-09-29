@@ -5,9 +5,14 @@ Enterprise-grade logging with structured output
 
 import sys
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 import structlog
-from pythonjsonlogger import jsonlogger
+
+# Optional dependency: python-json-logger
+try:
+    from pythonjsonlogger import jsonlogger  # type: ignore
+except Exception:  # pragma: no cover - fallback if package missing
+    jsonlogger = None  # type: ignore
 
 from app.core.config import settings
 
@@ -37,8 +42,8 @@ def setup_logging() -> None:
     # Configure standard library logging
     handler = logging.StreamHandler(sys.stdout)
     
-    if settings.ENVIRONMENT == "production":
-        # JSON formatting for production
+    if settings.ENVIRONMENT == "production" and jsonlogger is not None:
+        # JSON formatting for production when available
         formatter = jsonlogger.JsonFormatter(
             "%(asctime)s %(name)s %(levelname)s %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S"
