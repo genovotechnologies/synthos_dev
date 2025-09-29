@@ -5,7 +5,7 @@ JWT-based authentication with enterprise features
 
 from datetime import timedelta, datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Body, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -85,6 +85,7 @@ async def register_user(
 @router.post("/login", response_model=Token)
 async def login_user(
     request: Request,
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
@@ -130,6 +131,18 @@ async def login_user(
     db.commit()
     db.refresh(user)
     
+    # Set HttpOnly Secure cookie for cross-site (api.synthos.dev -> www.synthos.dev)
+    response.set_cookie(
+        key="synthos_token",
+        value=access_token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        max_age=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        domain=".synthos.dev",
+        path="/",
+    )
+
     # Log successful login
     client_ip = getattr(request.client, 'host', '127.0.0.1') if request.client else '127.0.0.1'
     user_agent = request.headers.get("user-agent", "Unknown")
@@ -418,6 +431,7 @@ async def signup_user(
 @router.post("/signin", response_model=Token)
 async def signin_user(
     request: Request,
+    response: Response,
     user_data: UserLogin,
     db: Session = Depends(get_db)
 ):
@@ -452,6 +466,18 @@ async def signin_user(
             expires_delta=access_token_expires
         )
         
+        # Set HttpOnly Secure cookie for cross-site (api.synthos.dev -> www.synthos.dev)
+        response.set_cookie(
+            key="synthos_token",
+            value=access_token,
+            httponly=True,
+            secure=True,
+            samesite="none",
+            max_age=int(access_token_expires.total_seconds()),
+            domain=".synthos.dev",
+            path="/",
+        )
+
         # Update last login
         user.last_login = datetime.utcnow()
         db.commit()

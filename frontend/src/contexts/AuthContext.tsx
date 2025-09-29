@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { secureStorage } from '../lib/secure-storage';
+import { apiClient } from '@/lib/api';
 
 const AuthContext = createContext<any>(null);
 
@@ -17,25 +18,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        // Validate storage integrity first
-        if (!secureStorage.validateIntegrity()) {
-          console.warn('Storage integrity validation failed, clearing auth state');
-          setIsLoading(false);
+        // Prefer server session via HttpOnly cookie
+        const profile = await apiClient.getProfile();
+        if (profile && profile.email) {
+          setUser(profile);
+          setIsAuthenticated(true);
           return;
         }
 
-        const storedToken = secureStorage.getToken();
-        const storedUser = secureStorage.getUser();
-
-        if (storedToken && storedUser) {
-          setUser(storedUser);
-          setIsAuthenticated(true);
-          
-          // Validate token with server
-          const isValid = await validateTokenWithServer(storedToken);
-          if (!isValid) {
-            console.warn('Token validation failed, clearing auth state');
-            logout();
+        // Fallback to legacy local storage if present
+        if (secureStorage.validateIntegrity()) {
+          const storedUser = secureStorage.getUser();
+          if (storedUser) {
+            setUser(storedUser);
+            setIsAuthenticated(true);
           }
         }
       } catch (error) {
@@ -49,19 +45,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     initializeAuth();
   }, []);
 
-  const validateTokenWithServer = async (token: string): Promise<boolean> => {
+  const validateTokenWithServer = async (): Promise<boolean> => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/validate`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      return response.ok;
+      const profile = await apiClient.getProfile();
+      return !!profile?.email;
     } catch (error) {
-      console.error('Token validation error:', error);
       return false;
     }
   };
@@ -81,53 +69,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error('Invalid email format');
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          username: email,
-          password: password,
-        }),
-      });
-
-      if (response.ok) {
-        const { access_token, token_type } = await response.json();
-        
-        // Secure token storage
-        const tokenStored = secureStorage.setToken(access_token);
-        if (!tokenStored) {
-          throw new Error('Failed to store authentication token securely');
-        }
-        
-        setUser(user);
+      // Use backend JSON signin which sets HttpOnly cookie
+      await apiClient.signIn(email, password);
+      const profile = await apiClient.getProfile();
+      if (profile && profile.email) {
+        setUser(profile);
         setIsAuthenticated(true);
-
-        // Fetch user data
-        const userResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/users/me`, {
-          headers: {
-            'Authorization': `Bearer ${access_token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (userResponse.ok) {
-          const userData = await userResponse.json();
-          setUser(userData);
-          
-          // Secure user data storage
-          const userStored = secureStorage.setUser(userData);
-          if (!userStored) {
-            console.warn('Failed to store user data securely');
-          }
-          
-          return true;
-        }
+        // Optional: store minimal user data for UX only (not auth)
+        secureStorage.setUser(profile);
+        return true;
       }
-
-      const errorData = await response.json();
-      console.error('Login error:', errorData);
       return false;
     } catch (error) {
       console.error('Login error:', error);
@@ -142,7 +93,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     
     try {
       // Input validation
-      if (!userData.email || !userData.password || !userData.firstName || !userData.lastName) {
+      if (!userData.email || !userData.password || !userData.full_name) {
         throw new Error('All required fields must be provided');
       }
 
@@ -151,29 +102,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error('Password must be at least 8 characters long');
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
+      // Use backend signup which returns user and sets cookie via signin flow afterward
+      await apiClient.signUp({
+        email: userData.email,
+        password: userData.password,
+        full_name: userData.full_name,
+        company_name: userData.company_name,
       });
-
-      if (response.ok) {
-        const { access_token } = await response.json();
-        
-        // Secure token storage
-        const tokenStored = secureStorage.setToken(access_token);
-        if (!tokenStored) {
-          throw new Error('Failed to store authentication token securely');
-        }
-        
-        setUser(user);
+      // Auto-login after signup
+      await apiClient.signIn(userData.email, userData.password);
+      const profile = await apiClient.getProfile();
+      if (profile && profile.email) {
+        setUser(profile);
         setIsAuthenticated(true);
+        secureStorage.setUser(profile);
         return true;
       }
-
-      logout();
       return false;
     } catch (error) {
       console.error('Registration error:', error);

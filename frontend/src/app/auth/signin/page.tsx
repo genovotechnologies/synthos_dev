@@ -27,42 +27,13 @@ const SignInPage = () => {
     setIsLoading(true);
     
     try {
-      const result = await apiClient.signIn(formData.email, formData.password);
-      
-      // Check if we got a valid response
-      if (result && (result as any).access_token) {
-        // Store the token if remember me is checked
-        if (formData.rememberMe) {
-          localStorage.setItem('token', (result as any).access_token);
-          if ((result as any).user) {
-            localStorage.setItem('user', JSON.stringify((result as any).user));
-          }
-        }
-        
-        toast({
-          title: "Success!",
-          description: "You have been signed in successfully.",
-          variant: "success",
-        });
-        
-        // Clear form data
-        setFormData({
-          email: '',
-          password: '',
-          rememberMe: false
-        });
-        
-        // Redirect to dashboard after a short delay
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 1000);
-      } else {
-        toast({
-          title: "Sign in failed",
-          description: "Invalid credentials. Please check your email and password.",
-          variant: "destructive",
-        });
-      }
+      await apiClient.signIn(formData.email, formData.password);
+      toast({
+        title: 'Signed in',
+        description: 'You have been signed in successfully.',
+        variant: 'success'
+      });
+      setTimeout(() => { window.location.href = '/dashboard'; }, 800);
     } catch (err: any) {
       console.error('Sign in error:', err);
       
@@ -70,6 +41,8 @@ const SignInPage = () => {
       
       if (err?.response?.status === 401) {
         errorMessage = "Invalid email or password. Please check your credentials.";
+      } else if (err?.response?.status === 409) {
+        errorMessage = "Email already registered. Please sign in.";
       } else if (err?.response?.status === 422) {
         errorMessage = "Please check your email and password format.";
       } else if (err?.response?.status >= 500) {
