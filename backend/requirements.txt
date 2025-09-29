@@ -1,121 +1,52 @@
-# =============================================================================                                                                                                    │
- │      2 # SYNTHOS BACKEND DEPENDENCIES - OPTIMIZED FOR AWS APP RUNNER                                                                                                                      │
- │      3 # Python 3.8 Compatible - Production Ready                                                                                                                                         │
- │      4 # =============================================================================                                                                                                    │
- │      5                                                                                                                                                                                    │
- │      6 # Core FastAPI Framework (ESSENTIAL - Install first)                                                                                                                               │
- │      7 fastapi==0.104.1                                                                                                                                                                   │
- │      8 uvicorn[standard]==0.24.0                                                                                                                                                          │
- │      9 pydantic==2.5.2                                                                                                                                                                    │
- │     10 pydantic[email]==2.5.2                                                                                                                                                             │
- │     11                                                                                                                                                                                    │
- │     12 # Database & ORM (ESSENTIAL)                                                                                                                                                       │
- │     13 sqlalchemy==2.0.25                                                                                                                                                                 │
- │     14 psycopg2-binary==2.9.9                                                                                                                                                             │
- │     15 alembic==1.13.1                                                                                                                                                                    │
- │     16 asyncpg==0.29.0                                                                                                                                                                    │
- │     17 aiosqlite==0.20.0                                                                                                                                                                  │
- │     18                                                                                                                                                                                    │
- │     19 # Authentication & Security (ESSENTIAL)                                                                                                                                            │
- │     20 passlib==1.7.4                                                                                                                                                                     │
- │     21 bcrypt==4.1.3                                                                                                                                                                      │
- │     22 PyJWT==2.8.0                                                                                                                                                                       │
- │     23 python-jose[cryptography]==3.3.0                                                                                                                                                   │
- │     24 python-multipart==0.0.6                                                                                                                                                            │
- │     25 itsdangerous==2.1.2                                                                                                                                                                │
- │     26 slowapi==0.1.9                                                                                                                                                                     │
- │     27                                                                                                                                                                                    │
- │     28 # Email & Templates (ESSENTIAL)                                                                                                                                                    │
- │     29 email-validator==2.1.0.post1                                                                                                                                                       │
- │     30 jinja2==3.1.3                                                                                                                                                                      │
- │     31                                                                                                                                                                                    │
- │     32 # Redis & Caching (ESSENTIAL)                                                                                                                                                      │
- │     33 redis==5.0.1                                                                                                                                                                       │
- │     34 aioredis==2.0.1                                                                                                                                                                    │
- │     35                                                                                                                                                                                    │
- │     36 # Background Tasks (ESSENTIAL)                                                                                                                                                     │
- │     37 celery==5.3.4                                                                                                                                                                      │
- │     38                                                                                                                                                                                    │
- │     39 # AWS Services (ESSENTIAL)                                                                                                                                                         │
- │     40 boto3==1.34.34                                                                                                                                                                     │
- │     41 botocore==1.34.34                                                                                                                                                                  │
- │     42                                                                                                                                                                                    │
- │     43 # AI/ML APIs (ESSENTIAL)                                                                                                                                                           │
- │     44 anthropic==0.8.1                                                                                                                                                                   │
- │     45 openai==1.12.0                                                                                                                                                                     │
- │     46                                                                                                                                                                                    │
- │     47 # Monitoring & Logging (ESSENTIAL)                                                                                                                                                 │
- │     48 sentry-sdk[fastapi]==1.40.6                                                                                                                                                        │
- │     49 structlog==23.2.0                                                                                                                                                                  │
- │     50 python-json-logger==3.1.0                                                                                                                                                          │
- │     51                                                                                                                                                                                    │
- │     52 # Payment Processing (ESSENTIAL)                                                                                                                                                   │
- │     53 stripe==7.12.0                                                                                                                                                                     │
- │     54                                                                                                                                                                                    │
- │     55 # Data Processing (CORE ONLY - LIGHTWEIGHT)                                                                                                                                        │
- │     56 pandas==2.1.4                                                                                                                                                                      │
- │     57 numpy==1.24.3                                                                                                                                                                      │
- │     58 scipy==1.11.4                                                                                                                                                                      │
- │     59                                                                                                                                                                                    │
- │     60 # File Handling (ESSENTIAL)                                                                                                                                                        │
- │     61 aiofiles==24.1.0                                                                                                                                                                   │
- │     62 openpyxl==3.1.2                                                                                                                                                                    │
- │     63                                                                                                                                                                                    │
- │     64 # HTTP Clients (ESSENTIAL)                                                                                                                                                         │
- │     65 httpx==0.26.0                                                                                                                                                                      │
- │     66 requests==2.31.0                                                                                                                                                                   │
- │     67 aiohttp==3.9.1                                                                                                                                                                     │
- │     68                                                                                                                                                                                    │
- │     69 # Environment & Configuration (ESSENTIAL)                                                                                                                                          │
- │     70 python-decouple==3.8                                                                                                                                                               │
- │     71 python-dotenv==1.0.1                                                                                                                                                               │
- │     72                                                                                                                                                                                    │
- │     73 # Time Handling (ESSENTIAL)                                                                                                                                                        │
- │     74 pytz==2024.1                                                                                                                                                                       │
- │     75                                                                                                                                                                                    │
- │     76 # System Monitoring (ESSENTIAL)                                                                                                                                                    │
- │     77 psutil==5.9.8                                                                                                                                                                      │
- │     78 prometheus_client==0.19.0                                                                                                                                                          │
- │     79                                                                                                                                                                                    │
- │     80 # Data Validation (ESSENTIAL)                                                                                                                                                      │
- │     81 marshmallow==3.20.2                                                                                                                                                                │
- │     82 sqlparse==0.4.4                                                                                                                                                                    │
- │     83                                                                                                                                                                                    │
- │     84 # Testing Dependencies (ESSENTIAL)                                                                                                                                                 │
- │     85 pytest==7.4.3                                                                                                                                                                      │
- │     86 pytest-cov==4.1.0                                                                                                                                                                  │
- │     87 pytest-asyncio==0.21.1                                                                                                                                                             │
- │     88                                                                                                                                                                                    │
- │     89 # =============================================================================                                                                                                    │
- │     90 # GOOGLE CLOUD INTEGRATIONS (NEW)                                                                                                                                                  │
- │     91 # =============================================================================                                                                                                    │
- │     92 # Google Cloud Storage client                                                                                                                                                      │
- │     93 google-cloud-storage==2.18.2                                                                                                                                                       │
- │     94 # Vertex AI / Model Garden                                                                                                                                                         │
- │     95 google-cloud-aiplatform==1.70.0                                                                                                                                                    │
- │     96 # Auth helpers                                                                                                                                                                     │
- │     97 google-auth==2.35.0                                                                                                                                                                │
- │     98 # Cloud SQL Connector (PostgreSQL)                                                                                                                                                 │
- │     99 cloud-sql-python-connector[asyncpg,pg8000]==1.9.2                                                                                                                                  │
- │    100                                                                                                                                                                                    │
- │    101 # =============================================================================                                                                                                    │
- │    102 # AI/ML DEPENDENCIES (OPTIONAL - INSTALL ONLY IF NEEDED)                                                                                                                           │
- │    103 # These packages are large and may cause build timeouts                                                                                                                            │
- │    104 # They will be installed with best effort, failures are acceptable                                                                                                                 │
- │    105 # =============================================================================                                                                                                    │
- │    106                                                                                                                                                                                    │
- │    107 # Uncomment these lines only if AI/ML features are required:                                                                                                                       │
- │    108 # torch==2.1.2+cpu --find-links https://download.pytorch.org/whl/torch_stable.html                                                                                                 │
- │    109 # transformers==4.37.2                                                                                                                                                             │
- │    110 # scikit-learn==1.3.2                                                                                                                                                              │
- │    111                                                                                                                                                                                    │
- │    112 # =============================================================================                                                                                                    │
- │    113 # LIGHTWEIGHT ALTERNATIVES (OPTIONAL)                                                                                                                                              │
- │    114 # These provide similar functionality with smaller footprint                                                                                                                       │
- │    115 # =============================================================================                                                                                                    │
- │    116                                                                                                                                                                                    │
- │    117 # For basic ML tasks without PyTorch:                                                                                                                                              │
- │    118 # scikit-learn==1.3.2                                                                                                                                                              │
- │    119                                                                                                                                                                                    │
- │    120 # For text processing without transformers:                                                                                                                                        │
- │    121 # nltk==3.8.1                
+# =============================================================================
+# SYNTHOS BACKEND DEPENDENCIES - OPTIMIZED FOR GOOGLE CLOUD RUN
+# Python 3.11 Compatible - Production Ready
+# =============================================================================
+
+# Core FastAPI Framework (ESSENTIAL - Install first)
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.2
+pydantic[email]==2.5.2
+
+# Database & ORM (ESSENTIAL)
+sqlalchemy==2.0.25
+psycopg2-binary==2.9.9
+alembic==1.13.1
+
+# Authentication & Security (ESSENTIAL)
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+
+# Google Cloud Services (ESSENTIAL for GCP deployment)
+google-cloud-storage==2.18.2
+google-cloud-aiplatform==1.70.0
+google-auth==2.35.0
+cloud-sql-python-connector[asyncpg,pg8000]==1.9.2
+
+# HTTP & API (ESSENTIAL)
+httpx==0.25.2
+requests==2.31.0
+
+# Data Processing (ESSENTIAL)
+pandas==2.1.4
+numpy==1.24.4
+
+# AI/ML Libraries (ESSENTIAL)
+openai==1.3.7
+anthropic==0.7.8
+
+# Environment & Configuration (ESSENTIAL)
+python-dotenv==1.0.0
+
+# CORS & Middleware (ESSENTIAL)
+fastapi-cors==0.0.6
+
+# Monitoring & Logging (ESSENTIAL)
+structlog==23.2.0
+
+# Development & Testing (OPTIONAL - Remove in production)
+pytest==7.4.3
+pytest-asyncio==0.21.1
+

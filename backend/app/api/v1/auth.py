@@ -369,7 +369,7 @@ async def signup_user(
             email=user_data.email,
             hashed_password=hashed_password,
             full_name=user_data.full_name,
-            company_name=user_data.company_name,
+            company=user_data.company,
             role=UserRole.USER,
             is_active=True,
             is_verified=False

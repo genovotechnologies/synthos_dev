@@ -45,6 +45,13 @@ const SignInPage = () => {
           variant: "success",
         });
         
+        // Clear form data
+        setFormData({
+          email: '',
+          password: '',
+          rememberMe: false
+        });
+        
         // Redirect to dashboard after a short delay
         setTimeout(() => {
           window.location.href = '/dashboard';

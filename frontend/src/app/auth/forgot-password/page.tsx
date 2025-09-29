@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import Link from 'next/link';
+import { apiClient } from '@/lib/api';
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
@@ -18,20 +19,40 @@ const ForgotPasswordPage = () => {
     setIsLoading(true);
     
     try {
-      // Simulate API call - replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const result = await apiClient.forgotPassword(email);
       
-      toast({
-        title: "Reset link sent!",
-        description: "Check your email for password reset instructions.",
-        variant: "success",
-      });
+      // Only show success if API call was successful
+      if (result && (result as any).message) {
+        toast({
+          title: "Reset link sent!",
+          description: "Check your email for password reset instructions.",
+          variant: "success",
+        });
+        
+        setIsSubmitted(true);
+      } else {
+        toast({
+          title: "Failed to send reset link",
+          description: "Please try again or contact support if the problem persists.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error('Forgot password error:', error);
       
-      setIsSubmitted(true);
-    } catch (error) {
+      let errorMessage = "Failed to send reset link. Please try again.";
+      
+      if (error?.response?.status === 404) {
+        errorMessage = "Email not found. Please check your email address.";
+      } else if (error?.response?.status === 429) {
+        errorMessage = "Too many requests. Please wait before trying again.";
+      } else if (error?.response?.status >= 500) {
+        errorMessage = "Server error. Please try again later.";
+      }
+      
       toast({
         title: "Failed to send reset link",
-        description: "Please try again or contact support if the problem persists.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

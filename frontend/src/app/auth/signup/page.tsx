@@ -59,22 +59,43 @@ const SignUpPage = () => {
     setIsLoading(true);
     
     try {
-      await apiClient.signUp({
+      const result = await apiClient.signUp({
         email: formData.email,
         password: formData.password,
         full_name: `${formData.firstName} ${formData.lastName}`,
         company_name: formData.company || undefined
       });
       
-      toast({
-        title: "Account created!",
-        description: "Your account has been created successfully. Please sign in.",
-        variant: "success",
-      });
-      
-      setTimeout(() => {
-        window.location.href = '/auth/signin';
-      }, 1500);
+      // Only redirect if signup was successful
+      if (result && (result as any).access_token) {
+        toast({
+          title: "Account created!",
+          description: "Your account has been created successfully. Please sign in.",
+          variant: "success",
+        });
+        
+        // Clear form data
+        setFormData({
+          firstName: '',
+          lastName: '',
+          email: '',
+          password: '',
+          confirmPassword: '',
+          company: '',
+          agreeTerms: false,
+          agreeMarketing: false
+        });
+        
+        setTimeout(() => {
+          window.location.href = '/auth/signin';
+        }, 1500);
+      } else {
+        toast({
+          title: "Sign up failed",
+          description: "Account creation failed. Please try again.",
+          variant: "destructive",
+        });
+      }
     } catch (err: any) {
       console.error('Sign up error:', err);
       
