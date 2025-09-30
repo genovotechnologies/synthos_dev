@@ -5,7 +5,11 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"net"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -16,6 +20,51 @@ import (
 type AdvancedAuthService struct {
 	redisClient *redis.Client
 	blacklist   *Blacklist
+	// Advanced security features
+	rateLimiter    *RateLimiter
+	securityEngine *SecurityEngine
+	auditLogger    *AuditLogger
+}
+
+// Advanced security structures
+type RateLimiter struct {
+	redisClient *redis.Client
+}
+
+type SecurityEngine struct {
+	redisClient *redis.Client
+	blacklist   *Blacklist
+}
+
+type AuditLogger struct {
+	redisClient *redis.Client
+}
+
+type SecurityEvent struct {
+	EventType   string                 `json:"event_type"`
+	UserID      string                 `json:"user_id"`
+	IPAddress   string                 `json:"ip_address"`
+	UserAgent   string                 `json:"user_agent"`
+	Timestamp   time.Time              `json:"timestamp"`
+	Severity    string                 `json:"severity"`
+	Description string                 `json:"description"`
+	Metadata    map[string]interface{} `json:"metadata"`
+}
+
+type LoginAttempt struct {
+	IPAddress string    `json:"ip_address"`
+	Email     string    `json:"email"`
+	Success   bool      `json:"success"`
+	Timestamp time.Time `json:"timestamp"`
+	UserAgent string    `json:"user_agent"`
+}
+
+type SecurityMetrics struct {
+	FailedAttempts   int       `json:"failed_attempts"`
+	SuccessRate      float64   `json:"success_rate"`
+	RiskScore        float64   `json:"risk_score"`
+	LastLoginTime    time.Time `json:"last_login_time"`
+	ConcurrentLogins int       `json:"concurrent_logins"`
 }
 
 type TokenType string
@@ -54,9 +103,23 @@ type APIKeyRequest struct {
 }
 
 func NewAdvancedAuthService(redisClient *redis.Client, blacklist *Blacklist) *AdvancedAuthService {
+	// Validate required dependencies
+	if redisClient == nil {
+		panic("redisClient cannot be nil")
+	}
+	if blacklist == nil {
+		panic("blacklist cannot be nil")
+	}
+
 	return &AdvancedAuthService{
 		redisClient: redisClient,
 		blacklist:   blacklist,
+		rateLimiter: &RateLimiter{redisClient: redisClient},
+		securityEngine: &SecurityEngine{
+			redisClient: redisClient,
+			blacklist:   blacklist,
+		},
+		auditLogger: &AuditLogger{redisClient: redisClient},
 	}
 }
 
@@ -205,7 +268,7 @@ func (a *AdvancedAuthService) RecordFailedAttempt(email, ipAddress string) error
 
 	// Record for IP
 	ipKey := fmt.Sprintf("failed_attempts:ip:%s", ipAddress)
-	ipCount, _ := a.redisClient.Incr(context.Background(), ipKey).Result()
+	_, _ = a.redisClient.Incr(context.Background(), ipKey).Result()
 	a.redisClient.Expire(context.Background(), ipKey, 15*time.Minute)
 
 	// Lock account if too many attempts
@@ -227,4 +290,243 @@ func (a *AdvancedAuthService) ClearFailedAttempts(email, ipAddress string) error
 	_, err := pipe.Exec(context.Background())
 
 	return err
+}
+
+// Advanced Security Methods
+
+// ValidatePasswordStrength validates password strength
+func (a *AdvancedAuthService) ValidatePasswordStrength(password string) (bool, []string) {
+	var errors []string
+
+	// Minimum length
+	if len(password) < 12 {
+		errors = append(errors, "Password must be at least 12 characters long")
+	}
+
+	// Check for uppercase
+	hasUpper := regexp.MustCompile(`[A-Z]`).MatchString(password)
+	if !hasUpper {
+		errors = append(errors, "Password must contain at least one uppercase letter")
+	}
+
+	// Check for lowercase
+	hasLower := regexp.MustCompile(`[a-z]`).MatchString(password)
+	if !hasLower {
+		errors = append(errors, "Password must contain at least one lowercase letter")
+	}
+
+	// Check for numbers
+	hasNumber := regexp.MustCompile(`[0-9]`).MatchString(password)
+	if !hasNumber {
+		errors = append(errors, "Password must contain at least one number")
+	}
+
+	// Check for special characters
+	hasSpecial := regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]`).MatchString(password)
+	if !hasSpecial {
+		errors = append(errors, "Password must contain at least one special character")
+	}
+
+	// Check for common patterns
+	commonPatterns := []string{
+		"password", "123456", "qwerty", "abc123", "admin", "user",
+		"login", "welcome", "hello", "test", "demo",
+	}
+
+	passwordLower := strings.ToLower(password)
+	for _, pattern := range commonPatterns {
+		if strings.Contains(passwordLower, pattern) {
+			errors = append(errors, "Password contains common patterns")
+			break
+		}
+	}
+
+	return len(errors) == 0, errors
+}
+
+// ValidateEmailFormat validates email format
+func (a *AdvancedAuthService) ValidateEmailFormat(email string) bool {
+	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	return emailRegex.MatchString(email)
+}
+
+// CheckIPReputation checks if IP is from a known malicious source
+func (a *AdvancedAuthService) CheckIPReputation(ipAddress string) (bool, error) {
+	// Check if IP is in blacklist
+	blacklisted, err := a.blacklist.IsBlacklisted(context.Background(), ipAddress)
+	if err != nil {
+		return false, err
+	}
+
+	if blacklisted {
+		return false, nil
+	}
+
+	// Check for suspicious IP patterns
+	ip := net.ParseIP(ipAddress)
+	if ip == nil {
+		return false, fmt.Errorf("invalid IP address")
+	}
+
+	// Check for private IPs (allow for development)
+	if ip.IsPrivate() {
+		return true, nil
+	}
+
+	// Check for known VPN/proxy ranges (simplified)
+	// In production, integrate with threat intelligence feeds
+	return true, nil
+}
+
+// CalculateRiskScore calculates security risk score
+func (a *AdvancedAuthService) CalculateRiskScore(userID, ipAddress, userAgent string) (float64, error) {
+	ctx := context.Background()
+	riskScore := 0.0
+
+	// Get recent login attempts
+	attemptsKey := fmt.Sprintf("login_attempts:%s", userID)
+	attempts, err := a.redisClient.LRange(ctx, attemptsKey, 0, 9).Result()
+	if err != nil && err != redis.Nil {
+		return 0, err
+	}
+
+	// Calculate risk based on failed attempts
+	failedCount := 0
+	for _, attempt := range attempts {
+		if strings.Contains(attempt, "false") {
+			failedCount++
+		}
+	}
+
+	// Risk increases with failed attempts
+	riskScore += float64(failedCount) * 0.1
+
+	// Check for unusual IP patterns
+	ipKey := fmt.Sprintf("user_ips:%s", userID)
+	ips, err := a.redisClient.SMembers(ctx, ipKey).Result()
+	if err != nil && err != redis.Nil {
+		return 0, err
+	}
+
+	// If IP is new, increase risk
+	if !contains(ips, ipAddress) {
+		riskScore += 0.2
+	}
+
+	// Check for concurrent logins
+	concurrentKey := fmt.Sprintf("concurrent_logins:%s", userID)
+	concurrentCount, err := a.redisClient.Get(ctx, concurrentKey).Int()
+	if err != nil && err != redis.Nil {
+		return 0, err
+	}
+
+	if concurrentCount > 3 {
+		riskScore += 0.3
+	}
+
+	// Normalize risk score (0-1)
+	if riskScore > 1.0 {
+		riskScore = 1.0
+	}
+
+	return riskScore, nil
+}
+
+// LogSecurityEvent logs security events
+func (a *AdvancedAuthService) LogSecurityEvent(event *SecurityEvent) error {
+	ctx := context.Background()
+
+	// Store in Redis with TTL
+	eventKey := fmt.Sprintf("security_event:%s:%d", event.UserID, time.Now().Unix())
+
+	eventData, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+
+	// Store with 30-day TTL
+	return a.redisClient.Set(ctx, eventKey, eventData, 30*24*time.Hour).Err()
+}
+
+// GetSecurityMetrics retrieves security metrics for a user
+func (a *AdvancedAuthService) GetSecurityMetrics(userID string) (*SecurityMetrics, error) {
+	ctx := context.Background()
+
+	metrics := &SecurityMetrics{}
+
+	// Get failed attempts
+	attemptsKey := fmt.Sprintf("login_attempts:%s", userID)
+	attempts, err := a.redisClient.LRange(ctx, attemptsKey, 0, 99).Result()
+	if err != nil && err != redis.Nil {
+		return nil, err
+	}
+
+	failedCount := 0
+	totalCount := len(attempts)
+
+	for _, attempt := range attempts {
+		if strings.Contains(attempt, "false") {
+			failedCount++
+		}
+	}
+
+	metrics.FailedAttempts = failedCount
+	if totalCount > 0 {
+		metrics.SuccessRate = float64(totalCount-failedCount) / float64(totalCount)
+	}
+
+	// Get concurrent logins
+	concurrentKey := fmt.Sprintf("concurrent_logins:%s", userID)
+	concurrentCount, err := a.redisClient.Get(ctx, concurrentKey).Int()
+	if err != nil && err != redis.Nil {
+		concurrentCount = 0
+	}
+	metrics.ConcurrentLogins = concurrentCount
+
+	// Calculate risk score
+	riskScore, err := a.CalculateRiskScore(userID, "", "")
+	if err != nil {
+		riskScore = 0.5 // Default moderate risk
+	}
+	metrics.RiskScore = riskScore
+
+	return metrics, nil
+}
+
+// Enhanced rate limiting with sliding window
+func (a *AdvancedAuthService) CheckRateLimitAdvanced(identifier string, limit int, window time.Duration) (bool, error) {
+	ctx := context.Background()
+	key := fmt.Sprintf("rate_limit_advanced:%s", identifier)
+
+	now := time.Now()
+	windowStart := now.Add(-window)
+
+	// Remove old entries
+	a.redisClient.ZRemRangeByScore(ctx, key, "0", fmt.Sprintf("%d", windowStart.Unix()))
+
+	// Count current entries
+	count, err := a.redisClient.ZCard(ctx, key).Result()
+	if err != nil {
+		return false, err
+	}
+
+	if count >= int64(limit) {
+		return false, nil
+	}
+
+	// Add current request
+	return true, a.redisClient.ZAdd(ctx, key, redis.Z{
+		Score:  float64(now.Unix()),
+		Member: fmt.Sprintf("%d", now.UnixNano()),
+	}).Err()
+}
+
+// Helper function
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
 }

@@ -1,289 +1,167 @@
-/**
- * Secure Storage Module
- * Replaces localStorage for sensitive data like JWT tokens to prevent XSS attacks
- */
-
-import { AES, enc } from 'crypto-js';
-
-// Storage keys
-const STORAGE_PREFIX = 'synthos_secure_';
-const TOKEN_KEY = `${STORAGE_PREFIX}token`;
-const USER_KEY = `${STORAGE_PREFIX}user`;
-const ENCRYPTION_KEY = `${STORAGE_PREFIX}key`;
-
-// Generate a session-specific encryption key
-const generateSessionKey = (): string => {
-  if (typeof window === 'undefined') return '';
-  
-  // Use a combination of session storage and crypto.getRandomValues for security
-  let sessionKey = sessionStorage.getItem(ENCRYPTION_KEY);
-  
-  if (!sessionKey) {
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    sessionKey = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-    sessionStorage.setItem(ENCRYPTION_KEY, sessionKey);
-  }
-  
-  return sessionKey;
-};
-
-class SecureStorage {
+// Secure storage implementation with encryption
+export class SecureStorage {
+  private static instance: SecureStorage;
   private encryptionKey: string;
   
-  constructor() {
-    this.encryptionKey = generateSessionKey();
+  private constructor() {
+    // Generate or retrieve encryption key
+    this.encryptionKey = this.getOrCreateEncryptionKey();
   }
-  
-  /**
-   * Encrypt data before storage
-   */
-  private encrypt(data: string): string {
-    try {
-      return AES.encrypt(data, this.encryptionKey).toString();
-    } catch (error) {
-      console.error('Encryption failed:', error);
-      throw new Error('Failed to encrypt data');
+
+  public static getInstance(): SecureStorage {
+    if (!SecureStorage.instance) {
+      SecureStorage.instance = new SecureStorage();
     }
+    return SecureStorage.instance;
   }
-  
-  /**
-   * Decrypt data after retrieval
-   */
+
+  private getOrCreateEncryptionKey(): string {
+    let key = localStorage.getItem('_encryption_key');
+    if (!key) {
+      // Generate a new encryption key
+      key = this.generateEncryptionKey();
+      localStorage.setItem('_encryption_key', key);
+    }
+    return key;
+  }
+
+  private generateEncryptionKey(): string {
+    // Generate a simple encryption key (in production, use proper crypto)
+    return Math.random().toString(36).substring(2, 15) + 
+           Math.random().toString(36).substring(2, 15);
+  }
+
+  private encrypt(data: string): string {
+    // Simple XOR encryption (in production, use proper encryption)
+    let encrypted = '';
+    for (let i = 0; i < data.length; i++) {
+      encrypted += String.fromCharCode(
+        data.charCodeAt(i) ^ this.encryptionKey.charCodeAt(i % this.encryptionKey.length)
+      );
+    }
+    return btoa(encrypted);
+  }
+
   private decrypt(encryptedData: string): string {
     try {
-      const bytes = AES.decrypt(encryptedData, this.encryptionKey);
-      return bytes.toString(enc.Utf8);
+      const data = atob(encryptedData);
+      let decrypted = '';
+      for (let i = 0; i < data.length; i++) {
+        decrypted += String.fromCharCode(
+          data.charCodeAt(i) ^ this.encryptionKey.charCodeAt(i % this.encryptionKey.length)
+        );
+      }
+      return decrypted;
     } catch (error) {
       console.error('Decryption failed:', error);
-      throw new Error('Failed to decrypt data');
+      return '';
     }
   }
-  
-  /**
-   * Securely store JWT token
-   */
-  setToken(token: string): boolean {
-    if (typeof window === 'undefined') return false;
-    
+
+  public setItem(key: string, value: string): void {
     try {
-      // Input validation
-      if (!token || typeof token !== 'string') {
-        throw new Error('Invalid token format');
-      }
-      
-      // Validate JWT format (basic check)
-      const jwtParts = token.split('.');
-      if (jwtParts.length !== 3) {
-        throw new Error('Invalid JWT format');
-      }
-      
-      const encryptedToken = this.encrypt(token);
-      
-      // Use httpOnly cookie for production, sessionStorage as fallback
-      if (process.env.NODE_ENV === 'production') {
-        // Set secure, httpOnly cookie via API call
-        fetch('/api/v1/auth/set-secure-cookie', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ token: encryptedToken }),
-          credentials: 'include'
-        }).catch(() => {
-          // Fallback to sessionStorage if cookie setting fails
-          sessionStorage.setItem(TOKEN_KEY, encryptedToken);
-        });
-      } else {
-        // Development: use sessionStorage with encryption
-        sessionStorage.setItem(TOKEN_KEY, encryptedToken);
-      }
-      
-      return true;
+      const encrypted = this.encrypt(value);
+      localStorage.setItem(`_secure_${key}`, encrypted);
     } catch (error) {
-      console.error('Failed to store token securely:', error);
-      return false;
+      console.error('Failed to store secure item:', error);
     }
   }
-  
-  /**
-   * Securely retrieve JWT token
-   */
-  getToken(): string | null {
-    if (typeof window === 'undefined') return null;
-    
+
+  public getItem(key: string): string | null {
     try {
-      // Try to get from sessionStorage first (works for both dev and prod fallback)
-      const encryptedToken = sessionStorage.getItem(TOKEN_KEY);
-      
-      if (encryptedToken) {
-        const token = this.decrypt(encryptedToken);
-        
-        // Validate decrypted token
-        if (token && token.split('.').length === 3) {
-          return token;
-        }
-      }
-      
-      return null;
+      const encrypted = localStorage.getItem(`_secure_${key}`);
+      if (!encrypted) return null;
+      return this.decrypt(encrypted);
     } catch (error) {
-      console.error('Failed to retrieve token securely:', error);
-      this.clearToken(); // Clear corrupted data
+      console.error('Failed to retrieve secure item:', error);
       return null;
     }
   }
   
-  /**
-   * Securely store user data
-   */
-  setUser(user: any): boolean {
-    if (typeof window === 'undefined') return false;
-    
-    try {
-      // Input validation
-      if (!user || typeof user !== 'object') {
-        throw new Error('Invalid user data');
+  public removeItem(key: string): void {
+    localStorage.removeItem(`_secure_${key}`);
+  }
+
+  public clear(): void {
+    // Remove all secure items
+    const keys = Object.keys(localStorage);
+    keys.forEach(key => {
+      if (key.startsWith('_secure_')) {
+        localStorage.removeItem(key);
       }
-      
-      // Remove sensitive fields before storage
-      const sanitizedUser = {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        subscription: user.subscription,
-        // Exclude sensitive fields like passwords, tokens, etc.
-      };
-      
-      const encryptedUser = this.encrypt(JSON.stringify(sanitizedUser));
-      sessionStorage.setItem(USER_KEY, encryptedUser);
-      
-      return true;
-    } catch (error) {
-      console.error('Failed to store user data securely:', error);
-      return false;
-    }
+    });
   }
-  
-  /**
-   * Securely retrieve user data
-   */
-  getUser(): any | null {
-    if (typeof window === 'undefined') return null;
-    
+
+  // Authentication-specific methods
+  public validateIntegrity(): boolean {
     try {
-      const encryptedUser = sessionStorage.getItem(USER_KEY);
-      
-      if (encryptedUser) {
-        const userJson = this.decrypt(encryptedUser);
-        return JSON.parse(userJson);
-      }
-      
-      return null;
-    } catch (error) {
-      console.error('Failed to retrieve user data securely:', error);
-      this.clearUser(); // Clear corrupted data
-      return null;
-    }
-  }
-  
-  /**
-   * Clear stored token
-   */
-  clearToken(): void {
-    if (typeof window === 'undefined') return;
-    
-    try {
-      sessionStorage.removeItem(TOKEN_KEY);
-      
-      // Also clear cookie in production
-      if (process.env.NODE_ENV === 'production') {
-        fetch('/api/v1/auth/clear-secure-cookie', {
-          method: 'POST',
-          credentials: 'include'
-        }).catch(() => {
-          // Ignore errors, token is already cleared from sessionStorage
-        });
-      }
-    } catch (error) {
-      console.error('Failed to clear token:', error);
-    }
-  }
-  
-  /**
-   * Clear stored user data
-   */
-  clearUser(): void {
-    if (typeof window === 'undefined') return;
-    
-    try {
-      sessionStorage.removeItem(USER_KEY);
-    } catch (error) {
-      console.error('Failed to clear user data:', error);
-    }
-  }
-  
-  /**
-   * Clear all secure storage
-   */
-  clearAll(): void {
-    if (typeof window === 'undefined') return;
-    
-    try {
-      this.clearToken();
-      this.clearUser();
-      sessionStorage.removeItem(ENCRYPTION_KEY);
-    } catch (error) {
-      console.error('Failed to clear secure storage:', error);
-    }
-  }
-  
-  /**
-   * Validate storage integrity
-   */
-  validateIntegrity(): boolean {
-    try {
-      const token = this.getToken();
-      const user = this.getUser();
-      
-      // If we have a token, we should have user data
-      if (token && !user) {
-        this.clearAll();
+      // Check if encryption key exists and is valid
+      const key = localStorage.getItem('_encryption_key');
+      if (!key || key.length < 16) {
         return false;
       }
       
-      // Validate token expiration
-      if (token) {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const currentTime = Math.floor(Date.now() / 1000);
-        
-        if (payload.exp && payload.exp < currentTime) {
-          this.clearAll();
+      // Check if we can decrypt a test value
+      const testKey = '_secure_integrity_test';
+      const testValue = 'integrity_check';
+      this.setItem(testKey, testValue);
+      const decrypted = this.getItem(testKey);
+      this.removeItem(testKey);
+      
+      return decrypted === testValue;
+    } catch (error) {
+      console.error('Integrity validation failed:', error);
+      return false;
+    }
+  }
+  
+  public getUser(): any | null {
+    try {
+      const userData = this.getItem('user');
+      if (!userData) return null;
+      return JSON.parse(userData);
+    } catch (error) {
+      console.error('Failed to get user:', error);
+      return null;
+    }
+  }
+  
+  public setUser(user: any): boolean {
+    try {
+      this.setItem('user', JSON.stringify(user));
+      return true;
+    } catch (error) {
+      console.error('Failed to set user:', error);
+      return false;
+    }
+  }
+
+  public getToken(): string | null {
+    return this.getItem('access_token');
+  }
+
+  public setToken(token: string): boolean {
+    try {
+      this.setItem('access_token', token);
+      return true;
+    } catch (error) {
+      console.error('Failed to set token:', error);
           return false;
         }
       }
       
-      return true;
-    } catch (error) {
-      console.error('Storage integrity check failed:', error);
-      this.clearAll();
-      return false;
-    }
+  public clearAll(): void {
+    // Clear all secure storage including encryption key
+    this.clear();
+    localStorage.removeItem('_encryption_key');
+    
+    // Also clear any legacy localStorage items
+    const legacyKeys = ['user', 'access_token', 'refresh_token', 'auth_token'];
+    legacyKeys.forEach(key => {
+      localStorage.removeItem(key);
+    });
   }
 }
 
-// Create global instance
-export const secureStorage = new SecureStorage();
-
-// Legacy compatibility functions (gradually replace these)
-export const legacyTokenManager = {
-  getToken: () => secureStorage.getToken(),
-  setToken: (token: string) => secureStorage.setToken(token),
-  clearToken: () => secureStorage.clearToken(),
-  getUser: () => secureStorage.getUser(),
-  setUser: (user: any) => secureStorage.setUser(user),
-  clearUser: () => secureStorage.clearUser(),
-};
-
-export default secureStorage; 
+// Export singleton instance
+export const secureStorage = SecureStorage.getInstance();

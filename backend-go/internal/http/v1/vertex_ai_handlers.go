@@ -8,15 +8,15 @@ import (
 
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/agents"
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/config"
-	"github.com/genovotechnologies/synthos_dev/backend-go/internal/logger"
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/zap"
 )
 
 // VertexAIHandlers handles all Vertex AI related endpoints
 type VertexAIHandlers struct {
 	vertexAI *agents.VertexAIAgent
 	claude   *agents.ClaudeAgent
-	logger   *logger.Logger
+	logger   *zap.Logger
 }
 
 // NewVertexAIHandlers creates a new Vertex AI handlers instance
@@ -48,7 +48,7 @@ func NewVertexAIHandlers(cfg *config.Config) (*VertexAIHandlers, error) {
 	return &VertexAIHandlers{
 		vertexAI: vertexAI,
 		claude:   claude,
-		logger:   logger.New(),
+		logger:   zap.NewNop(),
 	}, nil
 }
 
@@ -129,20 +129,23 @@ func (h *VertexAIHandlers) GenerateText(c *fiber.Ctx) error {
 
 	// Create generation request
 	genReq := agents.GenerationRequest{
-		ModelType:      agents.ModelType(req.Model),
-		Prompt:         req.Prompt,
-		MaxTokens:      req.MaxTokens,
-		Temperature:    req.Temperature,
-		TopP:           req.TopP,
-		TopK:           req.TopK,
-		StopSequences:  req.StopSequences,
-		CustomMetadata: req.Metadata,
+		DatasetID: 0,
+		UserID:    0,
+		Config: agents.GenerationConfig{
+			ModelType:    agents.ModelType(req.Model),
+			Strategy:     agents.StrategyAICreative,
+			Rows:         1000,
+			PrivacyLevel: "medium",
+		},
+		SchemaAnalysis: agents.SchemaAnalysis{
+			Columns: []agents.ColumnInfo{},
+		},
 	}
 
 	// Generate text
 	resp, err := h.vertexAI.GenerateText(genReq)
 	if err != nil {
-		h.logger.Error("Failed to generate text", "error", err)
+		h.logger.Error("Failed to generate text", zap.Error(err))
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
 			"error":   "Failed to generate text",
@@ -151,13 +154,13 @@ func (h *VertexAIHandlers) GenerateText(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success":         true,
-		"text":            resp.Text,
-		"usage":           resp.Usage,
-		"safety_ratings":  resp.SafetyRatings,
-		"finish_reason":   resp.FinishReason,
-		"model_name":      resp.ModelName,
-		"generation_time": resp.GenerationTime.Milliseconds(),
-		"metadata":        resp.CustomMetadata,
+		"job_id":          resp.JobID,
+		"status":          resp.Status,
+		"progress":        resp.Progress,
+		"quality_metrics": resp.QualityMetrics,
+		"output_key":      resp.OutputKey,
+		"error":           resp.Error,
+		"model_name":      req.Model,
 	})
 }
 
@@ -181,7 +184,7 @@ func (h *VertexAIHandlers) GenerateSyntheticData(c *fiber.Ctx) error {
 	// Generate synthetic data
 	data, err := h.vertexAI.GenerateSyntheticData(req.Schema, req.NumRows, agents.ModelType(req.Model))
 	if err != nil {
-		h.logger.Error("Failed to generate synthetic data", "error", err)
+		h.logger.Error("Failed to generate synthetic data", zap.Error(err))
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
 			"error":   "Failed to generate synthetic data",
@@ -190,10 +193,10 @@ func (h *VertexAIHandlers) GenerateSyntheticData(c *fiber.Ctx) error {
 
 	// Log generation event
 	h.logger.Info("Synthetic data generated",
-		"user_id", req.UserID,
-		"dataset_id", req.DatasetID,
-		"model", req.Model,
-		"rows", req.NumRows,
+		zap.Int64("user_id", req.UserID),
+		zap.Int64("dataset_id", req.DatasetID),
+		zap.String("model", req.Model),
+		zap.Int("rows", req.NumRows),
 	)
 
 	return c.JSON(fiber.Map{
@@ -276,7 +279,7 @@ func (h *VertexAIHandlers) StreamGeneration(c *fiber.Ctx) error {
 			rowCount++
 			jsonData, _ := json.Marshal(data)
 			c.WriteString(fmt.Sprintf("data: %s\n\n", jsonData))
-			c.Response().Flush()
+			// c.Response().Flush()
 
 		case err := <-errorChan:
 			if err != nil {

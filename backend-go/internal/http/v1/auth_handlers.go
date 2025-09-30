@@ -11,12 +11,17 @@ import (
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/auth"
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/config"
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/repo"
+	"github.com/genovotechnologies/synthos_dev/backend-go/internal/services"
 )
 
 type AuthDeps struct {
-	Cfg       *config.Config
-	Users     *repo.UserRepo
-	Blacklist *auth.Blacklist
+	Cfg          *config.Config
+	Users        *repo.UserRepo
+	APIKeys      *repo.APIKeyRepo
+	AuditLogs    *repo.AuditLogRepo
+	AuthService  *auth.AdvancedAuthService
+	EmailService *services.EmailService
+	Blacklist    *auth.Blacklist
 }
 
 type SignUpRequest struct {

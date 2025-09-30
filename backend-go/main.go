@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -73,32 +74,48 @@ func main() {
 	// v1 router scaffold aligned with frontend expectations
 	// Create repositories and deps
 	userRepo := repo.NewUserRepo(database.SQL)
-	_ = userRepo.CreateSchema(context.Background())
+	if err := userRepo.CreateSchema(context.Background()); err != nil {
+		logg.Fatal("failed to create user schema", zap.Error(err))
+	}
 
 	datasetRepo := repo.NewDatasetRepo(database.SQL)
-	_ = datasetRepo.CreateSchema(context.Background())
+	if err := datasetRepo.CreateSchema(context.Background()); err != nil {
+		logg.Fatal("failed to create dataset schema", zap.Error(err))
+	}
 
 	genRepo := repo.NewGenerationRepo(database.SQL)
-	_ = genRepo.CreateSchema(context.Background())
+	if err := genRepo.CreateSchema(context.Background()); err != nil {
+		logg.Fatal("failed to create generation schema", zap.Error(err))
+	}
 
 	bl := auth.NewBlacklist(redisClient.Client)
 	usageService := usage.NewUsageService(userRepo, genRepo, datasetRepo)
 
 	// Initialize advanced repositories
 	userUsageRepo := repo.NewUserUsageRepo(database.SQL)
-	_ = userUsageRepo.CreateSchema(context.Background())
+	if err := userUsageRepo.CreateSchema(context.Background()); err != nil {
+		logg.Fatal("failed to create user usage schema", zap.Error(err))
+	}
 
 	userSubRepo := repo.NewUserSubscriptionRepo(database.SQL)
-	_ = userSubRepo.CreateSchema(context.Background())
+	if err := userSubRepo.CreateSchema(context.Background()); err != nil {
+		logg.Fatal("failed to create user subscription schema", zap.Error(err))
+	}
 
 	apiKeyRepo := repo.NewAPIKeyRepo(database.SQL)
-	_ = apiKeyRepo.CreateSchema(context.Background())
+	if err := apiKeyRepo.CreateSchema(context.Background()); err != nil {
+		logg.Fatal("failed to create API key schema", zap.Error(err))
+	}
 
 	auditLogRepo := repo.NewAuditLogRepo(database.SQL)
-	_ = auditLogRepo.CreateSchema(context.Background())
+	if err := auditLogRepo.CreateSchema(context.Background()); err != nil {
+		logg.Fatal("failed to create audit log schema", zap.Error(err))
+	}
 
 	customModelRepo := repo.NewCustomModelRepo(database.SQL)
-	_ = customModelRepo.CreateSchema(context.Background())
+	if err := customModelRepo.CreateSchema(context.Background()); err != nil {
+		logg.Fatal("failed to create custom model schema", zap.Error(err))
+	}
 
 	// Initialize advanced auth service
 	advancedAuthService := auth.NewAdvancedAuthService(redisClient.Client, bl)
@@ -116,7 +133,7 @@ func main() {
 	}
 
 	v1.Register(app, v1.Deps{
-		Auth: v1.AdvancedAuthDeps{
+		Auth: v1.AuthDeps{
 			Users:        userRepo,
 			APIKeys:      apiKeyRepo,
 			AuditLogs:    auditLogRepo,
@@ -138,7 +155,13 @@ func main() {
 
 	_ = redisClient // will be used in auth/token blacklist etc.
 
-	addr := ":" + cfg.Port
+	// Use PORT environment variable for Cloud Run, fallback to config
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = cfg.Port
+	}
+
+	addr := ":" + port
 	sugar.Infof("Starting Synthos Go API on %s", addr)
 	if err := app.Listen(addr); err != nil {
 		log.Fatal(err)

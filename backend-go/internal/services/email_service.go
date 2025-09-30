@@ -3,7 +3,9 @@ package services
 import (
 	"bytes"
 	"fmt"
+	htmltemplate "html/template"
 	"net/smtp"
+	texttemplate "text/template"
 )
 
 type EmailService struct {
@@ -181,13 +183,13 @@ If you have any questions, feel free to reach out to our support team.`,
 // sendEmail sends an email using SMTP
 func (e *EmailService) sendEmail(to string, template EmailTemplate, data map[string]string) error {
 	// Parse HTML template
-	htmlTmpl, err := template.New("html").Parse(template.HTML)
+	htmlTmpl, err := htmltemplate.New("html").Parse(template.HTML)
 	if err != nil {
 		return err
 	}
 
 	// Parse text template
-	textTmpl, err := template.New("text").Parse(template.Text)
+	textTmpl, err := texttemplate.New("text").Parse(template.Text)
 	if err != nil {
 		return err
 	}

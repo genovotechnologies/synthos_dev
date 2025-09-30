@@ -267,7 +267,7 @@ func (p *PrivacyEngine) applyRandomizedResponse(value interface{}, epsilon float
 	budget.spend(epsilon, 0.0, fmt.Sprintf("randomized_response_%s", "column"))
 
 	// Randomized response mechanism
-	p := math.Exp(epsilon) / (math.Exp(epsilon) + 1)
+	probability := math.Exp(epsilon) / (math.Exp(epsilon) + 1)
 
 	// Random decision
 	random, err := p.generateRandomFloat()
@@ -275,7 +275,7 @@ func (p *PrivacyEngine) applyRandomizedResponse(value interface{}, epsilon float
 		return value, err
 	}
 
-	if random > p {
+	if random > probability {
 		// Flip value
 		if len(uniqueValues) == 2 {
 			// Binary case
@@ -380,7 +380,7 @@ func (p *PrivacyEngine) generateRecommendations(budget *PrivacyBudget) []string 
 	var recommendations []string
 
 	remainingEps := budget.Epsilon - budget.SpentEpsilon
-	remainingDelta := budget.Delta - budget.SpentDelta
+	_ = budget.Delta - budget.SpentDelta
 
 	if remainingEps < 0.1 {
 		recommendations = append(recommendations, "Privacy budget nearly exhausted. Consider using higher epsilon for future operations.")
