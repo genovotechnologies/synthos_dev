@@ -314,18 +314,15 @@ app.add_middleware(
     https_only=settings.ENVIRONMENT in ["production", "staging"] or getattr(settings, 'FORCE_HTTPS', False)
 )
 
-# Trusted host middleware with comprehensive host validation
-# Allow all hosts in production to avoid Cloud Run host header issues
-if settings.ENVIRONMENT == "production":
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=["*"],
-    )
-else:
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=settings.ALLOWED_HOSTS + ["127.0.0.1", "localhost"],
-    )
+# Trusted host middleware with strict host validation
+allowed_prod_hosts = [
+    "api.synthos.dev",
+    "synthos-backend-147548045822.us-central1.run.app",
+]
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=(allowed_prod_hosts if settings.ENVIRONMENT == "production" else settings.ALLOWED_HOSTS + ["127.0.0.1", "localhost"]),
+)
 
 # Temporarily disable security middleware for debugging
 # app.add_middleware(SecurityHeadersMiddleware)
@@ -512,9 +509,20 @@ async def root():
     }
 
 @app.options("/{path:path}")
-async def options_handler(path: str):
-    """Handle CORS preflight requests"""
-    return {"message": "OK"}
+async def options_handler(request: Request, path: str):
+    origin = request.headers.get("origin", "")
+    if origin not in settings.CORS_ORIGINS:
+        raise HTTPException(status_code=403, detail="Origin not allowed")
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, X-Correlation-ID",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "86400",
+        },
+    )
 
 @app.get("/cors-debug", tags=["health"])
 async def cors_debug():

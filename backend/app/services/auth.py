@@ -601,21 +601,41 @@ class AuthService:
     # Database interaction methods (these would use your ORM)
     async def _get_user_by_email(self, email: str) -> Optional[User]:
         """Get user by email from database"""
-        # Implementation depends on your database setup
-        # This is a placeholder
-        pass
+        try:
+            db = next(get_db())
+            user = db.query(User).filter(User.email == email).first()
+            return user
+        except Exception:
+            return None
     
     async def _get_user_by_id(self, user_id: int) -> Optional[User]:
         """Get user by ID from database"""
-        # Implementation depends on your database setup
-        # This is a placeholder
-        pass
+        try:
+            db = next(get_db())
+            user = db.query(User).filter(User.id == user_id).first()
+            return user
+        except Exception:
+            return None
     
     async def _update_last_login(self, user_id: int, ip_address: str = None):
         """Update user's last login timestamp"""
-        # Implementation depends on your database setup
-        # This is a placeholder
-        pass
+        try:
+            db = next(get_db())
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                return
+            user.last_login = datetime.utcnow()
+            if ip_address:
+                meta = user.user_metadata or {}
+                meta["last_login_ip"] = ip_address
+                user.user_metadata = meta
+            db.add(user)
+            db.commit()
+        except Exception:
+            try:
+                db.rollback()  # type: ignore
+            except Exception:
+                pass
     
     async def _update_user_password(self, user_id: int, password_hash: str) -> bool:
         """Update user password in database"""
@@ -646,7 +666,7 @@ async def get_current_user(
             detail="Authentication required",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
+    
     # Verify token
     payload = await auth_service.verify_access_token(token)
     if not payload:

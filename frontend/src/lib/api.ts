@@ -42,8 +42,7 @@ api.interceptors.request.use(
     // Add correlation ID for tracking
     config.headers['X-Correlation-ID'] = generateCorrelationId();
     
-    // Cookie-based auth: do not attach stale Bearer tokens from localStorage
-    // Backend will read HttpOnly cookie `synthos_token`
+    // Cookie-only auth: do not attach Authorization header from localStorage
     
     // Security: Ensure HTTPS in production
     if (config.url && (process.env.NODE_ENV === 'production' || FORCE_HTTPS)) {
@@ -61,8 +60,7 @@ api.interceptors.request.use(
       });
     }
     
-    return config;
-  },
+;  },
   (error: any) => {
     if (ENABLE_API_DEBUG_LOGS) {
       console.error('❌ Request interceptor error:', error);
