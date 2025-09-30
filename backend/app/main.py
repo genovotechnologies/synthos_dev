@@ -73,7 +73,8 @@ limiter = None
 try:
     if not settings.MVP_MODE and settings.ENABLE_RATE_LIMITING and settings.ENABLE_CACHING:
         limiter = Limiter(key_func=get_remote_address, storage_uri=settings.CACHE_URL)
-except Exception:
+except Exception as e:
+    logger.warning("Rate limiting disabled due to configuration error", error=str(e))
     limiter = None
 
 # Sentry integration for error tracking (feature-flagged, disabled in MVP mode)
@@ -225,50 +226,52 @@ async def lifespan(app: FastAPI):
                 await asyncio.sleep(2)
         
 
-        # Initialize Redis with connection pooling (only if caching is enabled)
-        if settings.ENABLE_CACHING:
-            from app.core.redis import init_redis
-            await init_redis()
 
         # Initialize Redis with connection pooling (best-effort)
+
+    # Initialize Redis with connection pooling (only if caching is enabled)
+    if settings.ENABLE_CACHING:
+
         try:
-            from app.core.redis import init_redis
             await init_redis()
             redis_initialized = True
         except Exception as e:
             logger.warning("Redis initialization failed; continuing in degraded mode", error=str(e))
 
         
-        # Warm up critical services (best-effort)
-        try:
-            auth_service = AuthService()
-            await auth_service.warm_up()
-            ai_warmup_ok = True
-        except Exception as e:
-            logger.warning("Auth/AI warm-up failed; continuing in degraded mode", error=str(e))
-        
-        logger.info(
-            "Synthos platform startup completed",
-            db_initialized=db_initialized,
-            redis_initialized=redis_initialized,
-            ai_warmup_ok=ai_warmup_ok,
-        )
-        
+    # Warm up critical services (best-effort)
+    try:
+        auth_service = AuthService()
+        await auth_service.warm_up()
+        ai_warmup_ok = True
     except Exception as e:
-        # In production/staging, do not crash the service; continue in degraded mode
-        if settings.ENVIRONMENT in ["production", "staging"]:
-            logger.error("Failed to fully start Synthos platform; continuing in degraded mode", error=str(e), exc_info=True)
-        else:
-            logger.error("Failed to start Synthos platform", error=str(e), exc_info=True)
-            raise
+        logger.warning("Auth/AI warm-up failed; continuing in degraded mode", error=str(e))
+        
+    logger.info(
+        "Synthos platform startup completed",
+        db_initialized=db_initialized,
+        redis_initialized=redis_initialized,
+        ai_warmup_ok=ai_warmup_ok,
+    )
+        
+except Exception as e:
+    # In production/staging, do not crash the service; continue in degraded mode
+    if settings.ENVIRONMENT in ["production", "staging"]:
+        logger.error("Failed to fully start Synthos platform; continuing in degraded mode", error=str(e), exc_info=True)
+    else:
+        logger.error("Failed to start Synthos platform", error=str(e), exc_info=True)
+        raise
     
     yield
     
     # Shutdown
     logger.info("Shutting down Synthos platform...")
-    redis_client = await get_redis_client()
-    if redis_client:
-        await redis_client.close()
+    try:
+        redis_client = await get_redis_client()
+        if redis_client:
+            await redis_client.close()
+    except Exception as e:
+        logger.warning("Failed to close Redis connection", error=str(e))
     logger.info("Synthos platform shutdown complete")
 
 # Create FastAPI application with enhanced configuration
@@ -324,10 +327,23 @@ app.add_middleware(
     allowed_hosts=(allowed_prod_hosts if settings.ENVIRONMENT == "production" else settings.ALLOWED_HOSTS + ["127.0.0.1", "localhost"]),
 )
 
+ 
 # Temporarily disable security middleware for debugging
 # app.add_middleware(SecurityHeadersMiddleware)
 # app.add_middleware(HTTPSEnforcementMiddleware) # Add HTTPS enforcement middleware
 # app.add_middleware(MetricsMiddleware)
+
+# Enhanced CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["X-Total-Count", "X-Response-Time"],
+    max_age=86400,  # Cache preflight for 24 hours
+)
+
 
 # Rate limiting
 if limiter is not None:

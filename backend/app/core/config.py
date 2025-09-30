@@ -43,7 +43,7 @@ class Settings:
     # Only allow HTTP origins in development mode
     if ENVIRONMENT == "development":
         _cors_origins += ",http://localhost:3000,http://127.0.0.1:3000"
-    CORS_ORIGINS: List[str] = _cors_origins.split(",")
+    CORS_ORIGINS: List[str] = [origin.strip() for origin in _cors_origins.split(",") if origin.strip()]
     
     # Database Configuration
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/synthos")
@@ -198,6 +198,9 @@ class Settings:
     ENABLE_AUDIT_LOGS: bool = os.getenv("ENABLE_AUDIT_LOGS", "true").lower() == "true"
     ENABLE_DATA_RETENTION: bool = os.getenv("ENABLE_DATA_RETENTION", "true").lower() == "true"
     ENABLE_GDPR_COMPLIANCE: bool = os.getenv("ENABLE_GDPR_COMPLIANCE", "true").lower() == "true"
+    
+    # Admin Configuration
+    ADMIN_CREATION_SECRET: Optional[str] = os.getenv("ADMIN_CREATION_SECRET")
 
     # Enhanced Realism Settings
     ENABLE_ENHANCED_REALISM: bool = os.getenv("ENABLE_ENHANCED_REALISM", "true").lower() == "true"

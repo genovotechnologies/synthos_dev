@@ -52,6 +52,7 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     full_name = Column(String(255), nullable=True)
     company = Column(String(255), nullable=True)
+    company_name = Column(String(255), nullable=True)
     role = Column(Enum(UserRole), default=UserRole.USER, nullable=False)
     status = Column(Enum(UserStatus), default=UserStatus.ACTIVE, nullable=False)
     
@@ -73,7 +74,20 @@ class User(Base):
     # Security
     api_key_hash = Column(String(255), nullable=True)  # Hashed API key
     last_login_at = Column(DateTime, nullable=True)
+    last_login = Column(DateTime, nullable=True)  # Alias for compatibility
     login_count = Column(Integer, default=0, nullable=False)
+    
+
+    # Email verification
+    verification_token = Column(String(255), nullable=True)
+    reset_token = Column(String(255), nullable=True)
+    reset_token_expires = Column(DateTime, nullable=True)
+
+    # Password reset fields
+    reset_token = Column(String(255), nullable=True)
+    reset_token_expires = Column(DateTime, nullable=True)
+    verification_token = Column(String(255), nullable=True)
+
     
     # User metadata
     user_metadata = Column(JSON, nullable=True)  # Additional user metadata
