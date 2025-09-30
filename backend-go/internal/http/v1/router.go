@@ -26,6 +26,7 @@ func Register(app *fiber.App, d Deps) {
 
 	// API Docs
 	v1.Get("/docs", APIDocs)
+	v1.Get("/docs/ui", APIDocsUI)
 
 	// Marketing
 	v1.Get("/marketing/features", getFeatures)
@@ -199,6 +200,45 @@ func APIDocs(c *fiber.Ctx) error {
 			"/vertex/pricing":        fiber.Map{"get": fiber.Map{"summary": "Model pricing"}},
 		},
 	})
+}
+
+// APIDocsUI serves Swagger UI that consumes /api/v1/docs
+func APIDocsUI(c *fiber.Ctx) error {
+	html := `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Synthos API Docs</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+  <style> body { margin:0; padding:0; } #swagger-ui { max-width: 100%; } </style>
+  <script>
+    // resolve base path in case of proxies
+    function resolveSpecUrl() {
+      var base = window.location.origin;
+      var spec = '/api/v1/docs';
+      return base + spec;
+    }
+  </script>
+  </head>
+  <body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script>
+      window.onload = () => {
+        window.ui = SwaggerUIBundle({
+          url: resolveSpecUrl(),
+          dom_id: '#swagger-ui',
+          deepLinking: true,
+          presets: [SwaggerUIBundle.presets.apis],
+          layout: 'BaseLayout'
+        });
+      };
+    </script>
+  </body>
+</html>`
+	c.Type("html")
+	return c.SendString(html)
 }
 
 // Generic helpers/stubs to satisfy FE contracts while services are wired
