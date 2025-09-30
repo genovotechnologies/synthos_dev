@@ -43,7 +43,7 @@ async def register_user(
         email=user_data.email,
         hashed_password=hashed_password,
         full_name=user_data.full_name,
-        company_name=user_data.company_name,
+        company=user_data.company_name,
         role=UserRole.USER,
         is_active=True,
         is_verified=False
@@ -75,11 +75,11 @@ async def register_user(
         user_agent=user_agent,
         metadata={
             "email": db_user.email,
-            "company": db_user.company_name,
+            "company": db_user.company,
         }
     )
     
-    return UserResponse.from_orm(db_user)
+    return UserResponse.model_validate(db_user)
 
 
 @router.post("/login", response_model=Token)
@@ -126,7 +126,7 @@ async def login_user(
     
     # Update last login using proper SQLAlchemy update
     db.query(User).filter(User.id == user.id).update({
-        User.last_login: datetime.utcnow()
+        User.last_login_at: datetime.utcnow()
     })
     db.commit()
     db.refresh(user)
@@ -160,7 +160,7 @@ async def login_user(
         "access_token": access_token,
         "token_type": "bearer",
         "expires_in": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        "user": UserResponse.from_orm(user)
+        "user": UserResponse.model_validate(user)
     }
 
 
@@ -332,7 +332,7 @@ async def refresh_token(
         "access_token": access_token,
         "token_type": "bearer",
         "expires_in": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        "user": UserResponse.from_orm(current_user)
+        "user": UserResponse.model_validate(current_user)
     }
 
 

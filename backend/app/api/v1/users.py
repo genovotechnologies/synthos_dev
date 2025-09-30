@@ -7,13 +7,13 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from app.core.database import get_db
 from app.models.user import User, UserRole
-from app.services.auth import AuthService
+from app.services.auth import AuthService, get_current_user
 
 router = APIRouter()
 
 @router.get("/me")
 async def get_current_user_info(
-    current_user: User = Depends(AuthService.get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get current user information"""
     return {
@@ -34,7 +34,7 @@ class UpdateProfileRequest(BaseModel):
 async def update_profile(
     payload: UpdateProfileRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(AuthService.get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Update current user's profile"""
     if payload.full_name is not None:
@@ -69,7 +69,7 @@ async def update_profile(
 
 @router.get("/usage")
 async def get_user_usage(
-    current_user: User = Depends(AuthService.get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get current user usage statistics"""

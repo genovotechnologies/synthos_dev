@@ -179,6 +179,17 @@ def verify_email_verification_token(token: str, max_age: int = 86400) -> Optiona
         return None
 
 
+
+def verify_verification_token(token: str, max_age: int = 86400) -> Optional[str]:
+    """Verify email verification token and return email (alias for compatibility)"""
+    return verify_email_verification_token(token, max_age)
+
+# Alias for backward compatibility
+generate_verification_token = generate_email_verification_token
+verify_verification_token = verify_email_verification_token
+
+
+
 def generate_api_key() -> str:
     """Generate secure API key"""
     return secrets.token_urlsafe(32)

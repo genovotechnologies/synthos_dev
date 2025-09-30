@@ -45,12 +45,12 @@ class UserResponse(BaseModel):
     id: int
     email: str
     full_name: str
-    company_name: Optional[str] = None
+    company: Optional[str] = None
     is_active: bool
     is_verified: bool
     subscription_tier: str
     created_at: datetime
-    last_login: Optional[datetime] = None
+    last_login_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
