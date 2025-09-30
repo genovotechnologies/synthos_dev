@@ -89,27 +89,83 @@ const SettingsPage = () => {
   const generateApiKey = async () => {
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Advanced API key generation with security features
+      const response = await fetch('/api/v1/auth/api-keys', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+        },
+        body: JSON.stringify({
+          name: `API Key ${new Date().toLocaleDateString()}`,
+          permissions: ['read', 'write'],
+          expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year
+          rate_limit: 1000, // requests per hour
+          ip_whitelist: [], // empty for now
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      
       const newKey = {
-        id: Date.now(),
-        name: 'New API Key',
-        key: 'sk_new_' + Math.random().toString(36).substring(2, 15),
-        created_at: new Date().toISOString().split('T')[0],
+        id: result.id,
+        name: result.name,
+        key: result.key,
+        created_at: new Date(result.created_at).toISOString().split('T')[0],
         last_used: 'Never',
-        permissions: ['read']
+        permissions: result.permissions,
+        expires_at: result.expires_at,
+        rate_limit: result.rate_limit,
+        usage_count: 0,
+        last_used_at: null,
       };
+      
       setApiKeys([...apiKeys, newKey]);
+      
       toast({
-        title: "API key generated!",
-        description: "Your new API key has been generated successfully.",
+        title: "API key generated successfully!",
+        description: `Your new API key has been generated. Please save it securely - it won't be shown again.`,
         variant: "success",
       });
-    } catch (error) {
+      
+      // Track API key generation
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('event', 'api_key_generated', {
+          event_category: 'security',
+          event_label: 'api_key',
+        });
+      }
+      
+    } catch (error: any) {
+      console.error('API key generation error:', error);
+      
+      let errorMessage = "Failed to generate API key. Please try again.";
+      
+      if (error.message.includes('HTTP 401')) {
+        errorMessage = "Please sign in to generate API keys.";
+      } else if (error.message.includes('HTTP 429')) {
+        errorMessage = "Too many requests. Please wait a moment and try again.";
+      } else if (error.message.includes('HTTP 403')) {
+        errorMessage = "You don't have permission to generate API keys.";
+      }
+      
       toast({
         title: "Generation failed",
-        description: "Failed to generate API key. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
+      
+      // Track error
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('event', 'api_key_generation_error', {
+          event_category: 'error',
+          event_label: error.message,
+        });
+      }
     } finally {
       setIsLoading(false);
     }

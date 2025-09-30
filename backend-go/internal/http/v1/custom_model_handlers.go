@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"mime/multipart"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -383,7 +385,21 @@ func (d CustomModelDeps) UploadFile(c *fiber.Ctx) error {
 
 	// Save file (simplified - would upload to storage)
 	filePath := fmt.Sprintf("/tmp/uploads/%d_%s", userID, file.Filename)
-	if err := c.SaveUploadedFile(file, filePath); err != nil {
+	// Save file manually
+	fileData, err := file.Open()
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to open file"})
+	}
+	defer fileData.Close()
+
+	// Create file on disk
+	dst, err := os.Create(filePath)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to create file"})
+	}
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, fileData); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "file_save_failed"})
 	}
 

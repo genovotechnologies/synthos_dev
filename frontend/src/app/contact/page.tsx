@@ -53,12 +53,43 @@ const ContactPage = () => {
     setIsLoading(true);
     
     try {
-      // Simulate API call - replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Advanced form validation
+      if (!formData.name.trim()) {
+        throw new Error('Name is required');
+      }
+      
+      if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        throw new Error('Valid email is required');
+      }
+      
+      if (!formData.message.trim()) {
+        throw new Error('Message is required');
+      }
+      
+      // Advanced API call with retry logic
+      const response = await fetch('/api/v1/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Request-ID': Math.random().toString(36).substring(2) + Date.now().toString(36),
+        },
+        body: JSON.stringify({
+          ...formData,
+          timestamp: new Date().toISOString(),
+          user_agent: navigator.userAgent,
+          referrer: document.referrer,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
       
       toast({
-        title: "Message sent!",
-        description: "Thank you for your message. We'll get back to you within 24 hours.",
+        title: "Message sent successfully!",
+        description: `Thank you for your message. We'll get back to you within 24 hours. Reference ID: ${result.reference_id}`,
         variant: "success",
       });
       
@@ -69,12 +100,45 @@ const ContactPage = () => {
         company: '',
         message: ''
       });
-    } catch (error) {
+      
+      // Track successful submission
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('event', 'contact_form_submit', {
+          event_category: 'engagement',
+          event_label: 'contact_form',
+        });
+      }
+      
+    } catch (error: any) {
+      console.error('Contact form error:', error);
+      
+      let errorMessage = "Please try again or contact us directly at support@synthos.dev.";
+      
+      if (error.message.includes('Name is required')) {
+        errorMessage = "Please enter your name.";
+      } else if (error.message.includes('Valid email is required')) {
+        errorMessage = "Please enter a valid email address.";
+      } else if (error.message.includes('Message is required')) {
+        errorMessage = "Please enter your message.";
+      } else if (error.message.includes('HTTP 429')) {
+        errorMessage = "Too many requests. Please wait a moment and try again.";
+      } else if (error.message.includes('HTTP 500')) {
+        errorMessage = "Server error. Please try again later or contact support.";
+      }
+      
       toast({
         title: "Failed to send message",
-        description: "Please try again or contact us directly at support@synthos.dev.",
+        description: errorMessage,
         variant: "destructive",
       });
+      
+      // Track error
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('event', 'contact_form_error', {
+          event_category: 'error',
+          event_label: error.message,
+        });
+      }
     } finally {
       setIsLoading(false);
     }

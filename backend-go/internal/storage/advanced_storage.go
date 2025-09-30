@@ -6,12 +6,12 @@ import (
 	"io"
 	"time"
 
-	"cloud.google.com/go/storage"
+	gcs "cloud.google.com/go/storage"
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/presign"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"google.golang.org/api/option"
+	"google.golang.org/api/iterator"
 )
 
 // StorageProvider represents different storage providers
@@ -40,10 +40,10 @@ type StorageConfig struct {
 // AdvancedStorage handles multi-provider storage operations
 type AdvancedStorage struct {
 	config      StorageConfig
-	gcsClient   *storage.Client
+	gcsClient   *gcs.Client
 	s3Client    *s3.Client
 	s3Uploader  *manager.Uploader
-	s3Presigner *presign.PresignClient
+	s3Presigner *s3.PresignClient
 }
 
 // StorageObject represents a stored object
@@ -79,7 +79,8 @@ func NewAdvancedStorage(config StorageConfig) (*AdvancedStorage, error) {
 	// Initialize GCS client if GCS is configured
 	if config.Provider == ProviderGCS || config.GCSBucket != "" {
 		ctx := context.Background()
-		client, err := storage.NewClient(ctx, option.WithCredentialsFile(""))
+		// Use application default credentials or service account key
+		client, err := gcs.NewClient(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create GCS client: %w", err)
 		}
@@ -88,20 +89,15 @@ func NewAdvancedStorage(config StorageConfig) (*AdvancedStorage, error) {
 
 	// Initialize S3 client if S3 is configured
 	if config.Provider == ProviderS3 || config.S3Bucket != "" {
-		cfg, err := config.LoadDefaultConfig(context.TODO(),
-			config.WithRegion(config.AWSRegion),
-			config.WithCredentialsProvider(aws.NewCredentialsCache(
-				aws.NewStaticCredentialsProvider(config.AWSAccessKey, config.AWSSecretKey, ""),
-			)),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create AWS config: %w", err)
+		cfg := aws.Config{
+			Region:      config.AWSRegion,
+			Credentials: credentials.NewStaticCredentialsProvider(config.AWSAccessKey, config.AWSSecretKey, ""),
 		}
 
 		s3Client := s3.NewFromConfig(cfg)
 		storage.s3Client = s3Client
 		storage.s3Uploader = manager.NewUploader(s3Client)
-		storage.s3Presigner = presign.NewPresignClient(s3Client)
+		storage.s3Presigner = s3.NewPresignClient(s3Client)
 	}
 
 	return storage, nil
@@ -206,7 +202,7 @@ func (s *AdvancedStorage) uploadToGCS(ctx context.Context, key string, data io.R
 		Key:      key,
 		Bucket:   s.config.GCSBucket,
 		Size:     attrs.Size,
-		ETag:     attrs.ETag,
+		ETag:     attrs.Etag,
 		URL:      fmt.Sprintf("gs://%s/%s", s.config.GCSBucket, key),
 		Provider: ProviderGCS,
 		Metadata: metadata,
@@ -221,10 +217,9 @@ func (s *AdvancedStorage) downloadFromGCS(ctx context.Context, key string) (io.R
 
 func (s *AdvancedStorage) generateGCSSignedURL(ctx context.Context, key string, expiration time.Duration) (string, error) {
 	bucket := s.gcsClient.Bucket(s.config.GCSBucket)
-	obj := bucket.Object(key)
 
-	opts := &storage.SignedURLOptions{
-		Scheme:  storage.SigningSchemeV4,
+	opts := &gcs.SignedURLOptions{
+		Scheme:  gcs.SigningSchemeV4,
 		Method:  "GET",
 		Expires: time.Now().Add(expiration),
 	}
@@ -245,7 +240,7 @@ func (s *AdvancedStorage) deleteFromGCS(ctx context.Context, key string) error {
 
 func (s *AdvancedStorage) listGCSObjects(ctx context.Context, prefix string, maxKeys int) ([]StorageObject, error) {
 	bucket := s.gcsClient.Bucket(s.config.GCSBucket)
-	query := &storage.Query{
+	query := &gcs.Query{
 		Prefix: prefix,
 	}
 
@@ -254,7 +249,7 @@ func (s *AdvancedStorage) listGCSObjects(ctx context.Context, prefix string, max
 
 	for i := 0; i < maxKeys; i++ {
 		attrs, err := it.Next()
-		if err == storage.Done {
+		if err == iterator.Done {
 			break
 		}
 		if err != nil {
@@ -269,7 +264,7 @@ func (s *AdvancedStorage) listGCSObjects(ctx context.Context, prefix string, max
 			Metadata:    attrs.Metadata,
 			CreatedAt:   attrs.Created,
 			UpdatedAt:   attrs.Updated,
-			ETag:        attrs.ETag,
+			ETag:        attrs.Etag,
 			URL:         fmt.Sprintf("gs://%s/%s", s.config.GCSBucket, attrs.Name),
 		})
 	}
@@ -294,7 +289,7 @@ func (s *AdvancedStorage) getGCSObjectInfo(ctx context.Context, key string) (*St
 		Metadata:    attrs.Metadata,
 		CreatedAt:   attrs.Created,
 		UpdatedAt:   attrs.Updated,
-		ETag:        attrs.ETag,
+		ETag:        attrs.Etag,
 		URL:         fmt.Sprintf("gs://%s/%s", s.config.GCSBucket, attrs.Name),
 	}, nil
 }
@@ -345,7 +340,7 @@ func (s *AdvancedStorage) generateS3SignedURL(ctx context.Context, key string, e
 	request, err := s.s3Presigner.PresignGetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.config.S3Bucket),
 		Key:    aws.String(key),
-	}, func(opts *presign.Options) {
+	}, func(opts *s3.PresignOptions) {
 		opts.Expires = expiration
 	})
 	if err != nil {

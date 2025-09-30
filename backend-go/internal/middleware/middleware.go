@@ -36,7 +36,7 @@ func Register(app *fiber.App, opts Options) error {
 		app.Use(func(c *fiber.Ctx) error {
 			if c.Protocol() != "https" {
 				return c.Status(fiber.StatusUpgradeRequired).JSON(fiber.Map{
-					"error": "HTTPS Required",
+					"error":      "HTTPS Required",
 					"upgrade_to": "https://" + c.Hostname() + c.OriginalURL(),
 				})
 			}
@@ -47,7 +47,9 @@ func Register(app *fiber.App, opts Options) error {
 	// Trusted hosts
 	if len(opts.AllowedHosts) > 0 {
 		allowed := make(map[string]struct{}, len(opts.AllowedHosts))
-		for _, h := range opts.AllowedHosts { allowed[strings.ToLower(h)] = struct{}{} }
+		for _, h := range opts.AllowedHosts {
+			allowed[strings.ToLower(h)] = struct{}{}
+		}
 		app.Use(func(c *fiber.Ctx) error {
 			h := strings.ToLower(c.Hostname())
 			if _, ok := allowed[h]; !ok {
@@ -60,16 +62,18 @@ func Register(app *fiber.App, opts Options) error {
 	// Simple rate limiter per IP
 	if opts.RateLimitRPS > 0 {
 		app.Use(limiter.New(limiter.Config{
-			Max:        opts.RateLimitRPS,
-			Expiration: time.Second,
+			Max:          opts.RateLimitRPS,
+			Expiration:   time.Second,
 			KeyGenerator: func(c *fiber.Ctx) string { return c.IP() },
 		}))
 	}
 
 	// Sessions backed by Redis
 	if opts.RedisURL != "" && opts.SessionKey != "" {
-		store, err := redisstore.ParseURL(opts.RedisURL)
-		if err == nil {
+		store := redisstore.New(redisstore.Config{
+			URL: opts.RedisURL,
+		})
+		{
 			sess := session.New(session.Config{
 				KeyLookup:      "cookie:synthos_session",
 				Expiration:     24 * time.Hour,
@@ -88,5 +92,3 @@ func Register(app *fiber.App, opts Options) error {
 
 	return nil
 }
-
-

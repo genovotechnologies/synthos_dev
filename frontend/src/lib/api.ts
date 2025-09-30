@@ -2,6 +2,7 @@
 // If you see errors about 'process', ensure @types/node is installed and 'node' is in tsconfig types.
 // npm i --save-dev @types/node
 import axios from 'axios';
+import { secureStorage } from '../lib/secure-storage';
 
 // Security & feature flags
 const FORCE_HTTPS = process.env.NEXT_PUBLIC_FORCE_HTTPS === 'true';
@@ -60,7 +61,8 @@ api.interceptors.request.use(
       });
     }
     
-;  },
+    return config;
+  },
   (error: any) => {
     if (ENABLE_API_DEBUG_LOGS) {
       console.error('❌ Request interceptor error:', error);
@@ -570,4 +572,354 @@ const apiService = {
   }
 };
 
+// Advanced API Client with enhanced features
+export class AdvancedAPIClient {
+  private baseURL: string;
+  private retryCount: number = 3;
+  private retryDelay: number = 1000;
+  private cache: Map<string, { data: any; timestamp: number; ttl: number }> = new Map();
+  private requestQueue: Map<string, Promise<any>> = new Map();
+
+  constructor(baseURL: string = '/api/v1') {
+    this.baseURL = baseURL;
+  }
+
+  // Advanced request method with retry, caching, and queuing
+  async request<T>(
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+    endpoint: string,
+    data?: any,
+    options: {
+      cache?: boolean;
+      ttl?: number;
+      retry?: boolean;
+      timeout?: number;
+    } = {}
+  ): Promise<T> {
+    const {
+      cache = false,
+      ttl = 300000, // 5 minutes default
+      retry = true,
+      timeout = 30000
+    } = options;
+
+    const cacheKey = `${method}:${endpoint}:${JSON.stringify(data)}`;
+    
+    // Check cache first
+    if (cache && this.cache.has(cacheKey)) {
+      const cached = this.cache.get(cacheKey)!;
+      if (Date.now() - cached.timestamp < cached.ttl) {
+        return cached.data;
+      }
+      this.cache.delete(cacheKey);
+    }
+
+    // Check if request is already in progress
+    if (this.requestQueue.has(cacheKey)) {
+      return this.requestQueue.get(cacheKey)!;
+    }
+
+    // Create request promise
+    const requestPromise = this.executeRequest<T>(method, endpoint, data, retry, timeout);
+    this.requestQueue.set(cacheKey, requestPromise);
+
+    try {
+      const result = await requestPromise;
+      
+      // Cache successful responses
+      if (cache && method === 'GET') {
+        this.cache.set(cacheKey, {
+          data: result,
+          timestamp: Date.now(),
+          ttl
+        });
+      }
+      
+      return result;
+    } finally {
+      this.requestQueue.delete(cacheKey);
+    }
+  }
+
+  private async executeRequest<T>(
+    method: string,
+    endpoint: string,
+    data?: any,
+    retry: boolean = true,
+    timeout: number = 30000
+  ): Promise<T> {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt < (retry ? this.retryCount : 1); attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+        const config: any = {
+          method,
+          url: `${this.baseURL}${endpoint}`,
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Request-ID': this.generateRequestId(),
+            'X-Client-Version': '1.0.0',
+            'X-Client-Timestamp': Date.now().toString()
+          }
+        };
+
+        if (data) {
+          config.data = data;
+        }
+
+        const response = await api(config);
+        clearTimeout(timeoutId);
+        
+        return response.data;
+      } catch (error: any) {
+        lastError = error;
+        
+        // Don't retry on certain errors
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          throw error;
+        }
+        
+        if (attempt < this.retryCount - 1) {
+          await this.delay(this.retryDelay * Math.pow(2, attempt));
+        }
+      }
+    }
+    
+    throw lastError;
+  }
+
+  // Advanced authentication methods
+  async signIn(email: string, password: string): Promise<AuthResponse> {
+    const response = await this.request<AuthResponse>('POST', '/auth/signin', {
+      email,
+      password
+    }, { cache: false });
+    
+    // Store tokens securely
+    if (response.access_token) {
+      secureStorage.setItem('access_token', response.access_token);
+      secureStorage.setItem('refresh_token', response.refresh_token);
+    }
+    
+    return response;
+  }
+
+  async signUp(email: string, password: string, fullName?: string): Promise<AuthResponse> {
+    return this.request<AuthResponse>('POST', '/auth/signup', {
+      email,
+      password,
+      full_name: fullName
+    }, { cache: false });
+  }
+
+  async refreshToken(): Promise<AuthResponse> {
+    const refreshToken = secureStorage.getItem('refresh_token');
+    if (!refreshToken) {
+      throw new Error('No refresh token available');
+    }
+
+    const response = await this.request<AuthResponse>('POST', '/auth/refresh', {
+      refresh_token: refreshToken
+    }, { cache: false });
+
+    // Update stored tokens
+    if (response.access_token) {
+      secureStorage.setItem('access_token', response.access_token);
+      secureStorage.setItem('refresh_token', response.refresh_token);
+    }
+
+    return response;
+  }
+
+  // Advanced data generation with real-time progress
+  async generateData(
+    request: GenerationRequest,
+    onProgress?: (progress: number) => void
+  ): Promise<GenerationResponse> {
+    const response = await this.request<GenerationResponse>('POST', '/vertex/generate', request, {
+      cache: false,
+      timeout: 300000 // 5 minutes for generation
+    });
+
+    // Simulate progress updates for long-running operations
+    if (onProgress) {
+      for (let i = 0; i <= 100; i += 10) {
+        setTimeout(() => onProgress(i), i * 100);
+      }
+    }
+
+    return response;
+  }
+
+  // Real-time streaming generation
+  async streamGeneration(
+    request: GenerationRequest,
+    onChunk: (chunk: any) => void,
+    onComplete: (result: GenerationResponse) => void,
+    onError: (error: Error) => void
+  ): Promise<void> {
+    try {
+      const response = await fetch(`${this.baseURL}/vertex/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${secureStorage.getItem('access_token')}`
+        },
+        body: JSON.stringify(request)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body reader available');
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.trim() === '') continue;
+          
+          try {
+            const data = JSON.parse(line);
+            if (data.type === 'chunk') {
+              onChunk(data.data);
+            } else if (data.type === 'complete') {
+              onComplete(data.result);
+            }
+          } catch (e) {
+            console.warn('Failed to parse SSE data:', line);
+          }
+        }
+      }
+    } catch (error) {
+      onError(error as Error);
+    }
+  }
+
+  // Advanced analytics and monitoring
+  async getAnalytics(timeRange: '1h' | '24h' | '7d' | '30d' = '24h'): Promise<AnalyticsData> {
+    return this.request<AnalyticsData>('GET', `/analytics/performance?range=${timeRange}`, undefined, {
+      cache: true,
+      ttl: 60000 // 1 minute cache
+    });
+  }
+
+  async getUsageStats(): Promise<UsageStats> {
+    return this.request<UsageStats>('GET', '/users/usage', undefined, {
+      cache: true,
+      ttl: 300000 // 5 minutes cache
+    });
+  }
+
+  // Advanced error handling and recovery
+  private async handleError(error: any): Promise<never> {
+    if (error.response?.status === 401) {
+      // Try to refresh token
+      try {
+        await this.refreshToken();
+        throw new Error('Please retry your request');
+      } catch (refreshError) {
+        // Redirect to login
+        window.location.href = '/auth/signin';
+        throw new Error('Session expired. Please sign in again.');
+      }
+    }
+    
+    throw error;
+  }
+
+  // Utility methods
+  private generateRequestId(): string {
+    return Math.random().toString(36).substring(2) + Date.now().toString(36);
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // Cache management
+  clearCache(): void {
+    this.cache.clear();
+  }
+
+  getCacheStats(): { size: number; keys: string[] } {
+    return {
+      size: this.cache.size,
+      keys: Array.from(this.cache.keys())
+    };
+  }
+}
+
+// Enhanced types
+interface AuthResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_in: number;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+  };
+}
+
+interface GenerationRequest {
+  schema: any;
+  rows: number;
+  privacy_level: 'low' | 'medium' | 'high';
+  domain: string;
+  model?: string;
+  temperature?: number;
+  max_tokens?: number;
+}
+
+interface GenerationResponse {
+  job_id: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  progress: number;
+  result?: any;
+  quality_metrics?: any;
+  error?: string;
+}
+
+interface AnalyticsData {
+  total_requests: number;
+  success_rate: number;
+  average_response_time: number;
+  error_rate: number;
+  top_models: Array<{ model: string; usage: number }>;
+  hourly_stats: Array<{ hour: string; requests: number }>;
+}
+
+interface UsageStats {
+  total_generations: number;
+  tokens_used: number;
+  api_calls: number;
+  storage_used: number;
+  monthly_limit: number;
+  remaining_quota: number;
+}
+
+// Create enhanced API client instance
+export const advancedAPIClient = new AdvancedAPIClient();
+
+// Legacy compatibility
 export const apiClient = apiService; 

@@ -2,6 +2,9 @@ package v1
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"strings"
 	"time"
 
@@ -10,13 +13,19 @@ import (
 
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/auth"
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/config"
+	"github.com/genovotechnologies/synthos_dev/backend-go/internal/models"
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/repo"
+	"github.com/genovotechnologies/synthos_dev/backend-go/internal/services"
 )
 
 type AuthDeps struct {
-	Cfg       *config.Config
-	Users     *repo.UserRepo
-	Blacklist *auth.Blacklist
+	Cfg          *config.Config
+	Users        *repo.UserRepo
+	APIKeys      *repo.APIKeyRepo
+	AuditLogs    *repo.AuditLogRepo
+	AuthService  *auth.AdvancedAuthService
+	EmailService *services.EmailService
+	Blacklist    *auth.Blacklist
 }
 
 type SignUpRequest struct {
@@ -33,6 +42,15 @@ type SignInRequest struct {
 
 type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token"`
+}
+
+type ForgotPasswordRequest struct {
+	Email string `json:"email"`
+}
+
+type ResetPasswordRequest struct {
+	Token    string `json:"token"`
+	Password string `json:"password"`
 }
 
 func (d AuthDeps) SignUp(c *fiber.Ctx) error {
@@ -169,4 +187,81 @@ func (d AuthDeps) Logout(c *fiber.Ctx) error {
 	// clear cookie
 	c.Cookie(&fiber.Cookie{Name: "synthos_token", Value: "", Path: "/", HTTPOnly: true, Secure: d.Cfg.Environment == "production", MaxAge: -1})
 	return c.JSON(fiber.Map{"message": "logged_out"})
+}
+
+// ForgotPassword generates a reset token and emails the user
+func (d AuthDeps) ForgotPassword(c *fiber.Ctx) error {
+	var body ForgotPasswordRequest
+	if err := c.BodyParser(&body); err != nil || body.Email == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid_body"})
+	}
+	// Do not reveal if user exists
+	token, err := d.AuthService.GeneratePasswordResetToken(strings.ToLower(body.Email))
+	if err == nil && token != "" {
+		_ = d.EmailService.SendPasswordResetEmail(strings.ToLower(body.Email), token)
+	}
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"message": "reset_email_sent"})
+}
+
+// ResetPassword verifies the token and updates password
+func (d AuthDeps) ResetPassword(c *fiber.Ctx) error {
+	var body ResetPasswordRequest
+	if err := c.BodyParser(&body); err != nil || body.Token == "" || body.Password == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid_body"})
+	}
+	email, err := d.AuthService.VerifyPasswordResetToken(body.Token)
+	if err != nil || email == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid_token"})
+	}
+	user, err := d.Users.GetByEmail(context.Background(), strings.ToLower(email))
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "user_not_found"})
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "hash_failed"})
+	}
+	if err := d.Users.UpdatePassword(context.Background(), user.ID, string(hash)); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "update_failed"})
+	}
+	return c.JSON(fiber.Map{"message": "password_updated"})
+}
+
+// CreateAPIKey creates an API key for the current user
+func (d AuthDeps) CreateAPIKey(c *fiber.Ctx) error {
+	userID, _ := c.Locals("user_id").(int64)
+	if userID == 0 {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "auth_required"})
+	}
+	var body struct {
+		Name      string     `json:"name"`
+		ExpiresAt *time.Time `json:"expires_at"`
+	}
+	_ = c.BodyParser(&body)
+	if strings.TrimSpace(body.Name) == "" {
+		body.Name = "default"
+	}
+	// Generate key and hash
+	rawKey := generateRandomString(48)
+	sum := sha256.Sum256([]byte(rawKey))
+	keyHash := hex.EncodeToString(sum[:])
+	rec, err := d.APIKeys.Insert(context.Background(), &models.APIKey{UserID: userID, Name: body.Name, KeyHash: keyHash, IsActive: true, ExpiresAt: body.ExpiresAt})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "create_failed"})
+	}
+	// Return only masked key
+	return c.JSON(fiber.Map{"api_key": rawKey, "id": rec.ID, "name": rec.Name})
+}
+
+// generateRandomString returns a secure random hex string of length n
+func generateRandomString(n int) string {
+	if n <= 0 {
+		n = 32
+	}
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		// fallback to time-based
+		return hex.EncodeToString([]byte(time.Now().Format(time.RFC3339Nano)))
+	}
+	return hex.EncodeToString(b)
 }
