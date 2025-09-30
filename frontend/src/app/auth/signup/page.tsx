@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/components/ui/use-toast';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { apiClient } from '@/lib/api';
@@ -22,7 +23,7 @@ const SignUpPage = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const calculatePasswordStrength = (password: string) => {
     let strength = 0;
@@ -36,19 +37,83 @@ const SignUpPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match');
+      toast({
+        title: "Password mismatch",
+        description: "Passwords do not match. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!formData.agreeTerms) {
+      toast({
+        title: "Terms not accepted",
+        description: "Please accept the terms and conditions to continue.",
+        variant: "destructive",
+      });
       return;
     }
     
     setIsLoading(true);
-    setError(null);
     
     try {
-      await apiClient.signUp(formData);
-      window.location.href = '/auth/signin';
+      const result = await apiClient.signUp({
+        email: formData.email,
+        password: formData.password,
+        full_name: `${formData.firstName} ${formData.lastName}`,
+        company_name: formData.company || undefined
+      });
+      
+      // Only redirect if signup was successful
+      if (result && (result as any).access_token) {
+        toast({
+          title: "Account created!",
+          description: "Your account has been created successfully. Please sign in.",
+          variant: "success",
+        });
+        
+        // Clear form data
+        setFormData({
+          firstName: '',
+          lastName: '',
+          email: '',
+          password: '',
+          confirmPassword: '',
+          company: '',
+          agreeTerms: false,
+          agreeMarketing: false
+        });
+        
+        setTimeout(() => {
+          window.location.href = '/auth/signin';
+        }, 1500);
+      } else {
+        toast({
+          title: "Sign up failed",
+          description: "Account creation failed. Please try again.",
+          variant: "destructive",
+        });
+      }
     } catch (err: any) {
-      setError('Sign up failed. Please try again.');
+      console.error('Sign up error:', err);
+      
+      let errorMessage = "Sign up failed. Please try again.";
+      
+      if (err?.response?.status === 400) {
+        errorMessage = err?.response?.data?.detail || "Email already exists or invalid data.";
+      } else if (err?.response?.status === 422) {
+        errorMessage = "Please check your information and try again.";
+      } else if (err?.response?.status >= 500) {
+        errorMessage = "Server error. Please try again later.";
+      }
+      
+      toast({
+        title: "Sign up failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -164,7 +229,6 @@ const SignUpPage = () => {
               
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {error && <div className="text-red-600 text-center mb-4">{error}</div>}
                   {/* Name Fields */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">

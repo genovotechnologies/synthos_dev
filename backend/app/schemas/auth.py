@@ -11,9 +11,9 @@ from datetime import datetime
 class Token(BaseModel):
     """JWT token response schema"""
     access_token: str
-    refresh_token: str
     token_type: str = "bearer"
     expires_in: int
+    user: Optional[dict] = None
 
 
 class TokenPayload(BaseModel):
@@ -35,6 +35,8 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8)
     full_name: str = Field(..., min_length=1, max_length=100)
+    # Accept both "company" and "company_name" from clients
+    company: Optional[str] = Field(None, max_length=100)
     company_name: Optional[str] = Field(None, max_length=100)
 
 

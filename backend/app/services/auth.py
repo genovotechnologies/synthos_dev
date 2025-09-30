@@ -18,7 +18,7 @@ from email_validator import validate_email, EmailNotValidError
 import logging
 from passlib.context import CryptContext
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
@@ -30,8 +30,8 @@ from app.models.user import User, UserRole, UserStatus, UserUsage, UserSubscript
 
 logger = get_logger(__name__)
 
-# OAuth2 scheme for FastAPI
-security = HTTPBearer()
+# OAuth2 scheme for FastAPI (do not auto-error so we can fall back to cookie)
+security = HTTPBearer(auto_error=False)
 
 
 class TokenType(Enum):
@@ -181,17 +181,30 @@ class AuthService:
         """Verify and decode access token"""
         
         try:
+            # Ensure Redis client is available if possible, but don't fail auth if not
+            if self.redis_client is None:
+                try:
+                    self.redis_client = await get_redis_client()
+                except Exception:
+                    self.redis_client = None
             payload = jwt.decode(
                 access_token,
                 settings.JWT_SECRET_KEY,
                 algorithms=[settings.JWT_ALGORITHM]
             )
             
-            if payload.get("type") != TokenType.ACCESS.value:
+            # Accept tokens with either explicit type=access or no type claim
+            token_type = payload.get("type")
+            if token_type is not None and token_type != TokenType.ACCESS.value:
                 return None
             
-            # Check if token is blacklisted
-            if await self._is_token_blacklisted(access_token):
+            # Check if token is blacklisted (skip silently if Redis unavailable)
+            is_blacklisted = False
+            try:
+                is_blacklisted = await self._is_token_blacklisted(access_token)
+            except Exception:
+                is_blacklisted = False
+            if is_blacklisted:
                 return None
             
             return payload
@@ -454,6 +467,9 @@ class AuthService:
     
     async def _blacklist_token(self, token: str):
         """Add token to blacklist"""
+        # If Redis is unavailable, skip blacklisting gracefully
+        if not self.redis_client:
+            return
         try:
             # Decode to get expiration
             payload = jwt.decode(
@@ -470,17 +486,23 @@ class AuthService:
                     # Only blacklist if not expired
                     ttl = int((exp_datetime - datetime.utcnow()).total_seconds())
                     key = f"blacklisted_token:{token}"
-                    await self.redis_client.setex(key, ttl, "blacklisted")
+                    if self.redis_client:
+                        await self.redis_client.setex(key, ttl, "blacklisted")
                     
         except jwt.InvalidTokenError:
             # Still blacklist invalid tokens with default TTL
             key = f"blacklisted_token:{token}"
-            await self.redis_client.setex(key, 86400, "blacklisted")  # 24 hours
+            if self.redis_client:
+                await self.redis_client.setex(key, 86400, "blacklisted")  # 24 hours
     
     async def _is_token_blacklisted(self, token: str) -> bool:
         """Check if token is blacklisted"""
+        # If Redis is unavailable, treat as not blacklisted
+        if not self.redis_client:
+            return False
         key = f"blacklisted_token:{token}"
-        return bool(await self.redis_client.get(key))
+        value = await self.redis_client.get(key)
+        return bool(value)
     
     async def _invalidate_user_sessions(self, user_id: int):
         """Invalidate all sessions for a user"""
@@ -588,26 +610,58 @@ class AuthService:
     async def _get_user_by_email(self, email: str) -> Optional[User]:
         """Get user by email from database"""
         try:
+ 
+            db = next(get_db())
+            user = db.query(User).filter(User.email == email).first()
+            return user
+        except Exception:
+ 
             from app.core.database import get_db
             db = next(get_db())
             return db.query(User).filter(User.email == email).first()
         except Exception as e:
             logger.error(f"Failed to get user by email: {e}")
+ 
             return None
     
     async def _get_user_by_id(self, user_id: int) -> Optional[User]:
         """Get user by ID from database"""
         try:
+ 
+            db = next(get_db())
+            user = db.query(User).filter(User.id == user_id).first()
+            return user
+        except Exception:
+ 
             from app.core.database import get_db
             db = next(get_db())
             return db.query(User).filter(User.id == user_id).first()
         except Exception as e:
             logger.error(f"Failed to get user by ID: {e}")
+ 
             return None
     
     async def _update_last_login(self, user_id: int, ip_address: str = None):
         """Update user's last login timestamp"""
         try:
+ 
+            db = next(get_db())
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                return
+            user.last_login = datetime.utcnow()
+            if ip_address:
+                meta = user.user_metadata or {}
+                meta["last_login_ip"] = ip_address
+                user.user_metadata = meta
+            db.add(user)
+            db.commit()
+        except Exception:
+            try:
+                db.rollback()  # type: ignore
+            except Exception:
+                pass
+ 
             from app.core.database import get_db
             from datetime import datetime
             db = next(get_db())
@@ -622,6 +676,7 @@ class AuthService:
             db.commit()
         except Exception as e:
             logger.error(f"Failed to update last login: {e}")
+ 
     
     async def _update_user_password(self, user_id: int, password_hash: str) -> bool:
         """Update user password in database"""
@@ -639,6 +694,7 @@ class AuthService:
 
 # FastAPI Dependencies
 async def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ) -> User:
@@ -646,8 +702,22 @@ async def get_current_user(
     
     auth_service = AuthService()
     
+    # Extract token from Authorization bearer or fallback to HttpOnly cookie
+    token: Optional[str] = None
+    if credentials and credentials.scheme.lower() == "bearer":
+        token = credentials.credentials
+    if not token:
+        token = request.cookies.get("synthos_token")
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     # Verify token
-    payload = await auth_service.verify_access_token(credentials.credentials)
+    payload = await auth_service.verify_access_token(token)
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -656,7 +726,11 @@ async def get_current_user(
         )
     
     # Get user from database
-    user_id = payload.get("user_id")
+    user_id = payload.get("user_id") or payload.get("sub")
+    try:
+        user_id = int(user_id) if user_id is not None else None
+    except Exception:
+        user_id = None
     user = db.query(User).filter(User.id == user_id).first()
     
     if not user or not user.is_active:

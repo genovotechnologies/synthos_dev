@@ -5,7 +5,7 @@ JWT-based authentication with enterprise features
 
 from datetime import timedelta, datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Body, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -85,6 +85,7 @@ async def register_user(
 @router.post("/login", response_model=Token)
 async def login_user(
     request: Request,
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
@@ -130,6 +131,18 @@ async def login_user(
     db.commit()
     db.refresh(user)
     
+    # Set HttpOnly Secure cookie for cross-site (api.synthos.dev -> www.synthos.dev)
+    response.set_cookie(
+        key="synthos_token",
+        value=access_token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        max_age=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        domain=".synthos.dev",
+        path="/",
+    )
+
     # Log successful login
     client_ip = getattr(request.client, 'host', '127.0.0.1') if request.client else '127.0.0.1'
     user_agent = request.headers.get("user-agent", "Unknown")
@@ -345,6 +358,163 @@ async def logout(
     
     return {"message": "Successfully logged out"} 
 
+
+# Alias endpoints for frontend compatibility
+@router.post("/signup", response_model=UserResponse)
+async def signup_user(
+    user_data: UserCreate,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Register a new user account"""
+    try:
+        # Check if user already exists
+        existing_user = db.query(User).filter(User.email == user_data.email).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Email already registered"
+            )
+        
+        # Create new user
+        hashed_password = get_password_hash(user_data.password)
+        # Normalize company/company_name from request
+        company_value = getattr(user_data, "company_name", None) or getattr(user_data, "company", None)
+        db_user = User(
+            email=user_data.email,
+            hashed_password=hashed_password,
+            full_name=user_data.full_name,
+            company=company_value,
+            role=UserRole.USER,
+            is_active=True,
+            is_verified=False
+        )
+        
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        
+        # Log successful registration
+        audit_logger.info(
+            "User registration successful",
+            user_id=db_user.id,
+            email=db_user.email,
+            ip_address=request.client.host if request.client else None
+        )
+        
+        return UserResponse(
+            id=db_user.id,
+            email=db_user.email,
+            full_name=db_user.full_name,
+            company_name=getattr(db_user, "company", None),
+            is_active=db_user.is_active,
+            is_verified=db_user.is_verified,
+            subscription_tier=db_user.subscription_tier.value,
+            created_at=db_user.created_at,
+            last_login=getattr(db_user, "last_login_at", None)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        audit_logger.error(
+            "Registration failed",
+            email=user_data.email,
+            error=str(e),
+            ip_address=request.client.host if request.client else None
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Registration failed due to server error"
+        )
+
+@router.post("/signin", response_model=Token)
+async def signin_user(
+    request: Request,
+    response: Response,
+    user_data: UserLogin,
+    db: Session = Depends(get_db)
+):
+    """Sign in user with email and password"""
+    try:
+        # Find user by email
+        user = db.query(User).filter(User.email == user_data.email).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
+        
+        # Verify password
+        if not verify_password(user_data.password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
+        
+        # Check if user is active
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Account is deactivated"
+            )
+        
+        # Create access token
+        access_token_expires = timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": str(user.id), "role": user.role.value},
+            expires_delta=access_token_expires
+        )
+        
+        # Set HttpOnly Secure cookie for cross-site (api.synthos.dev -> www.synthos.dev)
+        response.set_cookie(
+            key="synthos_token",
+            value=access_token,
+            httponly=True,
+            secure=True,
+            samesite="none",
+            max_age=int(access_token_expires.total_seconds()),
+            domain=".synthos.dev",
+            path="/",
+        )
+
+        # Update last login
+        user.last_login = datetime.utcnow()
+        db.commit()
+        
+        # Log successful login
+        audit_logger.info(
+            "User login successful",
+            user_id=user.id,
+            email=user.email,
+            ip_address=request.client.host if request.client else None
+        )
+        
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "expires_in": int(access_token_expires.total_seconds()),
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "full_name": user.full_name,
+                "role": user.role.value
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        audit_logger.error(
+            "Login failed",
+            email=user_data.email,
+            error=str(e),
+            ip_address=request.client.host if request.client else None
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Login failed due to server error"
+        )
 
 @router.post("/create-admin")
 async def create_admin(

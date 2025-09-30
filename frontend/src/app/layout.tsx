@@ -4,6 +4,7 @@ import { Providers } from './providers';
 import React from 'react';
 import ThreeBackgroundClient from './ThreeBackgroundClient';
 import Floating3DElements from '@/components/ui/Floating3DElements';
+import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
   title: 'Synthos - AI Data Platform',
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main id="main-content">
             {children}
           </main>
+          <Toaster />
         </Providers>
       </body>
     </html>

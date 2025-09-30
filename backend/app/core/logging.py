@@ -5,9 +5,14 @@ Enterprise-grade logging with structured output
 
 import sys
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 import structlog
-from pythonjsonlogger import jsonlogger
+
+# Optional dependency: python-json-logger
+try:
+    from pythonjsonlogger import jsonlogger  # type: ignore
+except Exception:  # pragma: no cover - fallback if package missing
+    jsonlogger = None  # type: ignore
 
 from app.core.config import settings
 
@@ -37,8 +42,8 @@ def setup_logging() -> None:
     # Configure standard library logging
     handler = logging.StreamHandler(sys.stdout)
     
-    if settings.ENVIRONMENT == "production":
-        # JSON formatting for production
+    if settings.ENVIRONMENT == "production" and jsonlogger is not None:
+        # JSON formatting for production when available
         formatter = jsonlogger.JsonFormatter(
             "%(asctime)s %(name)s %(levelname)s %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S"
@@ -107,6 +112,22 @@ class AuditLogger:
     
     def __init__(self):
         self.logger = structlog.get_logger("synthos.audit")
+    
+    def info(self, message: str, **kwargs) -> None:
+        """Log info level audit event"""
+        self.logger.info(message, **kwargs)
+    
+    def warning(self, message: str, **kwargs) -> None:
+        """Log warning level audit event"""
+        self.logger.warning(message, **kwargs)
+    
+    def error(self, message: str, **kwargs) -> None:
+        """Log error level audit event"""
+        self.logger.error(message, **kwargs)
+    
+    def debug(self, message: str, **kwargs) -> None:
+        """Log debug level audit event"""
+        self.logger.debug(message, **kwargs)
     
     def log_user_action(
         self,
@@ -189,6 +210,22 @@ class AuditLogger:
             metadata=metadata or {},
             event_type="privacy_event",
         )
+    
+    def error(self, msg: str, **kwargs: Any) -> None:
+        """Log error message with context"""
+        self.logger.error(msg, **kwargs)
+    
+    def info(self, msg: str, **kwargs: Any) -> None:
+        """Log info message with context"""
+        self.logger.info(msg, **kwargs)
+    
+    def warning(self, msg: str, **kwargs: Any) -> None:
+        """Log warning message with context"""
+        self.logger.warning(msg, **kwargs)
+    
+    def debug(self, msg: str, **kwargs: Any) -> None:
+        """Log debug message with context"""
+        self.logger.debug(msg, **kwargs)
 
 
 # Global audit logger instance

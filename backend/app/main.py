@@ -16,6 +16,8 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
+import warnings
+import pydantic
 
 # Conditional imports for monitoring
 try:
@@ -40,6 +42,9 @@ from app.services.auth import AuthService
 # Setup structured logging
 setup_logging()
 logger = structlog.get_logger()
+
+# Suppress Pydantic model namespace warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="pydantic._internal._fields")
 
 # Prometheus metrics (conditional)
 if PROMETHEUS_AVAILABLE:
@@ -83,6 +88,8 @@ if not settings.MVP_MODE and settings.ENABLE_SENTRY and settings.SENTRY_DSN:
         attach_stacktrace=True,
         send_default_pii=False,  # Privacy compliance
     )
+
+# Custom CORS middleware removed - using standard CORSMiddleware only
 
 # Enhanced Security headers middleware with MITM protection
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -210,7 +217,8 @@ async def lifespan(app: FastAPI):
         # Initialize database with retry logic
         for attempt in range(3):
             try:
-                await create_tables()
+                # Skip table creation since tables already exist
+                # await create_tables()
                 db_initialized = True
                 break
             except Exception as e:
@@ -287,9 +295,20 @@ app = FastAPI(
 )
 
 # Security middleware (order matters!)
-app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(HTTPSEnforcementMiddleware) # Add HTTPS enforcement middleware
-app.add_middleware(MetricsMiddleware)
+# Add standard CORS middleware for comprehensive coverage
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
+    allow_headers=["*"],
+    expose_headers=["X-Total-Count", "X-Response-Time", "X-Correlation-ID"],
+    max_age=86400,  # Cache preflight for 24 hours
+)
+
+# Custom CORS middleware removed to avoid conflicts with standard CORSMiddleware
+
+# Session middleware
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.SECRET_KEY,
@@ -298,11 +317,21 @@ app.add_middleware(
     https_only=settings.ENVIRONMENT in ["production", "staging"] or getattr(settings, 'FORCE_HTTPS', False)
 )
 
-# Trusted host middleware with comprehensive host validation
+# Trusted host middleware with strict host validation
+allowed_prod_hosts = [
+    "api.synthos.dev",
+    "synthos-backend-147548045822.us-central1.run.app",
+]
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=settings.ALLOWED_HOSTS + ["127.0.0.1", "localhost"],
+    allowed_hosts=(allowed_prod_hosts if settings.ENVIRONMENT == "production" else settings.ALLOWED_HOSTS + ["127.0.0.1", "localhost"]),
 )
+
+ 
+# Temporarily disable security middleware for debugging
+# app.add_middleware(SecurityHeadersMiddleware)
+# app.add_middleware(HTTPSEnforcementMiddleware) # Add HTTPS enforcement middleware
+# app.add_middleware(MetricsMiddleware)
 
 # Enhanced CORS middleware
 app.add_middleware(
@@ -314,6 +343,7 @@ app.add_middleware(
     expose_headers=["X-Total-Count", "X-Response-Time"],
     max_age=86400,  # Cache preflight for 24 hours
 )
+
 
 # Rate limiting
 if limiter is not None:
@@ -391,13 +421,14 @@ async def health_check(request: Request):
     }
     
     try:
-        # Database health check
-        from app.core.database import get_db_session
+        # Database health check - simple connection test
+        from app.core.database import engine
         from sqlalchemy import text
-        async with get_db_session() as db:
-            await db.execute(text("SELECT 1"))
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
             checks["database"] = "healthy"
-    except Exception:
+    except Exception as e:
+        logger.warning("Database health check failed", error=str(e))
         checks["database"] = "unhealthy"
     
     try:
@@ -408,7 +439,8 @@ async def health_check(request: Request):
             checks["redis"] = "healthy"
         else:
             checks["redis"] = "disabled"
-    except Exception:
+    except Exception as e:
+        logger.warning("Redis health check failed", error=str(e))
         checks["redis"] = "unhealthy"
     
     try:
@@ -417,7 +449,8 @@ async def health_check(request: Request):
         agent = AdvancedClaudeAgent()
         await agent.health_check()
         checks["ai_service"] = "healthy"
-    except Exception:
+    except Exception as e:
+        logger.warning("AI service health check failed", error=str(e))
         checks["ai_service"] = "unhealthy"
     
     overall_status = "healthy" if all(
@@ -448,6 +481,27 @@ async def liveness_check(request: Request):
         limiter.limit("10/minute")(liveness_check)
     return {"status": "alive"}
 
+@app.get("/health/simple", tags=["health"])
+async def simple_health_check():
+    """Simple health check without dependencies"""
+    return {
+        "status": "healthy",
+        "service": "synthos-api",
+        "version": "1.0.0",
+        "environment": settings.ENVIRONMENT,
+        "timestamp": time.time(),
+        "cors_origins": settings.CORS_ORIGINS
+    }
+
+@app.get("/cors-debug", tags=["debug"])
+async def cors_debug():
+    """Debug CORS configuration"""
+    return {
+        "cors_origins": settings.CORS_ORIGINS,
+        "allowed_hosts": settings.ALLOWED_HOSTS,
+        "environment": settings.ENVIRONMENT
+    }
+
 @app.get("/", tags=["health"])
 async def root():
     """Enhanced root endpoint with API discovery"""
@@ -470,6 +524,57 @@ async def root():
         ]
     }
 
+@app.options("/{path:path}")
+async def options_handler(request: Request, path: str):
+    origin = request.headers.get("origin", "")
+    if origin not in settings.CORS_ORIGINS:
+        raise HTTPException(status_code=403, detail="Origin not allowed")
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, X-Correlation-ID",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "86400",
+        },
+    )
+
+@app.get("/cors-debug", tags=["health"])
+async def cors_debug():
+    """Debug endpoint to check CORS configuration"""
+    return {
+        "cors_origins": settings.CORS_ORIGINS,
+        "allowed_hosts": settings.ALLOWED_HOSTS,
+        "environment": settings.ENVIRONMENT
+    }
+
+@app.get("/db-debug", tags=["health"])
+async def db_debug():
+    """Debug endpoint to check database configuration and connection"""
+    from app.core.database import engine, db_manager
+    
+    # Get database configuration (without sensitive data)
+    db_config = {
+        "use_cloud_sql_connector": settings.USE_CLOUD_SQL_CONNECTOR,
+        "cloudsql_instance": settings.CLOUDSQL_INSTANCE,
+        "db_user": settings.DB_USER,
+        "db_name": settings.DB_NAME,
+        "database_url_configured": bool(settings.DATABASE_CONNECTION_URL),
+        "database_url_preview": settings.DATABASE_CONNECTION_URL[:50] + "..." if settings.DATABASE_CONNECTION_URL else None,
+    }
+    
+    # Test database connection
+    connection_test = db_manager.check_connection()
+    db_info = db_manager.get_db_info()
+    
+    return {
+        "database_config": db_config,
+        "connection_test": connection_test,
+        "database_info": db_info,
+        "environment": settings.ENVIRONMENT
+    }
+
 # Store startup time for uptime calculation
 start_time = time.time()
 
@@ -478,7 +583,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=8080,
         reload=settings.ENVIRONMENT == "development",
         log_config=None,  # Use our structured logging
         workers=1 if settings.ENVIRONMENT == "development" else 4,

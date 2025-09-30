@@ -7,6 +7,7 @@ import os
 from typing import List, Optional, Union
 from pydantic import Field
 from dotenv import load_dotenv
+from urllib.parse import quote_plus
 
 # Load environment variables from .env file
 load_dotenv()
@@ -35,7 +36,10 @@ class Settings:
     ALLOWED_HOSTS: List[str] = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
     
     # CORS Configuration with secure defaults
-    _cors_origins = os.getenv("CORS_ORIGINS", "https://localhost:3000,https://127.0.0.1:3000")
+    _cors_origins = os.getenv(
+        "CORS_ORIGINS",
+        "https://localhost:3000,https://127.0.0.1:3000,https://synthos.dev,https://www.synthos.dev,https://synthos-dev.vercel.app",
+    )
     # Only allow HTTP origins in development mode
     if ENVIRONMENT == "development":
         _cors_origins += ",http://localhost:3000,http://127.0.0.1:3000"
@@ -46,8 +50,7 @@ class Settings:
     DATABASE_POOL_SIZE: int = int(os.getenv("DATABASE_POOL_SIZE", "20"))
     DATABASE_MAX_OVERFLOW: int = int(os.getenv("DATABASE_MAX_OVERFLOW", "30"))
     
-    # AWS RDS Configuration
-    # Set these for managed PostgreSQL instances
+    # AWS RDS Configuration (legacy)
     AWS_RDS_ENDPOINT: Optional[str] = os.getenv("AWS_RDS_ENDPOINT")
     AWS_RDS_PORT: int = int(os.getenv("AWS_RDS_PORT", "5432"))
     AWS_RDS_DATABASE: str = os.getenv("AWS_RDS_DATABASE", "synthos_db")
@@ -55,12 +58,12 @@ class Settings:
     AWS_RDS_PASSWORD: Optional[str] = os.getenv("AWS_RDS_PASSWORD")
     AWS_RDS_USE_SSL: bool = os.getenv("AWS_RDS_USE_SSL", "true").lower() == "true"
     
-    # RDS Proxy Configuration
+    # RDS Proxy Configuration (legacy)
     RDS_PROXY_ENDPOINT: Optional[str] = os.getenv("RDS_PROXY_ENDPOINT")
     USE_RDS_PROXY: bool = os.getenv("USE_RDS_PROXY", "false").lower() == "true"
     USE_IAM_AUTH: bool = os.getenv("USE_IAM_AUTH", "false").lower() == "true"
     
-    # Database Connection Pool Settings (optimized for RDS)
+    # Database Connection Pool Settings
     DATABASE_POOL_TIMEOUT: int = int(os.getenv("DATABASE_POOL_TIMEOUT", "30"))
     DATABASE_POOL_RECYCLE: int = int(os.getenv("DATABASE_POOL_RECYCLE", "3600"))
     DATABASE_POOL_PRE_PING: bool = os.getenv("DATABASE_POOL_PRE_PING", "true").lower() == "true"
@@ -69,25 +72,19 @@ class Settings:
     DATABASE_CONNECT_TIMEOUT: int = int(os.getenv("DATABASE_CONNECT_TIMEOUT", "10"))
     DATABASE_COMMAND_TIMEOUT: int = int(os.getenv("DATABASE_COMMAND_TIMEOUT", "60"))
     DATABASE_APPLICATION_NAME: str = os.getenv("DATABASE_APPLICATION_NAME", "synthos-api")
+    # Cloud SQL Connector (preferred on GCP)
+    USE_CLOUD_SQL_CONNECTOR: bool = os.getenv("USE_CLOUD_SQL_CONNECTOR", "true").lower() == "true"
+    CLOUDSQL_INSTANCE: Optional[str] = os.getenv("CLOUDSQL_INSTANCE")  # project:region:instance
+    DB_USER: Optional[str] = os.getenv("DB_USER")
+    DB_PASSWORD: Optional[str] = os.getenv("DB_PASSWORD")
+    DB_NAME: Optional[str] = os.getenv("DB_NAME")
     
     # Redis/Valkey Configuration
-    # Valkey is a Redis-compatible fork recommended by AWS for new deployments
-    # Both Redis and Valkey URLs work with the same configuration
-    # Format: redis://host:port/db or valkey://host:port/db
-    # AWS ElastiCache Valkey: rediss://your-cluster.cache.amazonaws.com:6379
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     REDIS_CACHE_TTL: int = int(os.getenv("REDIS_CACHE_TTL", "3600"))
-    # Feature flag to enable/disable caching entirely
     ENABLE_CACHING: bool = os.getenv("ENABLE_CACHING", "false").lower() == "true"
-    
-    # Optional: Separate Valkey URL for enhanced performance
-    # If VALKEY_URL is set, it takes precedence over REDIS_URL
     VALKEY_URL: Optional[str] = os.getenv("VALKEY_URL")
-    
-    # Cache backend preference (redis, valkey, auto)
-    # 'auto' will prefer Valkey if available, fallback to Redis
     CACHE_BACKEND: str = os.getenv("CACHE_BACKEND", "auto")
-    # Back-compat flag used by some modules
     REDIS_ENABLED: bool = ENABLE_CACHING
     
     @property
@@ -97,30 +94,44 @@ class Settings:
             return os.getenv("ENABLE_CACHING", "true").lower() == "true"
         return self.ENABLE_CACHING
     
-    # Celery Configuration (supports both Redis and Valkey)
+    # Celery Configuration
     CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/1")
     CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
     
-    # AWS ElastiCache Configuration
-    # Set these for managed Redis/Valkey instances
+    # AWS ElastiCache Configuration (legacy)
     AWS_ELASTICACHE_ENDPOINT: Optional[str] = os.getenv("AWS_ELASTICACHE_ENDPOINT")
     AWS_ELASTICACHE_PORT: int = int(os.getenv("AWS_ELASTICACHE_PORT", "6379"))
     AWS_ELASTICACHE_AUTH_TOKEN: Optional[str] = os.getenv("AWS_ELASTICACHE_AUTH_TOKEN")
     AWS_ELASTICACHE_USE_TLS: bool = os.getenv("AWS_ELASTICACHE_USE_TLS", "true").lower() == "true"
     
-    # AWS Configuration
+    # Storage Provider Selection
+    STORAGE_PROVIDER: str = os.getenv("STORAGE_PROVIDER", "gcs")  # gcs or aws
+    
+    # AWS Storage (legacy)
     AWS_ACCESS_KEY_ID: Optional[str] = os.getenv("AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY: Optional[str] = os.getenv("AWS_SECRET_ACCESS_KEY")
     AWS_REGION: str = os.getenv("AWS_REGION", "us-east-1")
     AWS_S3_BUCKET: str = os.getenv("AWS_S3_BUCKET", "synthos-data")
     AWS_CLOUDFRONT_DOMAIN: Optional[str] = os.getenv("AWS_CLOUDFRONT_DOMAIN")
     
+    # GCP Storage / Vertex AI
+    GCP_PROJECT_ID: Optional[str] = os.getenv("GCP_PROJECT_ID")
+    GCP_LOCATION: str = os.getenv("GCP_LOCATION", "us-central1")
+    GCS_BUCKET: Optional[str] = os.getenv("GCS_BUCKET")
+    GCS_SIGNED_URL_TTL: int = int(os.getenv("GCS_SIGNED_URL_TTL", "3600"))
+    VERTEX_LOCATION: str = os.getenv("VERTEX_LOCATION", "us-central1")
+    VERTEX_PROJECT_ID: Optional[str] = os.getenv("VERTEX_PROJECT_ID")
+    # Default Vertex model alias (resolved in code): use Anthropic Claude Opus 4
+    VERTEX_DEFAULT_MODEL: str = os.getenv("VERTEX_DEFAULT_MODEL", "claude-opus-4")
+    VERTEX_API_KEY: Optional[str] = os.getenv("VERTEX_API_KEY")
+
     # AI Services
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "your-anthropic-key")
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
     OPENAI_ORGANIZATION: Optional[str] = os.getenv("OPENAI_ORGANIZATION")
-    OPENAI_DEFAULT_MODEL: str = os.getenv("OPENAI_DEFAULT_MODEL", "gpt-4-turbo-preview")
-    CLAUDE_MODEL: str = os.getenv("CLAUDE_MODEL", "claude-3-sonnet-20240229")
+    OPENAI_DEFAULT_MODEL: str = os.getenv("OPENAI_DEFAULT_MODEL", "gpt-4o")
+    # Alias that our code can resolve to Vertex Anthropic model IDs
+    CLAUDE_MODEL: str = os.getenv("CLAUDE_MODEL", "claude-opus-4")
     CLAUDE_MAX_TOKENS: int = int(os.getenv("CLAUDE_MAX_TOKENS", "4000"))
     
     # Differential Privacy
@@ -224,21 +235,21 @@ class Settings:
             if self.USE_IAM_AUTH:
                 # IAM authentication - password will be generated by auth token
                 ssl_part = "?sslmode=require" if self.AWS_RDS_USE_SSL else ""
-                return f"postgresql://{self.AWS_RDS_USERNAME}@{self.RDS_PROXY_ENDPOINT}:{self.AWS_RDS_PORT}/{self.AWS_RDS_DATABASE}{ssl_part}"
+                return f"postgresql://{quote_plus(self.AWS_RDS_USERNAME)}@{self.RDS_PROXY_ENDPOINT}:{self.AWS_RDS_PORT}/{self.AWS_RDS_DATABASE}{ssl_part}"
             else:
                 # Traditional authentication via proxy
                 ssl_part = "?sslmode=require" if self.AWS_RDS_USE_SSL else ""
-                return f"postgresql://{self.AWS_RDS_USERNAME}:{self.AWS_RDS_PASSWORD}@{self.RDS_PROXY_ENDPOINT}:{self.AWS_RDS_PORT}/{self.AWS_RDS_DATABASE}{ssl_part}"
+                return f"postgresql://{quote_plus(self.AWS_RDS_USERNAME)}:{quote_plus(self.AWS_RDS_PASSWORD)}@{self.RDS_PROXY_ENDPOINT}:{self.AWS_RDS_PORT}/{self.AWS_RDS_DATABASE}{ssl_part}"
         
-        # Railway automatically provides DATABASE_URL - use it if available
+        # Prefer explicit DATABASE_URL (Railway / Cloud SQL Proxy / etc.)
         railway_db_url = os.getenv("DATABASE_URL")
         if railway_db_url and railway_db_url.startswith("postgresql://"):
             return railway_db_url
         
-        # If AWS RDS endpoint is configured, build URL (direct connection)
+        # Fallback to AWS RDS if configured (legacy)
         if self.AWS_RDS_ENDPOINT and self.AWS_RDS_USERNAME and self.AWS_RDS_PASSWORD:
             ssl_part = "?sslmode=require" if self.AWS_RDS_USE_SSL else ""
-            return f"postgresql://{self.AWS_RDS_USERNAME}:{self.AWS_RDS_PASSWORD}@{self.AWS_RDS_ENDPOINT}:{self.AWS_RDS_PORT}/{self.AWS_RDS_DATABASE}{ssl_part}"
+            return f"postgresql://{quote_plus(self.AWS_RDS_USERNAME)}:{quote_plus(self.AWS_RDS_PASSWORD)}@{self.AWS_RDS_ENDPOINT}:{self.AWS_RDS_PORT}/{self.AWS_RDS_DATABASE}{ssl_part}"
         
         # Default to explicit DATABASE_URL
         return self.DATABASE_URL
@@ -247,29 +258,24 @@ class Settings:
     def CACHE_URL(self) -> str:
         """
         Get the appropriate cache URL based on configuration preference
-        Supports Railway, Redis, Valkey, and AWS ElastiCache
+        Supports Redis/Valkey and managed offerings
         """
-        # If explicit CACHE_URL is provided, use it directly
         cache_url = os.getenv("CACHE_URL")
         if cache_url:
             return cache_url
-            
-        # Railway automatically provides REDIS_URL - use it if available
+        
         railway_redis_url = os.getenv("REDIS_URL")
         if railway_redis_url and (railway_redis_url.startswith("redis://") or railway_redis_url.startswith("rediss://")):
             return railway_redis_url
-            
-        # If explicit Valkey URL is provided, use it
+        
         if self.VALKEY_URL:
             return self.VALKEY_URL
         
-        # If AWS ElastiCache endpoint is configured, build URL
         if self.AWS_ELASTICACHE_ENDPOINT:
             protocol = "rediss" if self.AWS_ELASTICACHE_USE_TLS else "redis"
             auth_part = f":{self.AWS_ELASTICACHE_AUTH_TOKEN}@" if self.AWS_ELASTICACHE_AUTH_TOKEN else ""
             return f"{protocol}://{auth_part}{self.AWS_ELASTICACHE_ENDPOINT}:{self.AWS_ELASTICACHE_PORT}/0"
         
-        # Default to Redis URL
         return self.REDIS_URL
 
 

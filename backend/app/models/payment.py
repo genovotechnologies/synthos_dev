@@ -71,7 +71,7 @@ class StripeCustomer(Base):
     # Relationships
     user = relationship("User", back_populates="stripe_customer")
     subscriptions = relationship("StripeSubscription", back_populates="customer")
-    payment_events = relationship("PaymentEvent", back_populates="customer")
+    payment_events = relationship("PaymentEvent", back_populates="stripe_customer")
 
     def __repr__(self):
         return f"<StripeCustomer(user_id={self.user_id}, stripe_id={self.stripe_customer_id})>"
@@ -320,7 +320,6 @@ class PaymentEvent(Base):
     
     # Relationships
     stripe_customer = relationship("StripeCustomer", back_populates="payment_events", foreign_keys=[stripe_customer_id])
-    paddle_customer = relationship("PaddleCustomer", back_populates="payment_events", foreign_keys=[paddle_customer_id])
 
     def __repr__(self):
         return f"<PaymentEvent(type={self.payment_type}, status={self.status}, amount={self.amount})>"

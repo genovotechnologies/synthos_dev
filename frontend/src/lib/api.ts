@@ -42,11 +42,7 @@ api.interceptors.request.use(
     // Add correlation ID for tracking
     config.headers['X-Correlation-ID'] = generateCorrelationId();
     
-    // Add auth token if available
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    // Cookie-only auth: do not attach Authorization header from localStorage
     
     // Security: Ensure HTTPS in production
     if (config.url && (process.env.NODE_ENV === 'production' || FORCE_HTTPS)) {
@@ -64,8 +60,7 @@ api.interceptors.request.use(
       });
     }
     
-    return config;
-  },
+;  },
   (error: any) => {
     if (ENABLE_API_DEBUG_LOGS) {
       console.error('❌ Request interceptor error:', error);
@@ -386,23 +381,18 @@ const apiService = {
 
   // Auth API methods
   async signIn(email: string, password: string) {
-    try {
-      const response = await api.post('/api/v1/auth/signin', { email, password });
-      return response.data;
-    } catch (error) {
-      console.warn('Using fallback signin');
-      return { token: 'demo_token', user: { id: 1, email, name: 'Demo User' } };
-    }
+    const response = await api.post('/api/v1/auth/signin', { email, password });
+    return response.data;
   },
 
   async signUp(userData: any) {
-    try {
-      const response = await api.post('/api/v1/auth/signup', userData);
-      return response.data;
-    } catch (error) {
-      console.warn('Using fallback signup');
-      return { token: 'demo_token', user: { id: 1, email: userData.email, name: userData.name } };
-    }
+    const response = await api.post('/api/v1/auth/signup', userData);
+    return response.data;
+  },
+
+  async forgotPassword(email: string) {
+    const response = await api.post('/api/v1/auth/forgot-password', { email });
+    return response.data;
   },
 
   // Marketing API methods

@@ -9,11 +9,19 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from contextlib import asynccontextmanager
+from fastapi import HTTPException
 import structlog
 
 from app.core.config import settings
 
 logger = structlog.get_logger(__name__)
+
+# Cloud SQL Connector (optional)
+try:
+    from google.cloud.sql.connector import Connector, IPTypes  # type: ignore
+except ImportError:  # pragma: no cover
+    Connector = None
+    IPTypes = None
 
 # Update the database URL to use psycopg2 sync dialect
 def get_sync_database_url(url: str) -> str:
@@ -21,6 +29,7 @@ def get_sync_database_url(url: str) -> str:
     if url.startswith("postgresql://"):
         return url.replace("postgresql://", "postgresql+psycopg2://")
     return url
+
 
 def get_async_database_url(url: str) -> str:
     """Convert database URL to use asyncpg dialect"""
@@ -33,24 +42,128 @@ def get_async_database_url(url: str) -> str:
         return url.replace("sqlite://", "sqlite+aiosqlite://")
     return url
 
-# SQLAlchemy engine with connection pooling - use psycopg2
-engine = create_engine(
-    get_sync_database_url(settings.DATABASE_CONNECTION_URL),
-    poolclass=QueuePool,
-    pool_size=settings.DATABASE_POOL_SIZE,
-    max_overflow=settings.DATABASE_MAX_OVERFLOW,
-    pool_pre_ping=True,  # Validates connections before use
-    echo=settings.DEBUG,  # Log SQL queries in debug mode
-)
 
-# Async engine for health checks
-async_engine = create_async_engine(
-    get_async_database_url(settings.DATABASE_CONNECTION_URL),
-    pool_size=settings.DATABASE_POOL_SIZE,
-    max_overflow=settings.DATABASE_MAX_OVERFLOW,
-    pool_pre_ping=True,
-    echo=settings.DEBUG,
-)
+def _make_connector_sync_creator():
+    """Returns a connection creator for SQLAlchemy using Cloud SQL Connector (pg8000)."""
+    if not Connector or not settings.CLOUDSQL_INSTANCE:
+        return None
+
+    connector = Connector()
+
+    def getconn():
+        # Ensure password is properly encoded for Cloud SQL Connector
+        password = settings.DB_PASSWORD
+        if password:
+            # Handle special characters in password
+            import urllib.parse
+            password = urllib.parse.quote_plus(password)
+        
+        try:
+            return connector.connect(
+                settings.CLOUDSQL_INSTANCE,
+                "pg8000",
+                user=settings.DB_USER,
+                password=password,
+                db=settings.DB_NAME,
+                ip_type=IPTypes.PUBLIC,
+            )
+        except Exception as e:
+            logger.error("Cloud SQL Connector connection failed", error=str(e))
+            raise
+
+    return getconn
+
+
+def _make_connector_async_creator():
+    """Return SQLAlchemy async creator using Cloud SQL Connector (asyncpg)."""
+    if not Connector or not settings.CLOUDSQL_INSTANCE:
+        return None
+
+    connector = Connector()
+
+    async def getconn():
+        # Ensure password is properly encoded for Cloud SQL Connector
+        password = settings.DB_PASSWORD
+        if password:
+            # Handle special characters in password
+            import urllib.parse
+            password = urllib.parse.quote_plus(password)
+        
+        try:
+            return await connector.connect_async(
+                settings.CLOUDSQL_INSTANCE,
+                "asyncpg",
+                user=settings.DB_USER,
+                password=password,
+                db=settings.DB_NAME,
+                ip_type=IPTypes.PUBLIC,
+            )
+        except Exception as e:
+            logger.error("Cloud SQL Connector async connection failed", error=str(e))
+            raise
+
+    return getconn
+
+
+# Database connection strategy - simplified for production
+def create_database_engines():
+    """Create database engines with direct connection only"""
+    engines_created = False
+    
+    # Log current configuration
+    logger.info("=== Database Connection Strategy ===")
+    logger.info(f"Environment: {settings.ENVIRONMENT}")
+    logger.info(f"Database URL configured: {bool(settings.DATABASE_CONNECTION_URL)}")
+    
+    # Use direct DATABASE_URL connection only
+    if settings.DATABASE_CONNECTION_URL:
+        try:
+            logger.info("Attempting direct DATABASE_URL connection...")
+            
+            # Use direct connection with psycopg2
+            sync_url = get_sync_database_url(settings.DATABASE_CONNECTION_URL)
+            async_url = get_async_database_url(settings.DATABASE_CONNECTION_URL)
+            
+            # Test connection first
+            test_engine = create_engine(sync_url, pool_pre_ping=True, echo=False)
+            with test_engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            test_engine.dispose()
+            
+            # Create production engines
+            engine = create_engine(
+                sync_url,
+                poolclass=QueuePool,
+                pool_size=settings.DATABASE_POOL_SIZE,
+                max_overflow=settings.DATABASE_MAX_OVERFLOW,
+                pool_pre_ping=True,
+                echo=settings.DEBUG,
+            )
+
+            async_engine = create_async_engine(
+                async_url,
+                pool_size=settings.DATABASE_POOL_SIZE,
+                max_overflow=settings.DATABASE_MAX_OVERFLOW,
+                pool_pre_ping=True,
+                echo=settings.DEBUG,
+            )
+            
+            logger.info("Direct connection engines created successfully")
+            engines_created = True
+            
+        except Exception as e:
+            logger.error(f"Direct connection failed: {str(e)}")
+            raise Exception(f"Database connection failed: {str(e)}")
+    
+    # If no engines created, raise error
+    if not engines_created:
+        raise Exception("No database connection could be established")
+    
+    logger.info("=== Database Connection Complete ===")
+    return engine, async_engine
+
+# Create engines with fallback strategy
+engine, async_engine = create_database_engines()
 
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -81,12 +194,31 @@ async def create_tables():
 
 
 def get_db():
-    """Database dependency for FastAPI"""
+    """Database dependency for FastAPI using a safe generator pattern.
+
+    Only converts initial connection failures to 503. It does NOT
+    intercept exceptions thrown by route handlers during teardown,
+    preventing valid HTTP errors (e.g., 400/401) from being masked as 503.
+    """
     db = SessionLocal()
+    # Validate connection once, and convert failures to 503
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as e:
+        try:
+            db.close()
+        except Exception:
+            pass
+        logger.error("Database liveness check failed", error=str(e))
+        raise HTTPException(status_code=503, detail="Database temporarily unavailable. Please try again later.")
+
     try:
         yield db
     finally:
-        db.close()
+        try:
+            db.close()
+        except Exception:
+            pass
 
 
 @asynccontextmanager

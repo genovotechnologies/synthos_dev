@@ -15,6 +15,7 @@ import logging
 from enum import Enum
 import openai
 from anthropic import AsyncAnthropic
+import google.cloud.aiplatform as aiplatform
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -88,12 +89,32 @@ class MultiModelAgent:
             self.openai_client = None
             logger.warning("OpenAI API key not configured")
         
+        # Initialize Anthropic
+        self.claude_client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY) if settings.ANTHROPIC_API_KEY else None
+        
+        # Initialize Vertex AI
+        try:
+            aiplatform.init(project=settings.VERTEX_PROJECT_ID or settings.GCP_PROJECT_ID, location=settings.VERTEX_LOCATION)
+            self.vertex_available = True
+        except Exception:
+            self.vertex_available = False
+            logger.warning("Vertex AI not initialized; ensure ADC and project/location are set")
+        
+        # Model alias map (expand as needed)
+        self.vertex_alias_map = {
+            "claude-opus-4": "anthropic/claude-3.7-sonnet",  # replace with official Vertex Anthropic Opus 4 id when available
+            "claude-sonnet-3": "anthropic/claude-3-sonnet",
+        }
+        
         # Model capabilities database
         self.model_capabilities = self._initialize_model_capabilities()
         
         # Custom model registry
         self.custom_model_registry = {}
         
+    def _resolve_vertex_model(self, name: str) -> str:
+        return self.vertex_alias_map.get(name, name)
+
     def _initialize_model_capabilities(self) -> Dict[str, ModelCapabilities]:
         """Initialize capabilities database for different models"""
         
@@ -356,6 +377,8 @@ class MultiModelAgent:
                 task = self._generate_with_claude(dataset, config, job, model_name)
             elif model_name.startswith("gpt"):
                 task = self._generate_with_openai(dataset, config, job, model_name)
+            elif model_name.startswith("gemini") or model_name.startswith("claude-"):
+                task = self._generate_with_vertex(dataset, config, job, self._resolve_vertex_model(model_name))
             else:
                 task = self._generate_with_custom_model(dataset, config, job, model_name)
             generation_tasks.append(task)
@@ -405,6 +428,8 @@ class MultiModelAgent:
             return await self._generate_with_claude(dataset, config, job, primary_model)
         elif primary_model.startswith("gpt"):
             return await self._generate_with_openai(dataset, config, job, primary_model)
+        elif primary_model.startswith("gemini") or primary_model.startswith("claude-"):
+            return await self._generate_with_vertex(dataset, config, job, self._resolve_vertex_model(primary_model))
         else:
             return await self._generate_with_custom_model(dataset, config, job, primary_model)
     
@@ -484,6 +509,32 @@ class MultiModelAgent:
         
         return synthetic_data, quality_metrics
     
+    async def _generate_with_vertex(
+        self,
+        dataset: Dataset,
+        config: GenerationConfig,
+        job: GenerationJob,
+        model_name: str
+    ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+        """Generate using Vertex AI models"""
+        if not self.vertex_available:
+            raise Exception("Vertex AI not initialized or configured")
+
+        logger.info(f"Generating with Vertex AI {model_name}")
+
+        # Prepare dataset context for Vertex AI
+        schema_analysis = await self._analyze_dataset_with_vertex(dataset, model_name)
+
+        # Generate synthetic data
+        synthetic_data = await self._vertex_batch_generation(
+            dataset, config, schema_analysis, model_name
+        )
+
+        # Calculate quality metrics
+        quality_metrics = await self._assess_vertex_quality(dataset, synthetic_data)
+
+        return synthetic_data, quality_metrics
+
     async def _analyze_dataset_with_openai(
         self,
         dataset: Dataset,

@@ -17,8 +17,28 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing context with explicit backend configuration
+try:
+    pwd_context = CryptContext(
+        schemes=["bcrypt"], 
+        deprecated="auto",
+        bcrypt__default_rounds=12,
+        bcrypt__min_rounds=10,
+        bcrypt__max_rounds=15
+    )
+    # Test bcrypt initialization
+    pwd_context.hash("test")
+    logger.info("Bcrypt initialized successfully")
+except Exception as e:
+    logger.warning(f"Bcrypt initialization failed: {e}, using fallback")
+    # Fallback to a simpler context
+    pwd_context = CryptContext(
+        schemes=["pbkdf2_sha256"], 
+        deprecated="auto",
+        pbkdf2_sha256__default_rounds=29000,
+        pbkdf2_sha256__min_rounds=20000,
+        pbkdf2_sha256__max_rounds=40000
+    )
 
 # Token serializer for secure tokens
 token_serializer = URLSafeTimedSerializer(settings.SECRET_KEY)
@@ -82,13 +102,37 @@ def verify_token(token: str) -> Optional[Dict[str, Any]]:
 
 
 def get_password_hash(password: str) -> str:
-    """Hash password using bcrypt"""
-    return pwd_context.hash(password)
+    """Hash password using bcrypt with fallback"""
+    try:
+        return pwd_context.hash(password)
+    except Exception as e:
+        logger.error("Bcrypt hashing failed, using fallback", error=str(e))
+        # Fallback to a simpler hashing method if bcrypt fails
+        import hashlib
+        import secrets
+        salt = secrets.token_hex(16)
+        return f"sha256${salt}${hashlib.sha256((password + salt).encode()).hexdigest()}"
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify password against hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+    """Verify password against hash with fallback support"""
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception as e:
+        logger.warning("Bcrypt verification failed, trying fallback", error=str(e))
+        # Handle fallback hash format
+        if hashed_password.startswith("sha256$"):
+            try:
+                parts = hashed_password.split("$")
+                if len(parts) == 3:
+                    salt = parts[1]
+                    stored_hash = parts[2]
+                    import hashlib
+                    computed_hash = hashlib.sha256((plain_password + salt).encode()).hexdigest()
+                    return computed_hash == stored_hash
+            except Exception as fallback_error:
+                logger.error("Fallback verification failed", error=str(fallback_error))
+        return False
 
 
 def generate_password_reset_token(email: str) -> str:

@@ -1,0 +1,50 @@
+# Cloud Build configuration for Synthos Backend
+# Builds and deploys to Cloud Run automatically
+
+steps:
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/synthos-backend:$BUILD_ID', './backend']
+    dir: '.'
+
+  # Push the image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/synthos-backend:$BUILD_ID']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'synthos-backend'
+      - '--image=gcr.io/$PROJECT_ID/synthos-backend:$BUILD_ID'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--set-secrets=SECRET_KEY=synthos-secret-key:latest,JWT_SECRET_KEY=synthos-jwt-secret:latest,DB_PASSWORD=synthos-db-password:latest,VERTEX_API_KEY=synthos-vertex-api-key:latest'
+      - '--env-vars-file=cloudrun.env'
+
+  # Post-deploy: ensure service has public egress and no VPC connector
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-lc'
+      - |
+        set -euo pipefail
+        gcloud run services update synthos-backend \
+          --region=us-central1 \
+          --vpc-egress=private-ranges-only || true
+        gcloud run services update synthos-backend \
+          --region=us-central1 \
+          --clear-vpc-connector \
+          --vpc-egress=all-traffic || true
+
+# Store images in Container Registry
+images:
+  - 'gcr.io/$PROJECT_ID/synthos-backend:$BUILD_ID'
+
+# Build options
+options:
+  machineType: 'E2_HIGHCPU_8'
+  diskSizeGb: 100

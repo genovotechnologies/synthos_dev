@@ -9,7 +9,7 @@ Synthos is a cutting-edge enterprise platform that generates high-quality synthe
 ## ✨ Key Features
 
 ### 🤖 **AI-Powered Generation**
-- **Claude 3 Sonnet Integration**: Advanced AI understanding of data patterns
+- **Claude 4.1 Integration**: Latest Claude 4.1 Sonnet and Opus models for superior AI understanding
 - **Autonomous Microservices**: Self-managing AI agents for schema detection and quality scoring
 - **Real-time Generation**: On-demand synthetic data with live progress tracking
 
