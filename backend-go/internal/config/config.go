@@ -63,6 +63,8 @@ type Config struct {
 }
 
 func Load() *Config {
+	// Load from mounted Secret Manager file if present, then fall back to default .env
+	_ = godotenv.Load("/etc/secrets/Synthos_backend")
 	_ = godotenv.Load()
 
 	cfg := &Config{
