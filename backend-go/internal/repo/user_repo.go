@@ -113,6 +113,12 @@ func (r *UserRepo) UpdatePassword(ctx context.Context, userID int64, hashedPassw
 	return err
 }
 
+func (r *UserRepo) Update(ctx context.Context, user *models.User) error {
+	q := `UPDATE users SET email=$1, full_name=$2, company=$3, updated_at=NOW() WHERE id=$4`
+	_, err := r.db.ExecContext(ctx, q, strings.ToLower(user.Email), user.FullName, user.Company, user.ID)
+	return err
+}
+
 func (r *UserRepo) Delete(ctx context.Context, id int64) error {
 	q := `DELETE FROM users WHERE id=$1`
 	_, err := r.db.ExecContext(ctx, q, id)

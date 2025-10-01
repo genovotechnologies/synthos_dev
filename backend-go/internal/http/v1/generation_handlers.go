@@ -3,16 +3,19 @@ package v1
 import (
 	"context"
 	"strconv"
+	"time"
 
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/models"
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/repo"
+	"github.com/genovotechnologies/synthos_dev/backend-go/internal/storage"
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/usage"
 	"github.com/gofiber/fiber/v2"
 )
 
 type GenerationDeps struct {
-	Generations *repo.GenerationRepo
-	Usage       *usage.UsageService
+	Generations   *repo.GenerationRepo
+	Usage         *usage.UsageService
+	StorageClient storage.SignedURLProvider
 }
 
 type StartGenerationRequest struct {
@@ -77,8 +80,21 @@ func (d GenerationDeps) Download(c *fiber.Ctx) error {
 	if job.Status != models.GenCompleted || job.OutputKey == nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "not_ready"})
 	}
-	// TODO: generate signed URL from storage (GCS/S3). For now echo the key.
-	return c.JSON(fiber.Map{"download_url": *job.OutputKey})
+
+	// Generate signed URL if storage client is available
+	var downloadURL string
+	if d.StorageClient != nil {
+		signedURL, err := d.StorageClient.GetSignedURL(context.Background(), *job.OutputKey, 1*time.Hour)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed_to_generate_download_url"})
+		}
+		downloadURL = signedURL
+	} else {
+		// Fallback: return the key for development/testing
+		downloadURL = *job.OutputKey
+	}
+
+	return c.JSON(fiber.Map{"download_url": downloadURL})
 }
 
 func (d GenerationDeps) List(c *fiber.Ctx) error {

@@ -6,16 +6,19 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/models"
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/repo"
+	"github.com/genovotechnologies/synthos_dev/backend-go/internal/storage"
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/usage"
 	"github.com/gofiber/fiber/v2"
 )
 
 type DatasetDeps struct {
-	Datasets *repo.DatasetRepo
-	Usage    *usage.UsageService
+	Datasets      *repo.DatasetRepo
+	Usage         *usage.UsageService
+	StorageClient storage.SignedURLProvider
 }
 
 func (d DatasetDeps) List(c *fiber.Ctx) error {
@@ -125,8 +128,30 @@ func (d DatasetDeps) Download(c *fiber.Ctx) error {
 	if owner == 0 {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "auth_required"})
 	}
-	// Placeholder: use STORAGE_BASE_URL if present
-	base := c.App().Config().AppName // placeholder no-op
-	_ = base
-	return c.JSON(fiber.Map{"download_url": c.Get("X-Storage-Preview-Base")})
+
+	id, _ := strconv.ParseInt(c.Params("id"), 10, 64)
+	dataset, err := d.Datasets.GetByOwnerID(context.Background(), owner, id)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "not_found"})
+	}
+
+	// Check if dataset has a storage key
+	if dataset.StorageKey == nil || *dataset.StorageKey == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "dataset_not_uploaded"})
+	}
+
+	// Generate signed URL if storage client is available
+	var downloadURL string
+	if d.StorageClient != nil {
+		signedURL, err := d.StorageClient.GetSignedURL(context.Background(), *dataset.StorageKey, 1*time.Hour)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed_to_generate_download_url"})
+		}
+		downloadURL = signedURL
+	} else {
+		// Fallback: return the key for development/testing
+		downloadURL = *dataset.StorageKey
+	}
+
+	return c.JSON(fiber.Map{"download_url": downloadURL, "filename": dataset.OriginalFile})
 }

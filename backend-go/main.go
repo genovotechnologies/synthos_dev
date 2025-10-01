@@ -112,11 +112,6 @@ func main() {
 		logg.Fatal("failed to create audit log schema", zap.Error(err))
 	}
 
-	customModelRepo := repo.NewCustomModelRepo(database.SQL)
-	if err := customModelRepo.CreateSchema(context.Background()); err != nil {
-		logg.Fatal("failed to create custom model schema", zap.Error(err))
-	}
-
 	// Initialize advanced auth service
 	advancedAuthService := auth.NewAdvancedAuthService(redisClient.Client, bl)
 
@@ -132,6 +127,16 @@ func main() {
 		logg.Fatal("failed to initialize Vertex AI handlers", zap.Error(err))
 	}
 
+	// Initialize storage client based on provider
+	var storageClient v1.SignedURLProvider
+	if cfg.StorageProvider == "gcs" && cfg.GCSBucket != "" {
+		// GCS storage initialization would go here
+		// storageClient, _ = storage.NewGCSProvider(context.Background(), cfg.GCSBucket)
+	} else if cfg.StorageProvider == "s3" {
+		// S3 storage initialization would go here
+		// storageClient, _ = storage.NewS3Provider(context.Background(), cfg.S3Bucket, cfg.S3Region)
+	}
+
 	v1.Register(app, v1.Deps{
 		Auth: v1.AuthDeps{
 			Users:        userRepo,
@@ -141,10 +146,21 @@ func main() {
 			EmailService: emailService,
 			Blacklist:    bl,
 		},
-		Users:        v1.UserDeps{Users: userRepo},
-		Datasets:     v1.DatasetDeps{Datasets: datasetRepo, Usage: usageService},
-		Generations:  v1.GenerationDeps{Generations: genRepo, Usage: usageService},
-		Payments:     v1.PaymentDeps{},
+		Users:   v1.UserDeps{Users: userRepo},
+		Datasets: v1.DatasetDeps{
+			Datasets:      datasetRepo,
+			Usage:         usageService,
+			StorageClient: storageClient,
+		},
+		Generations: v1.GenerationDeps{
+			Generations:   genRepo,
+			Usage:         usageService,
+			StorageClient: storageClient,
+		},
+		Payments: v1.PaymentDeps{
+			StripeWebhookSecret: cfg.StripeSecretKey,
+			PaddlePublicKey:     cfg.PaddlePublicKey,
+		},
 		Analytics:    v1.AnalyticsDeps{},
 		Privacy:      v1.PrivacyDeps{},
 		Admin:        v1.AdminDeps{Users: userRepo},
