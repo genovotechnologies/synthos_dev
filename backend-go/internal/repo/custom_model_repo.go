@@ -143,3 +143,11 @@ func (r *CustomModelRepo) ValidateModel(ctx context.Context, model *models.Custo
 
 	return nil
 }
+
+// GetCountByOwner returns the count of custom models for a specific owner
+func (r *CustomModelRepo) GetCountByOwner(ctx context.Context, ownerID int64) (int64, error) {
+	query := `SELECT COUNT(*) FROM custom_models WHERE owner_id = $1`
+	var count int64
+	err := r.db.GetContext(ctx, &count, query, ownerID)
+	return count, err
+}

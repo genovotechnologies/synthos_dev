@@ -9,16 +9,18 @@ import (
 )
 
 type UsageService struct {
-	userRepo *repo.UserRepo
-	genRepo  *repo.GenerationRepo
-	dsRepo   *repo.DatasetRepo
+	userRepo        *repo.UserRepo
+	genRepo         *repo.GenerationRepo
+	dsRepo          *repo.DatasetRepo
+	customModelRepo *repo.CustomModelRepo
 }
 
-func NewUsageService(userRepo *repo.UserRepo, genRepo *repo.GenerationRepo, dsRepo *repo.DatasetRepo) *UsageService {
+func NewUsageService(userRepo *repo.UserRepo, genRepo *repo.GenerationRepo, dsRepo *repo.DatasetRepo, customModelRepo *repo.CustomModelRepo) *UsageService {
 	return &UsageService{
-		userRepo: userRepo,
-		genRepo:  genRepo,
-		dsRepo:   dsRepo,
+		userRepo:        userRepo,
+		genRepo:         genRepo,
+		dsRepo:          dsRepo,
+		customModelRepo: customModelRepo,
 	}
 }
 
@@ -57,6 +59,12 @@ func (s *UsageService) GetUsageStats(ctx context.Context, userID int64) (*UsageS
 		return nil, err
 	}
 
+	// Get custom models count
+	customModelCount, err := s.customModelRepo.GetCountByOwner(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
 	// Get plan limits
 	plans := pricing.SubscriptionPlans()
 	var planLimits PlanLimits
@@ -75,7 +83,7 @@ func (s *UsageService) GetUsageStats(ctx context.Context, userID int64) (*UsageS
 	return &UsageStats{
 		MonthlyRowsGenerated: monthlyRows,
 		TotalDatasets:        datasetCount,
-		TotalCustomModels:    0, // TODO: implement custom models tracking
+		TotalCustomModels:    customModelCount,
 		PlanLimits:           planLimits,
 	}, nil
 }

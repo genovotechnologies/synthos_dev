@@ -3,8 +3,12 @@ package v1
 import (
 	"time"
 
+	"github.com/genovotechnologies/synthos_dev/backend-go/internal/storage"
 	"github.com/gofiber/fiber/v2"
 )
+
+// Type alias for storage provider
+type SignedURLProvider = storage.SignedURLProvider
 
 type Deps struct {
 	// Add services as we implement them (db, redis, auth, etc.)
@@ -46,7 +50,7 @@ func Register(app *fiber.App, d Deps) {
 	// Users
 	users := v1.Group("/users")
 	users.Get("/me", d.Users.Me)
-	users.Put("/profile", notImplemented)
+	users.Put("/profile", d.Users.UpdateProfile)
 	users.Get("/usage", d.Usage.GetUsage)
 
 	// Datasets
@@ -74,8 +78,8 @@ func Register(app *fiber.App, d Deps) {
 	pay.Post("/checkout", d.Payments.Checkout)
 	pay.Get("/subscription", d.Payments.Subscription)
 	pay.Post("/contact-sales", d.Payments.ContactSales)
-	pay.Post("/webhook", notImplemented)
-	pay.Post("/paddle-webhook", notImplemented)
+	pay.Post("/webhook", d.Payments.StripeWebhook)
+	pay.Post("/paddle-webhook", d.Payments.PaddleWebhook)
 
 	// Privacy
 	privacy := v1.Group("/privacy")
@@ -114,8 +118,8 @@ func Register(app *fiber.App, d Deps) {
 	vertex.Get("/models", d.VertexAI.ListModels)
 	vertex.Get("/models/:model", d.VertexAI.GetModelInfo)
 	vertex.Post("/generate", d.VertexAI.GenerateText)
-	vertex.Post("/synthetic-data", notImplemented)
-	vertex.Post("/stream", notImplemented)
+	vertex.Post("/synthetic-data", d.VertexAI.GenerateSyntheticData)
+	vertex.Post("/stream", d.VertexAI.StreamGeneration)
 	vertex.Get("/health", d.VertexAI.HealthCheck)
 	vertex.Get("/usage") // d.Auth.AuthMiddleware(), d.VertexAI.GetUsageStats)
 	vertex.Get("/pricing", d.VertexAI.GetModelPricing)
