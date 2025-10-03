@@ -136,21 +136,21 @@ func (d DatasetDeps) Download(c *fiber.Ctx) error {
 	}
 
 	// Check if dataset has a storage key
-	if dataset.StorageKey == nil || *dataset.StorageKey == "" {
+	if dataset.ObjectKey == nil || *dataset.ObjectKey == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "dataset_not_uploaded"})
 	}
 
 	// Generate signed URL if storage client is available
 	var downloadURL string
 	if d.StorageClient != nil {
-		signedURL, err := d.StorageClient.GetSignedURL(context.Background(), *dataset.StorageKey, 1*time.Hour)
+		signedURL, err := d.StorageClient.GetSignedURL(context.Background(), *dataset.ObjectKey, 1*time.Hour)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed_to_generate_download_url"})
 		}
 		downloadURL = signedURL
 	} else {
 		// Fallback: return the key for development/testing
-		downloadURL = *dataset.StorageKey
+		downloadURL = *dataset.ObjectKey
 	}
 
 	return c.JSON(fiber.Map{"download_url": downloadURL, "filename": dataset.OriginalFile})
