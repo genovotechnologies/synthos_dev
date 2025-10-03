@@ -21,7 +21,7 @@ type TestDB struct {
 
 // NewTestDB creates a new test database with sqlmock
 func NewTestDB(t *testing.T) *TestDB {
-	mockDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	mockDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	require.NoError(t, err)
 
 	sqlxDB := sqlx.NewDb(mockDB, "sqlmock")
