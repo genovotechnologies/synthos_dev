@@ -94,16 +94,16 @@ type ValidationsGetByIdResponse struct {
 	ValidationId string    `json:"validation_id"`
 	CreatedAt    time.Time `json:"created_at"`
 	// For when the `Status` is set to "running"
-	StartedAt         *time.Time                  `json:"started_at"`
-	EstimatedComplete *time.Time                  `json:"estimated_completion"`
-	CurrentStage      *string                     `json:"current_stage"`
-	Progress          *float32                    `json:"progress"`
-	Stages            *[]StageInGetValidationById `json:"stages"`
+	StartedAt         *time.Time                  `json:"started_at,omitempty"`
+	EstimatedComplete *time.Time                  `json:"estimated_completion,omitempty"`
+	CurrentStage      *string                     `json:"current_stage,omitempty"`
+	Progress          *float32                    `json:"progress,omitempty"`
+	Stages            *[]StageInGetValidationById `json:"stages,omitempty"`
 	// For when the `Status` is set to "completed"
-	CompletedAt    *time.Time                `json:"completed_at"`
-	Result         *ValidationsGetByIdResult `json:"results"`
-	ReportUrl      *string                   `json:"report_url"`
-	CertificateUrl *string                   `json:"certificate_url"`
+	CompletedAt    *time.Time                `json:"completed_at,omitempty"`
+	Result         *ValidationsGetByIdResult `json:"results,omitempty"`
+	ReportUrl      *string                   `json:"report_url,omitempty"`
+	CertificateUrl *string                   `json:"certificate_url,omitempty"`
 }
 
 //------------------------------------------
@@ -118,7 +118,7 @@ type ValidationProps struct {
 	DatasetName  string     `json:"dataset_name"`
 	RiskScore    int16      `json:"risk_score"`
 	CreatedAt    time.Time  `json:"created_at"`
-	CompletedAt  *time.Time `json:"completed_at"`
+	CompletedAt  *time.Time `json:"completed_at,omitempty"`
 }
 
 type GetValidationsResponse struct {
