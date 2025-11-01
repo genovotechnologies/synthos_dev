@@ -37,5 +37,40 @@ type CollapseRootCause struct {
 
 //----------------------------------------
 // GET /validations/{validation_id}/recommendations
+// Purpose: Get actionable recommendations to fix data
+
+type CollapseCombinedImpact struct {
+	CurrentRiskScore  float32 `json:"current_risk_score"`
+	ExpectedRiskScore float32 `json:"expected_risk_score"`
+	TotalImprovement  float32 `json:"total_improvement"`
+	EstimatedTime     string  `json:"estimated_time"` // "3.5 hours"
+}
+
+type CollapseRecomImpact struct {
+	CurrentRiskScore  float32 `json:"current_risk_score"`
+	ExpectedRiskScore float32 `json:"expected_risk_score"`
+	Improvement       float32 `json:"improvement"`
+}
+
+type CollapseRecomImplemen struct {
+	Method        string `json:"method"`
+	AffectedRows  uint32 `json:"affected_rows"`
+	EstimatedTime string `json:"estimated_time"` // "2 hours"
+}
+
+type CollapseRecommendation struct {
+	Priority       int16                 `json:"priority"`
+	Category       string                `json:"category"` // "data_removal" | "data_augmentation"
+	Title          string                `json:"title"`
+	Description    string                `json:"description"`
+	Impact         CollapseRecomImpact   `json:"impact"`
+	Implementation CollapseRecomImplemen `json:"implementation"`
+}
+
+type CollapseRecomResponse struct {
+	ValidationID    string                   `json:"validation_id"`
+	Recommendations []CollapseRecommendation `json:"recommendations"`
+	CombinedImpact  CollapseCombinedImpact   `json:"combined_impact"`
+}
 
 //----------------------------------------
