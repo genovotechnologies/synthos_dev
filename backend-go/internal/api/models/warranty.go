@@ -17,7 +17,7 @@ type WarrantyReqElig struct {
 	IsEligible bool    `json:"eligible"`
 }
 
-type WarrantyReqTerms struct {
+type WarrantyTerms struct {
 	CoverageType string  `json:"coverage_type"`
 	MaxPayout    float32 `json:"max_payout"`
 	Deductible   float32 `json:"deductible"`
@@ -31,13 +31,34 @@ type WarrantyReqBody struct {
 }
 
 type WarrantyReqResponse struct {
-	WarrantyId      string           `json:"warranty_id"`
-	ValidationId    string           `json:"validation_id"`
-	Status          string           `json:"status"`
-	Eligibility     WarrantyReqElig  `json:"eligibility"`
-	Terms           WarrantyReqTerms `json:"terms"`
-	Conditions      []string         `json:"conditions"`
-	ReviewEstimated time.Time        `json:"review_estimated"`
+	WarrantyId      string          `json:"warranty_id"`
+	ValidationId    string          `json:"validation_id"`
+	Status          string          `json:"status"`
+	Eligibility     WarrantyReqElig `json:"eligibility"`
+	Terms           WarrantyTerms   `json:"terms"`
+	Conditions      []string        `json:"conditions"`
+	ReviewEstimated time.Time       `json:"review_estimated"`
+}
+
+//---------------------------------------
+
+// ---------------------------------------
+// GET /warranties/{warranty_id}
+type CustomerOblig struct {
+	Obligation  string     `json:"obligation"`
+	Status      string     `json:"status"`
+	VerifiedAt  *time.Time `json:"verified_at,omitempty"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+}
+
+type WarrantyByIdResponse struct {
+	WarrantyId          string          `json:"warranty_id"`
+	ValidationId        string          `json:"validation_id"`
+	Status              string          `json:"status"`
+	PurchasedAt         time.Location   `json:"purchased_at"`
+	ExpiresAt           time.Time       `json:"expires_at"`
+	Terms               WarrantyTerms   `json:"terms"`
+	CustomerObligations []CustomerOblig `json:"customer_obligations"`
 }
 
 //---------------------------------------
