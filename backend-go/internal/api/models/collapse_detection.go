@@ -3,7 +3,7 @@ package models
 // ----------------------------------------
 // GET /validations/{validation_id}/collapse-details
 type CollapseDetailsResponse struct {
-	ValidationID       string                      `json:"validation_id"`
+	ValidationId       string                      `json:"validation_id"`
 	CollapseDetected   bool                        `json:"collapse_detected"`
 	CollapseType       string                      `json:"collapse_type"`
 	Severity           string                      `json:"severity"`
@@ -68,7 +68,7 @@ type CollapseRecommendation struct {
 }
 
 type CollapseRecomResponse struct {
-	ValidationID    string                   `json:"validation_id"`
+	ValidationId    string                   `json:"validation_id"`
 	Recommendations []CollapseRecommendation `json:"recommendations"`
 	CombinedImpact  CollapseCombinedImpact   `json:"combined_impact"`
 }
