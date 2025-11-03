@@ -76,7 +76,7 @@ type ValidationDimensions struct {
 }
 
 type ValidationsGetByIdResult struct {
-	RiskScore int16 `json:"risk_score"`
+	RiskScore float32 `json:"risk_score"`
 	// "low" | "average" | "high"
 	RiskLevel     string               `json:"risk_level"`
 	PredictedPerf ValidationPredPerf   `json:"prediction_performance"`
