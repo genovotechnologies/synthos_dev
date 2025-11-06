@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+service SignatureLibrary {
+  // Match dataset fingerprint against library
+  rpc MatchSignatures(MatchRequest) returns (MatchResponse);
+  // Add new collapse signature
+  rpc AddSignature(AddSignatureRequest) returns (AddSignatureResponse);
+  // Update signature with outcome
+  rpc UpdateOutcome(UpdateOutcomeRequest) returns (UpdateOutcomeResponse);
+}
+
+message MatchRequest {
+  string dataset_id = 1;
+  DatasetFingerprint fingerprint = 2;
+}
+
+message DatasetFingerprint {
+  repeated double distribution_shape = 1;
+  repeated double entropy_measures = 2;
+  repeated double correlation_values = 3;
+  repeated double temporal_features = 4;
+}
+
+message MatchResponse {
+  repeated SignatureMatch matches = 1;
+  int32 pre_risk_score = 2;
+  string recommendation = 3;
+}
+
+message SignatureMatch {
+  string signature_id = 1;
+  string collapse_type = 2;
+  double similarity = 3;
+  string historical_outcome = 4;
+  string dataset_source = 5;
+}
+
+message AddSignatureRequest {
+  string validation_id = 1;
+  DatasetFingerprint fingerprint = 2;
+  string collapse_type = 3;
+  int32 risk_score = 4;
+  string root_cause = 5;
+}
+
+message AddSignatureResponse {
+  string signature_id = 1;
+  bool added = 2;
+  int32 total_signatures = 3;
+}
+
+message UpdateOutcomeRequest {} // TODO
+
+message UpdateOutcomeResponse {} // TODO

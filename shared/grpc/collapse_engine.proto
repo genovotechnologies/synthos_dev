@@ -1,0 +1,129 @@
+syntax = "proto3";
+
+service CollapseEngine {
+  // Detect collapse in cascade results
+  rpc DetectCollapse(CollapseRequest) returns (CollapseResponse);
+  // Locate problematic data regions
+  rpc LocalizeProblems(LocalizationRequest) returns (LocalizationResponse);
+  // Generate recommendations
+  rpc GenerateRecommendations(RecommendationRequest)
+      returns (RecommendationResponse);
+  // Validate fixes (re-validation)
+  rpc ValidateFixes(FixValidationRequest) returns (FixValidationResponse);
+}
+
+message CollapseRequest {
+  string dataset_id = 1;
+  repeated ModelResult cascade_results = 2;
+  DiversityMetrics original_diversity = 3;
+}
+
+message DiversityMetrics {
+  double entropy = 1;
+  double gini_coefficient = 2;
+  int32 cluster_count = 3;
+  repeated CorrelationMatrix correlations = 4;
+}
+
+message CollapseResponse {
+  string dataset_id = 1;
+  bool collapse_detected = 2;
+  string collapse_type = 3; // "Type A", "Type B", etc.
+  string severity = 4;      // "low", "medium", "high"
+  repeated DimensionScore dimensions = 5;
+  repeated RootCause root_causes = 6;
+}
+
+message DimensionScore {
+  string dimension = 1; // "distribution_fidelity", etc.
+  int32 score = 2;      // 0-100
+  int32 threshold = 3;
+  bool passed = 4;
+}
+
+message RootCause {
+  string cause = 1;
+  double percentage = 2;
+  string description = 3;
+}
+
+message LocalizationRequest {
+  string dataset_id = 1;
+  string sample_s3_path = 2;
+  repeated ModelResult cascade_results = 3;
+  CollapseResponse collapse_info = 4;
+}
+
+message LocalizationResponse {
+  string dataset_id = 1;
+  repeated ProblematicRegion regions = 2;
+  GradientHeatmap heatmap = 3;
+  repeated AblationResult ablations = 4;
+}
+
+message ProblematicRegion {
+  string region_id = 1;
+  int64 row_start = 2;
+  int64 row_end = 3;
+  string issue_type = 4; // "duplicates", "outliers", etc.
+  double impact_score = 5;
+  repeated string affected_columns = 6;
+}
+
+message AblationResult {
+  string region_id = 1;
+  int32 risk_score_before = 2;
+  int32 risk_score_after = 3;
+  int32 improvement = 4;
+  bool hypothesis_confirmed = 5;
+}
+
+message RecommendationRequest {
+  string dataset_id = 1;
+  LocalizationResponse localization = 2;
+  CollapseResponse collapse_info = 3;
+}
+
+message RecommendationResponse {
+  string dataset_id = 1;
+  repeated Recommendation recommendations = 2;
+  CombinedImpact combined_impact = 3;
+}
+
+message Recommendation {
+  int32 priority = 1;
+  string category = 2; // "data_removal", "data_smoothing", etc.
+  string title = 3;
+  string description = 4;
+  Impact impact = 5;
+  Implementation implementation = 6;
+}
+
+message Impact {
+  int32 current_risk_score = 1;
+  int32 expected_risk_score = 2;
+  int32 improvement = 3;
+}
+
+message Implementation {
+  string method = 1;
+  int64 affected_rows = 2;
+  string estimated_time = 3;
+}
+
+message CombinedImpact {
+  int32 current_risk_score = 1;
+  int32 expected_risk_score = 2;
+  int32 total_improvement = 3;
+  string estimated_time = 4;
+}
+
+message GradientHeatmap {} // TODO
+
+message FixValidationRequest {} // TODO
+
+message FixValidationResponse {} // TODO
+
+message CorrelationMatrix {} // TODO
+
+// message CorrelationMatrix {} // TODO

@@ -114,15 +114,15 @@ func Register(app *fiber.App, d Deps) {
 	v1.Get("/feedback/:id", d.Analytics.GetFeedback)
 
 	// Vertex AI - All models through Vertex AI
-	vertex := v1.Group("/vertex")
-	vertex.Get("/models", d.VertexAI.ListModels)
-	vertex.Get("/models/:model", d.VertexAI.GetModelInfo)
-	vertex.Post("/generate", d.VertexAI.GenerateText)
-	vertex.Post("/synthetic-data", d.VertexAI.GenerateSyntheticData)
-	vertex.Post("/stream", d.VertexAI.StreamGeneration)
-	vertex.Get("/health", d.VertexAI.HealthCheck)
-	vertex.Get("/usage") // d.Auth.AuthMiddleware(), d.VertexAI.GetUsageStats)
-	vertex.Get("/pricing", d.VertexAI.GetModelPricing)
+	// vertex := v1.Group("/vertex")
+	// vertex.Get("/models", d.VertexAI.ListModels)
+	// vertex.Get("/models/:model", d.VertexAI.GetModelInfo)
+	// vertex.Post("/generate", d.VertexAI.GenerateText)
+	// vertex.Post("/synthetic-data", d.VertexAI.GenerateSyntheticData)
+	// vertex.Post("/stream", d.VertexAI.StreamGeneration)
+	// vertex.Get("/health", d.VertexAI.HealthCheck)
+	// vertex.Get("/usage") // d.Auth.AuthMiddleware(), d.VertexAI.GetUsageStats)
+	// vertex.Get("/pricing", d.VertexAI.GetModelPricing)
 }
 
 func notImplemented(c *fiber.Ctx) error {
