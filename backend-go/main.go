@@ -14,7 +14,7 @@ import (
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/cache"
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/config"
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/db"
-	"github.com/genovotechnologies/synthos_dev/backend-go/internal/http/v1"
+	v1 "github.com/genovotechnologies/synthos_dev/backend-go/internal/http/v1"
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/logger"
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/middleware"
 	"github.com/genovotechnologies/synthos_dev/backend-go/internal/repo"
@@ -89,13 +89,13 @@ func main() {
 	}
 
 	bl := auth.NewBlacklist(redisClient.Client)
-	
+
 	// Initialize custom model repository
 	customModelRepo := repo.NewCustomModelRepo(database.SQL)
 	if err := customModelRepo.CreateSchema(context.Background()); err != nil {
 		logg.Fatal("failed to create custom model schema", zap.Error(err))
 	}
-	
+
 	usageService := usage.NewUsageService(userRepo, genRepo, datasetRepo, customModelRepo)
 
 	// Initialize advanced repositories
@@ -129,10 +129,10 @@ func main() {
 	)
 
 	// Initialize Vertex AI handlers
-	vertexAIHandlers, err := v1.NewVertexAIHandlers(cfg)
-	if err != nil {
-		logg.Fatal("failed to initialize Vertex AI handlers", zap.Error(err))
-	}
+	// vertexAIHandlers, err := v1.NewVertexAIHandlers(cfg)
+	// if err != nil {
+	// 	logg.Fatal("failed to initialize Vertex AI handlers", zap.Error(err))
+	// }
 
 	// Initialize storage client based on provider
 	var storageClient v1.SignedURLProvider
@@ -153,7 +153,7 @@ func main() {
 			EmailService: emailService,
 			Blacklist:    bl,
 		},
-		Users:   v1.UserDeps{Users: userRepo},
+		Users: v1.UserDeps{Users: userRepo},
 		Datasets: v1.DatasetDeps{
 			Datasets:      datasetRepo,
 			Usage:         usageService,
@@ -173,7 +173,7 @@ func main() {
 		Admin:        v1.AdminDeps{Users: userRepo},
 		Usage:        v1.UsageDeps{Usage: usageService},
 		CustomModels: v1.CustomModelDeps{CustomModels: customModelRepo},
-		VertexAI:     vertexAIHandlers,
+		// VertexAI:     vertexAIHandlers,
 	})
 
 	_ = redisClient // will be used in auth/token blacklist etc.
