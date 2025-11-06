@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+service ValidationEngineValidationEngine {
+  // Phase 1: Data profiling// Phase 1: Data profiling
+  rpc ProfileDataset(ProfileRequest) returns (ProfileResponse);
+  // Phase 2: Diversity analysis// Phase 2: Diversity analysis
+  rpc AnalyzeDiversity(DiversityRequest) returns (DiversityResponse);
+  // Phase 3: Pre-training risk assessment// Phase 3: Pre-training risk
+  // assessment
+  rpc PreScreenRisk(PreScreenRequest) returns (PreScreenResponse);
+  // Phase 4: Multi-scale cascade training// Phase 4: Multi-scale cascade
+  // training
+  rpc TrainCascade(CascadeRequest) returns (stream CascadeProgress);
+  // Phase 5: Get final predictions// Phase 5: Get final predictions
+  rpc GetPredictions(PredictionRequest) returns (PredictionResponse);
+}
+
+message ProfileRequest {
+  string dataset_id = 1;
+  string s3_path = 2;
+  int64 row_count = 3;
+}
+
+message ProfileResponse {
+  string dataset_id = 1;
+  repeated ColumnProfile columns = 2;
+  DataQualityMetrics quality = 3;
+  bool has_pii = 4;
+}
+
+message ColumnProfile {
+  string name = 1;
+  string data_type = 2;
+  double null_rate = 3;
+  double unique_rate = 4;
+  StatisticalProfile stats = 5;
+}
+
+message DiversityRequest {
+  string dataset_id = 1;
+  string s3_path = 2;
+  int32 sample_size = 3; // e.g., 20000000
+}
+
+message DiversityResponse {
+  string dataset_id = 1;
+  string sample_s3_path = 2;
+  DiversityMetrics metrics = 3;
+  repeated Cluster clusters = 4;
+  SamplingConfidence confidence = 5;
+}
+
+message DiversityMetrics {
+  double entropy = 1;
+  double gini_coefficient = 2;
+  int32 cluster_count = 3;
+  repeated CorrelationMatrix correlations = 4;
+}
+
+message PreScreenRequest {
+  string dataset_id = 1;
+  DiversityMetrics diversity = 2;
+}
+
+message PreScreenResponse {
+  string dataset_id = 1;
+  int32 pre_risk_score = 2; // 0-100
+  repeated SignatureMatch matches = 3;
+  bool should_proceed = 4;
+  string recommendation = 5;
+}
+
+message SignatureMatch {
+  string signature_id = 1;
+  string collapse_type = 2;
+  double similarity = 3;
+  string historical_outcome = 4;
+}
+
+message CascadeRequest {
+  string dataset_id = 1;
+  string sample_s3_path = 2;
+  CascadeConfig config = 3;
+}
+
+message CascadeConfig {
+  repeated ModelTier tiers = 1;
+  string target_architecture = 2;
+  int64 target_model_size = 3;
+}
+
+message ModelTier {
+  int32 tier_number = 1;
+  int64 model_size = 2;
+  int32 num_variants = 3;
+  int32 training_rows = 4;
+}
+
+message CascadeProgress {
+  string dataset_id = 1;
+  int32 current_tier = 2;
+  int32 current_variant = 3;
+  int32 models_completed = 4;
+  int32 models_total = 5;
+  double progress_percent = 6;
+  // When model completes
+  optional ModelResult result = 7;
+}
+
+message ModelResult {
+  int32 tier = 1;
+  int32 variant = 2;
+  int64 model_size = 3;
+  TrainingMetrics metrics = 4;
+  bool collapse_detected = 5;
+}
+
+message PredictionRequest {
+  string dataset_id = 1;
+  repeated ModelResult cascade_results = 2;
+  int64 target_model_size = 3;
+}
+
+message PredictionResponse {
+  string dataset_id = 1;
+  double predicted_accuracy = 2;
+  ConfidenceInterval confidence = 3;
+  ScalingLawCoefficients scaling = 4;
+  int32 final_risk_score = 5;
+}
+
+message ConfidenceInterval {
+  double lower_bound = 1;
+  double upper_bound = 2;
+  double confidence_level = 3;
+}
+
+message CorrelationMatrix {} // TODO
+
+message TrainingMetrics {} // TODO
+
+message ScalingLawCoefficients {} // TODO
+
+message SamplingConfidence {} // TODO
+
+message Cluster {} // TODO
+
+message StatisticalProfile {} // TODO
+
+message DataQualityMetrics {} // TODO
